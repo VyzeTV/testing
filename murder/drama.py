@@ -4,7 +4,6 @@ romances and feuds, restorative moments, and the confessional booth.
 DramaMixin is mixed into DayRunner (engine.py) and uses its helpers (self.world, self.s, self.nm,
 self.stat, self.log_event, self.dread_level, ...).
 """
-from concurrent.futures import ThreadPoolExecutor
 
 from .data_cast import HOSTS, STORY_BIBLE
 from .data_world import ROOMS, CAMERA_BLIND, ISLAND_TRUTHS, COMMON_ITEMS
@@ -510,6 +509,7 @@ class DramaMixin:
         from .data_world import ESCAPE_ROUTES
 
         def judge(cid, d):
+            """The dice and the ruling prompt for one experiment (the model call happens afterwards, in parallel)."""
             a = w.agents[cid]
             c = w.cast[cid]
             room = a["room"]
@@ -529,23 +529,24 @@ class DramaMixin:
                     + '\nReply as JSON: {"route": "transmit|shutdown|raft|ultimatum|none", "step": "<step name of that route, or none>", "gain": 0..30, '
                       '"outcome": "<1-2 vivid sentences of what happens>", "learned": "<one concrete fact the experimenter learns, or empty>", '
                       '"hp": 0..-15, "sanity": -5..2, "alert_terevi": true|false}')
-            r = self.llm.adjudicate(sysm, user, {"cid": cid})
-            r["_dice"] = dice
-            return r
+            return sysm, user, dice
 
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            futs = [(cid, d, pool.submit(judge, cid, d)) for cid, d in exps if cid in w.agents]
-            for cid, d, fut in futs:
+        todo = []
+        for i, (cid, d) in enumerate(exps):
+            if cid in w.agents:
                 try:
-                    r = fut.result()
-                except LLMError as e:
-                    if e.fatal:
-                        raise
-                    tick["errors"].append(f"experiment judging failed: {str(e)[:80]}")
-                    continue
+                    todo.append((i, cid, d) + judge(cid, d))
                 except Exception:
                     continue
-                self.apply_experiment(tick, cid, d, r, hour)
+        answers = self.ask_parallel([(i, lambda sysm=sysm, user=user, cid=cid: self.llm.adjudicate(sysm, user, {"cid": cid})) for i, cid, d, sysm, user, dice in todo])
+        for i, cid, d, sysm, user, dice in todo:
+            r, err = answers[i]
+            if err is not None:
+                if isinstance(err, LLMError):
+                    tick["errors"].append(f"experiment judging failed: {str(err)[:80]}")
+                continue
+            r["_dice"] = dice
+            self.apply_experiment(tick, cid, d, r, hour)
 
     def apply_experiment(self, tick, cid, d, r, hour):
         w, s = self.world, self.s

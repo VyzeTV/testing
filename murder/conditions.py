@@ -236,9 +236,6 @@ class ConditionMixin:
         return out
 
     # ------------------------------------------------------------------ unconsciousness
-    def is_out(self, cid):
-        return bool((self.world.agents.get(cid) or {}).get("out"))
-
     def knock_out(self, tick, cid, cause, turns=None, by=None, quiet=False):
         """Someone loses consciousness (knocked out, fainted, drugged...). They are helpless until they come round."""
         w = self.world

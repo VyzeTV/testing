@@ -542,8 +542,8 @@ class ChaosMixin:
                         self.adjust_any_aff("neovi", cid, 1)
 
     # ------------------------------------------------------------------ nightly reflection and recap
-    def reflect(self, cid, tick):
-        """One call per night per character: a diary entry plus a possible change of drive."""
+    def reflect_prompt(self, cid):
+        """One call per night per character: a diary entry plus a possible change of drive. Returns (system, user, ctx) for the call."""
         w = self.world
         a, c = w.agents[cid], w.cast[cid]
         d = a["drive"]
@@ -561,13 +561,16 @@ class ChaosMixin:
                 + ("Their mind is breaking: a turn toward nihilist or avenger is very plausible. " if lvl >= 3 else "")
                 + f"Write the diary entry (first person, plain, max 60 words), and decide whether today changed what they want. Drive options: {options}. "
                   'Reply as JSON: {"diary": "...", "drive": "keep or a drive id", "target": "<person id or empty>", "arc": "<one sentence on how they are changing>"}')
-        try:
-            r = self.llm.reflect(sysm, user, {"events": mem["recent"], "ids": list(w.agents.keys()), "cid": cid})
-        except LLMError as e:
-            if e.fatal:
-                raise
-            return " ".join(mem["recent"][-3:])[:300]
-        except Exception:
+        return sysm, user, {"events": mem["recent"], "ids": list(w.agents.keys()), "cid": cid}
+
+    def reflect_apply(self, cid, tick, r, err=None):
+        """Apply one night's reflection (the model's answer, or None after an error). Returns the diary text."""
+        w = self.world
+        a = w.agents[cid]
+        d = a["drive"]
+        known = {k: v for k, v in a["aff"].items() if k in w.agents}
+        mem = a["memory"]
+        if err is not None or not isinstance(r, dict):
             return " ".join(mem["recent"][-3:])[:300]
         diary = str(r.get("diary", "")).strip() or " ".join(mem["recent"][-3:])[:300]
         new = r.get("drive")

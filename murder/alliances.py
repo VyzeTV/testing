@@ -71,15 +71,6 @@ class AllianceMixin:
         self.log_event(tick, {"type": "alliance", "who": members[0], "room": room, "vis": "viewer", "text": f"{names} form an alliance" + (" in secret." if secret else ".")}, actor=members[0])
         self.tally(members[0], "alliances")
 
-    def join_alliance(self, tick, cid, al, hour):
-        if len(al["members"]) >= MAX_MEMBERS or cid in al["members"]:
-            return
-        al["members"].append(cid)
-        for m in al["members"]:
-            if m != cid:
-                self.add_tie(cid, m, "allied", f"we stand together (day {self.day})", 1)
-        self.world.remember(cid, f"{_hh(hour)} (private) You joined {', '.join(self.nm(m) for m in al['members'] if m != cid)}'s alliance.")
-
     # ------------------------------------------------------------------ living with it
     def alliance_tick(self, tick, hour):
         """Strength grows when allies are together and help each other, and fades when they are apart or quarrel; a member who is gone ends it."""

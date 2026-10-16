@@ -6,7 +6,6 @@ one-on-one while the others judge) and the Brainstorm (something baffling: peopl
 There is no "nobody" vote: a death with a culprit always has someone guilty. Deaths with no culprit never reach a trial.
 """
 from collections import Counter
-from concurrent.futures import ThreadPoolExecutor
 
 from .llm import LLMError
 from .world import clamp
@@ -378,7 +377,8 @@ class TrialMixin:
         debate = " / ".join(f"{self.nm(l['speaker'])}: {l['text']}" for g in tick["talk"] for l in g["lines"])[-1700:]
         evidence = self.evidence_text(case)
 
-        def cast_vote(cid):
+        def vote_prompt(cid):
+            """A muddled voter's gut-feeling vote, or the prompt for a considered one (asked afterwards, in parallel)."""
             a = w.agents[cid]
             cands = ", ".join(f"{k}={self.nm(k)}" for k in ids if k != cid)
             mem = a["memory"]
@@ -398,27 +398,23 @@ class TrialMixin:
                     'Reply as JSON: {"vote": "<person id>", "reason": "<max 25 words, in your voice>"}')
             ctx = {"voter": cid, "candidates": [k for k in ids if k != cid], "killer": killer}
             if self.rng.random() < self.slip_chance(cid) * 0.3:
-                return {"voter": cid, "target": self.rng.choice(ctx["candidates"]), "reason": "(muddled, went with a gut feeling)"}
-            try:
-                r = self.llm.vote(self.system_prompt(cid), user, ctx)
-                v = r.get("vote")
-                if v not in ctx["candidates"]:
-                    raise ValueError("bad vote")
-                return {"voter": cid, "target": v, "reason": str(r.get("reason", ""))[:200]}
-            except LLMError as e:
-                if e.fatal:
-                    raise
-            except Exception:
-                pass
-            return {"voter": cid, "target": self.rng.choice(ctx["candidates"]), "reason": "(abstained into a random guess)"}
+                return {"voter": cid, "target": self.rng.choice(ctx["candidates"]), "reason": "(muddled, went with a gut feeling)"}, None
+            return None, (self.system_prompt(cid), user, ctx)
 
-        with ThreadPoolExecutor(max_workers=self.workers) as pool:
-            futs = [pool.submit(cast_vote, cid) for cid in ids]
-            votes = []
-            for f in futs:
-                if self.should_stop():
-                    raise self.StopExc()
-                votes.append(f.result())
+        prepared = {cid: vote_prompt(cid) for cid in ids}
+        answers = self.ask_parallel([(cid, lambda q=q: self.llm.vote(*q)) for cid, (done, q) in prepared.items() if q])
+        votes = []
+        for cid in ids:
+            done, q = prepared[cid]
+            if done:
+                votes.append(done)
+                continue
+            r, err = answers[cid]
+            v = r.get("vote") if isinstance(r, dict) else None
+            if err is None and v in q[2]["candidates"]:
+                votes.append({"voter": cid, "target": v, "reason": str(r.get("reason", ""))[:200]})
+            else:
+                votes.append({"voter": cid, "target": self.rng.choice(q[2]["candidates"]), "reason": "(abstained into a random guess)"})
         for v in votes:
             self.betrayal(tick, v["voter"], v["target"], "voted against")
         tally = Counter(v["target"] for v in votes)

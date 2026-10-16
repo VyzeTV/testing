@@ -352,7 +352,7 @@ class StoryMixin:
             return ""
         words = {}
         for t in ra:
-            for wd in set(t.replace(",", " ").split()):
+            for wd in dict.fromkeys(t.replace(",", " ").split()):          # each word once per act, in order (a set would order them by hash)
                 if len(wd) > 4:
                     words[wd] = words.get(wd, 0) + 1
         stale = [wd for wd, n in sorted(words.items(), key=lambda kv: -kv[1]) if n >= 3][:5]

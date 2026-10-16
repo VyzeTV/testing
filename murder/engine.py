@@ -144,6 +144,8 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         self.rng = random.Random(seed)
         if seed is not None:
             world.rng.seed(seed)                  # reproducible runs and tests
+            if getattr(llm, "mock", False):
+                llm.seed = seed                   # mock answers too
         self.murders = murders
         self.motive = (motive or "").strip()
         self.rule_mode = rule_mode
@@ -488,14 +490,55 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         return {"kind": h.get("kind") if h.get("kind") in OCCASION_SANITY else "other",
                 "where": h.get("where") if h.get("where") in ROOMS else "", "invite": invite, "text": text, "secret_from": secret}
 
+    def ask_parallel(self, jobs):
+        """Run model calls in parallel. `jobs` is a list of (key, call) where each call only asks the model and returns its raw answer: everything that rolls dice
+        or changes the world happens before or after, in a fixed order, so a seeded run is reproducible whatever order the calls finish in.
+        Returns {key: (answer, error)}; a fatal model error is raised."""
+        out = {}
+        if not jobs:
+            return out
+        with ThreadPoolExecutor(max_workers=self.workers) as pool:
+            futs = [(key, pool.submit(call)) for key, call in jobs]
+            for key, fut in futs:
+                if self.should_stop():
+                    raise Stop()
+                try:
+                    out[key] = (fut.result(), None)
+                except LLMError as e:
+                    if e.fatal:
+                        raise
+                    out[key] = (None, e)
+                except Exception as e:
+                    out[key] = (None, e)
+        return out
+
     def decide(self, cid, hour):
+        return self.decide_many([cid], hour)[cid]
+
+    def decide_many(self, cids, hour):
+        """Decisions for several people: engine-made ones and prompts in order, the model calls in parallel, then each answer cleaned up in order."""
+        res, asks = {}, []
+        for cid in cids:
+            got = self.decide_prepare(cid, hour)
+            if got[0] == "done":
+                res[cid] = got[1]
+            else:
+                sysm, user, ctx = got[1]
+                asks.append((cid, lambda sysm=sysm, user=user, ctx=ctx: self.llm.decide(sysm, user, ctx)))
+        answers = self.ask_parallel(asks)
+        for cid, _ in asks:
+            raw, err = answers[cid]
+            res[cid] = self.decide_finish(cid, hour, raw, err)
+        return {cid: res[cid] for cid in cids}
+
+    def decide_prepare(self, cid, hour):
         a = self.world.agents[cid]
         w = self.world
         if a.get("out"):
-            return self.clean_decision({"activity": "Unconscious", "action": "stay"}), None
+            return "done", (self.clean_decision({"activity": "Unconscious", "action": "stay"}), None)
         if self.engine_decisions_on() and not self.needs_model(cid, hour):
             self.note_use(cid, "decision", "engine")
-            return self.routine_decision(cid, hour), None
+            return "done", (self.routine_decision(cid, hour), None)
         self.note_use(cid, "decision", "model")
         weapons = [k for k in list(a["inv"]) + list(self.s["room_items"].get(a["room"], {}))
                    if "weapon" in w.item_spec(k).get("tags", [])]
@@ -511,16 +554,21 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             "end_ok": self.murders and self.can_end_life(cid), "plot_ok": self.murders, "brain": self.brain_on(),
         }
         try:
-            raw = self.llm.decide(self.system_prompt(cid), self.decision_prompt(cid, hour), ctx)
+            return "ask", (self.system_prompt(cid), self.decision_prompt(cid, hour), ctx)
+        except Exception as e:
+            return "done", (self.clean_decision({"activity": "Lost in thought"}), f"{self.nm(cid)} zones out (bad prompt: {str(e)[:80]})")
+
+    def decide_finish(self, cid, hour, raw, err):
+        if err is not None:
+            if isinstance(err, LLMError):
+                return self.clean_decision({"activity": "Lost in thought"}), f"{self.nm(cid)} zones out (AI hiccup: {str(err)[:80]})"
+            return self.clean_decision({"activity": "Lost in thought"}), f"{self.nm(cid)} zones out (bad reply: {str(err)[:80]})"
+        try:
             d = self.clean_decision(raw)
             self.seek_care(cid, d)
             if self.brain_on() and d.get("plan"):
                 self.plan_store(cid, hour, d["plan"])
             return d, None
-        except LLMError as e:
-            if e.fatal:
-                raise
-            return self.clean_decision({"activity": "Lost in thought"}), f"{self.nm(cid)} zones out (AI hiccup: {str(e)[:80]})"
         except Exception as e:
             return self.clean_decision({"activity": "Lost in thought"}), f"{self.nm(cid)} zones out (bad reply: {str(e)[:80]})"
 
@@ -748,16 +796,11 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             self.rule_ctx = {"leader": leader, "room": w.agents[leader]["room"], "activity": d["activity"]}
             pre.append(leader)
         rest = [c for c in ids if c not in pre]
-        with ThreadPoolExecutor(max_workers=self.workers) as pool:
-            futures = {cid: pool.submit(self.decide, cid, hour) for cid in rest}
-            for cid, fut in futures.items():
-                if self.should_stop():
-                    raise Stop()
-                d, err = fut.result()
-                decisions[cid] = d
-                if err:
-                    tick["errors"].append(err)
-                    self.log_event(tick, {"type": "system", "who": cid, "room": w.agents[cid]["room"], "text": err, "vis": "gm"})
+        for cid, (d, err) in self.decide_many(rest, hour).items():
+            decisions[cid] = d
+            if err:
+                tick["errors"].append(err)
+                self.log_event(tick, {"type": "system", "who": cid, "room": w.agents[cid]["room"], "text": err, "vis": "gm"})
 
         self.mark_busy(decisions)
         self.plot_pileup(tick, hour)
@@ -1103,26 +1146,23 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         w, s = self.world, self.s
         results = {}
 
-        def job(gid, group):
+        asks = []
+        for gid, group in groups.items():
             room = gid.split("#")[0]
             ctx = {"people": [{"id": p, "name": self.nm(p), "human": p in w.agents,
                                "lines": (w.char(p) or {}).get("mock_lines", [])} for p in group],
                    "mode": (modes or {}).get(gid, mode)}
-            return self.llm.converse(self.talk_system(), self.talk_prompt(room, group, intents, hour, (modes or {}).get(gid, mode)), ctx)
-
-        with ThreadPoolExecutor(max_workers=self.workers) as pool:
-            futs = {room: pool.submit(job, room, grp) for room, grp in groups.items()}
-            for room, fut in futs.items():
-                if self.should_stop():
-                    raise Stop()
-                try:
-                    results[room] = fut.result()
-                except LLMError as e:
-                    if e.fatal:
-                        raise
-                    tick["errors"].append(f"conversation in {w.room_name(room.split('#')[0])} failed: {str(e)[:80]}")
-                except Exception as e:
-                    tick["errors"].append(f"conversation in {w.room_name(room.split('#')[0])} failed: {str(e)[:80]}")
+            try:
+                sysm, user = self.talk_system(), self.talk_prompt(room, group, intents, hour, (modes or {}).get(gid, mode))
+            except Exception as e:
+                tick["errors"].append(f"conversation in {w.room_name(room)} failed: {str(e)[:80]}")
+                continue
+            asks.append((gid, lambda sysm=sysm, user=user, ctx=ctx: self.llm.converse(sysm, user, ctx)))
+        for gid, (res, err) in self.ask_parallel(asks).items():
+            if err is not None:
+                tick["errors"].append(f"conversation in {w.room_name(gid.split('#')[0])} failed: {str(err)[:80]}")
+            else:
+                results[gid] = res
 
         for gid, res in results.items():
             room = gid.split("#")[0]
@@ -1662,20 +1702,19 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         tick["events"].append({"type": "system", "who": "terevi", "room": "foyer", "vis": "public", "text": f"Lights out. Day {self.day} ends."})
         # Diaries
         ids = list(w.agents.keys())
-
-        def summarize(cid):
-            return self.reflect(cid, tick)
-
-        with ThreadPoolExecutor(max_workers=self.workers) as pool:
-            futs = {cid: pool.submit(summarize, cid) for cid in ids}
-            for cid, fut in futs.items():
-                text = fut.result().strip()
-                mem = w.agents[cid]["memory"]
-                mem["diary"].append(f"Day {self.day}: {text}")
-                del mem["diary"][:-4]
-                self.brain_night(cid, text, (w.agents[cid].get("arc") or {}).get("text") if isinstance(w.agents[cid].get("arc"), dict) else w.agents[cid].get("arc"))
-                mem["recent"] = []
-                self.diary_added[cid] = text
+        asks = []
+        for cid in ids:
+            sysm, user, ctx = self.reflect_prompt(cid)
+            asks.append((cid, lambda sysm=sysm, user=user, ctx=ctx: self.llm.reflect(sysm, user, ctx)))
+        answers = self.ask_parallel(asks)
+        for cid in ids:
+            text = self.reflect_apply(cid, tick, *answers[cid]).strip()
+            mem = w.agents[cid]["memory"]
+            mem["diary"].append(f"Day {self.day}: {text}")
+            del mem["diary"][:-4]
+            self.brain_night(cid, text, (w.agents[cid].get("arc") or {}).get("text") if isinstance(w.agents[cid].get("arc"), dict) else w.agents[cid].get("arc"))
+            mem["recent"] = []
+            self.diary_added[cid] = text
         self.drama_night(tick)
         s["history"].append({"day": self.day, "notes": self.day_notable[-20:]})
         del s["history"][:-5]

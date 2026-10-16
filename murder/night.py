@@ -5,8 +5,6 @@ of some health and their sleep; the plotting and the restless are nudged to do s
 counted as present, see and hear nothing, and a sleeper can be attacked defencelessly. The owls get a normal turn in the dark (sneak, search, meet, strike).
 NightMixin is mixed into DayRunner (engine.py).
 """
-from concurrent.futures import ThreadPoolExecutor
-
 from .data_world import ROOMS
 
 NIGHT_HOUR = 23
@@ -89,15 +87,10 @@ class NightMixin:
                               "text": "The house goes quiet. " + ", ".join(self.nm(c) for c in owls) + (" stays" if len(owls) == 1 else " stay") + " up."})
         # parallel decisions from one snapshot, as in the day
         decisions, intents, attacks = {}, {}, []
-        with ThreadPoolExecutor(max_workers=self.workers) as pool:
-            futs = {cid: pool.submit(self.decide, cid, hour) for cid in owls}
-            for cid, fut in futs.items():
-                if self.should_stop():
-                    raise self.StopExc()
-                d, err = fut.result()
-                decisions[cid] = d
-                if err:
-                    tick["errors"].append(err)
+        for cid, (d, err) in self.decide_many(list(owls), hour).items():
+            decisions[cid] = d
+            if err:
+                tick["errors"].append(err)
         self.mark_busy(decisions)
         self.plot_tick(tick, hour, decisions)
         for cid in self.apply_order(list(owls)):

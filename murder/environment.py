@@ -130,9 +130,6 @@ class Environment:
                 n += 1
         return n
 
-    def fire_tiles(self):
-        return [(parse(k), v[0]) for k, v in self.st["fire"].items()]
-
     def rooms_on_fire(self):
         return {self.room_of(k) for k in self.st["fire"]} - {None}
 

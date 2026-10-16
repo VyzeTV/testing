@@ -5,6 +5,7 @@ Backends:
   api  - direct Anthropic API (needs credits and ANTHROPIC_API_KEY).
   mock - free scripted behaviour for testing the engine and viewer.
 """
+import hashlib
 import json
 import os
 import random
@@ -61,6 +62,8 @@ class LLM:
         self.cap = None            # optional per-day call cap: past it, calls fail softly (non-fatal)
         self._lock = threading.Lock()
         self._rng = random.Random()
+        self.seed = None           # set by a seeded DayRunner: mock answers then depend only on the seed and the prompt, never on thread timing
+        self._mock_n = {}
         self._client = None
         self._cli = None
         if backend == "cli":
@@ -147,15 +150,25 @@ class LLM:
                 last = e
         raise LLMError(f"unparseable reply: {last}")
 
+    def _mrng(self, key):
+        """The random source for one mock answer. Unseeded: the shared generator. Seeded: a generator of its own, made from the seed, the prompt and how many
+        times that prompt was asked, so parallel calls give the same answers whatever order they finish in."""
+        if self.seed is None:
+            return self._rng
+        with self._lock:
+            n = self._mock_n.get(key, 0)
+            self._mock_n[key] = n + 1
+        return random.Random(hashlib.md5(repr((self.seed, key, n)).encode("utf-8")).hexdigest())
+
     # ---------- public API used by the engine ----------
     def decide(self, system, user, ctx):
         if self.mock:
-            return self._mock_decide(ctx)
+            return self._mock_decide(ctx, user)
         return self._json(self.participant_model, system, user, 350)
 
     def react(self, system, user, ctx):
         if self.mock:
-            r = self._rng
+            r = self._mrng(user)
             kinds = ["stay", "flee", "comfort", "confront", "alert", "stay"]
             k = r.choice(kinds)
             hum = ctx.get("humans", [])
@@ -165,7 +178,7 @@ class LLM:
 
     def converse(self, system, user, ctx):
         if self.mock:
-            return self._mock_converse(ctx)
+            return self._mock_converse(ctx, user)
         return self._json(self.participant_model, system, user, 700)
 
     def summarize(self, system, user, ctx):
@@ -176,19 +189,19 @@ class LLM:
     def host_json(self, system, user, ctx):
         """A JSON answer from the host model (used to invent the daily rule)."""
         if self.mock and ctx.get("kind") == "threat":
-            r = self._rng
+            r = self._mrng(user)
             ok = r.random() < 0.4
             return {"complied": ok, "text": "Hehe, how generous of you." if ok else "Time's up, darling. Everyone, lean in."}
         if self.mock and ctx.get("kind") == "ruleclass":
             g = ctx.get("guess") or {}
             return {"kind": g.get("kind", "behavior"), "zone": g.get("zone") or "none", "by_hour": None, "reading": "(mock) read as the engine read it."}
         if self.mock and ctx.get("kind") == "recap":
-            r = self._rng
+            r = self._mrng(user)
             ids = ctx.get("ids", [])
             return {"title": "A Day Of Small Disasters", "recap": "Tempers flared, secrets slipped and somebody cried in the pantry. Delicious.",
                     "awards": [{"title": "MVP", "who": r.choice(ids), "why": "kept the drama alive"}, {"title": "Wildcard", "who": r.choice(ids), "why": "did the unexpected"}] if ids else []}
         if self.mock and ctx.get("kind") == "vary":
-            r = self._rng
+            r = self._mrng(user)
             ids = ctx.get("ids", [])
             habits = ["Lately she hums when nervous.", "Lately he collects small objects from every room.", "Lately they trust their gut less and write everything down.",
                       "Lately a long-buried grudge about a former rival keeps surfacing.", "Lately they have picked up a bad habit of pacing at night."]
@@ -199,7 +212,7 @@ class LLM:
                     "candor": "Gets cutting and sarcastic when cornered, softer with people who are honest with them.", "goals": "Win over the group and protect their secret.",
                     "origin": "Unknown", "age": 27, "items": "notebook, lucky coin", "drive": "survivor"}
         if self.mock and ctx.get("kind") == "tease":
-            r = self._rng
+            r = self._mrng(user)
             ids = ctx.get("ids", [])
             kind = r.choice(["whisper", "announce", "dare", "blackout", "gift", "motive"])
             return {"kind": kind, "reveal": r.random() < 0.5, "target": r.choice(ids) if ids else "", "subject": r.choice(ids) if ids else "",
@@ -207,7 +220,7 @@ class LLM:
                     "text": r.choice(["Psst, darling: somebody here is not who they claim to be.", "A little game: whoever makes the most noise tonight wins a prize.",
                                       "I dare you to say what you really think of your neighbour. Out loud.", "Lights out, my darlings. Try not to bump into anything sharp."])}
         if self.mock:
-            r = self._rng
+            r = self._mrng(user)
             return r.choice([
                 {"title": "Whisper Hour", "short": "Nobody may speak above a whisper", "text": "Today everyone must whisper. Raise your voice and NeoVi will quiet you."},
                 {"title": "Hands Off Doors", "short": "Stay out of the bedrooms by day", "text": "No one may enter any bedroom before 20:00."},
@@ -222,7 +235,7 @@ class LLM:
     def reflect(self, system, user, ctx):
         """Nightly reflection: {"diary", "drive", "target", "arc"}."""
         if self.mock:
-            r = self._rng
+            r = self._mrng(user)
             out = {"diary": (" ".join(ctx.get("events", [])[-3:]) or "A quiet day.")[:240], "drive": "keep", "target": "", "arc": ""}
             if r.random() < self.mock_drive_shift_prob:
                 out.update(drive=r.choice(["survivor", "protector", "saboteur", "schemer", "avenger", "thrill", "romantic", "seeker", "nihilist", "martyr"]),
@@ -233,7 +246,7 @@ class LLM:
     def adjudicate(self, system, user, ctx):
         """Game-master ruling on an escape experiment."""
         if self.mock:
-            r = self._rng
+            r = self._mrng(user)
             ok = r.random() < 0.4
             route = r.choice(["transmit", "shutdown", "raft", "ultimatum"])
             steps = {"transmit": ["device", "power", "signal", "proof", "unjam"], "shutdown": ["locate", "approach", "means", "blind"],
@@ -247,7 +260,7 @@ class LLM:
     def confess(self, system, user, ctx):
         """Confessional-booth entries: {"entries": [{"id", "text"}]}."""
         if self.mock:
-            r = self._rng
+            r = self._mrng(user)
             return {"entries": [{"id": c, "text": "To the camera: " + r.choice(ctx.get("lines", {}).get(c) or ["I don't know how much longer I can keep smiling."])}
                                 for c in ctx.get("ids", [])]}
         return self._json(self.participant_model, system, user, 600)
@@ -255,7 +268,7 @@ class LLM:
     def neovi_plan(self, system, user, ctx):
         """NeoVi's nightly reflection: {"scheme", "aff", "diary"}."""
         if self.mock:
-            r = self._rng
+            r = self._mrng(user)
             ids = ctx.get("ids", [])
             return {"scheme": "Learn when TereVi's cameras blink, and keep a spare key for the right person.",
                     "aff": {r.choice(ids): r.choice([-1, 1, 2])} if ids else {}, "diary": "Another day of smiling at the wall."}
@@ -264,7 +277,7 @@ class LLM:
     def judge(self, system, user, ctx):
         """Referee for prompt-based rules: returns {"violations": [{"id", "reason"}]}."""
         if self.mock:
-            r = self._rng
+            r = self._mrng(user)
             ids = ctx.get("ids", [])
             done = [i for i in ids if r.random() < 0.4]
             if ids and r.random() < 0.5:
@@ -274,7 +287,7 @@ class LLM:
 
     def vote(self, system, user, ctx):
         if self.mock:
-            r = self._rng
+            r = self._mrng(user)
             if ctx.get("killer") in ctx["candidates"] and r.random() < self.mock_vote_killer_prob:
                 return {"vote": ctx["killer"], "reason": "Something about their story does not add up."}
             return {"vote": r.choice([c for c in ctx["candidates"] if c != "nobody"]), "reason": "Just a feeling."}
@@ -295,8 +308,8 @@ class LLM:
     mock_suicide_prob = float(os.environ.get("MC_MOCK_SUICIDE", 0.0))      # chance per tick a broken mock character ends their life
     mock_incite_prob = float(os.environ.get("MC_MOCK_INCITE", 0.0))        # chance per conversation that someone incites another
 
-    def _mock_decide(self, ctx):
-        r = self._rng
+    def _mock_decide(self, ctx, key=""):
+        r = self._mrng(key)
         hour = ctx["hour"]
         reachable = ctx.get("reachable", [])
         home = ctx["home"]
@@ -358,8 +371,8 @@ class LLM:
             act["plan"] = plan
         return act
 
-    def _mock_converse(self, ctx):
-        r = self._rng
+    def _mock_converse(self, ctx, key=""):
+        r = self._mrng(key)
         people = ctx["people"]
         lines = []
         n = r.randint(2, 5)

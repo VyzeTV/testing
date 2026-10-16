@@ -256,39 +256,15 @@ class EnvironmentMixin:
                         self.special_boost(tick, cid, 2, "put out a fire", "comfort") if hasattr(self, "special_boost") else None
                     break
 
-    def env_effects(self, tick):
-        """What the flames and smoke that are left do to the people and things around them."""
-        w, e, nav = self.world, self.env(), self.nav()
-        fire = {parse(k): v[0] for k, v in e.st["fire"].items()}
-        smoke = {parse(k): v for k, v in e.st["smoke"].items()}
-        if not fire and not smoke:
-            return
-        for cid in list(w.agents):
-            a = w.agents.get(cid)
-            if not a or a["room"] not in ROOMS:
-                continue
-            t = self.tile_of(cid)
-            if not t:
-                continue
-            hit = max([i for (p, x, y), i in fire.items() if p == t[0] and max(abs(x - t[1]), abs(y - t[2])) <= 1] or [0])
-            if hit:
-                self.injure(tick, cid, None, set(), 5 + 4 * hit, "fire")
-                self.stat(tick, cid, "hp", -(3 * hit), "the flames", lethal="burned to death in the fire")
-                if cid not in w.agents:
-                    continue
-                self.maybe_panic(tick, cid, "the flames", 0.5)
-            dens = max([v for (p, x, y), v in smoke.items() if p == t[0] and max(abs(x - t[1]), abs(y - t[2])) <= 2] or [0])
-            if dens >= 3 and cid in w.agents:
-                self.add_cond(tick, cid, "breathless", 1 + (1 if dens >= 6 else 0), "the smoke")
-                self.stat(tick, cid, "hp", -2, "smoke", lethal="overcome by smoke")
-        # things in the fire's way burn
+    def env_burn_items(self, tick):
+        """Flammable things lying in a burning tile burn up."""
+        e, nav = self.env(), self.nav()
         for it in e.item_tiles(self.s["room_items"]):
             k = key(it["p"], it["x"], it["y"])
             if k in e.st["fire"] and (it["i"] in FLAMMABLE_ITEMS or set(self.world.item_spec(it["i"]).get("tags", [])) & FLAMMABLE_ITEM_TAGS):
                 room = nav.room_at(it["p"], it["x"], it["y"])
                 pool = self.s["room_items"].get(room, {})
                 if pool.get(it["i"], 0) > 0:
-                    pool[it["i"]] = 0
                     del pool[it["i"]]
                     self.log_event(tick, {"type": "wreck", "who": "terevi", "room": room, "vis": "viewer", "text": f"The {self.world.item_name(it['i']).lower()} in the {self.world.room_name(room)} burns."})
 
@@ -352,6 +328,8 @@ class EnvironmentMixin:
                 if e.st["fire"] or e.st["smoke"]:
                     self.env_reflexes(tick, 0.45)
                     self.env_step_effects(tick, now)
+                if e.st["fire"]:
+                    self.env_burn_items(tick)
             finally:
                 self._slice_m = None
             if now % 30 == 0:

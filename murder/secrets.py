@@ -30,10 +30,6 @@ class SecretsMixin:
             if not a["concealed"]:
                 a.pop("concealed", None)
 
-    def is_concealed(self, cid, item):
-        a = self.world.all_agents.get(cid)
-        return bool(a and item in a.get("concealed", {}))
-
     def sees_concealed(self, observer, subject, item):
         """Does this observer spot an item the subject is carrying out of sight?"""
         a = self.world.all_agents.get(subject)
@@ -399,14 +395,6 @@ class SecretsMixin:
                 w.remember(e["by"], f"{_hh(hour)} (private) You said nothing, and an innocent died. It may have been you who could have stopped it.")
                 self.moment(e["by"], "stayed silent while an innocent was executed")
         s["withheld"] = []
-
-    def secret_late_lines(self, case):
-        """Evidence-table lines about people who held something back."""
-        out = []
-        for t in (case.get("testimonies") or [])[-10:]:
-            if t.get("late"):
-                out.append(f"NOTE: {self.nm(t['by'])} kept this back until pressed: {t['claim'][:90]}")
-        return out
 
     # ------------------------------------------------------------------ automatic behaviours
     def auto_secrets(self, tick, hour, decisions):

@@ -118,6 +118,3 @@ class ChronicleMixin:
                            extra={"victim": victim, "killer": culprit, "kind": kind})
         else:
             self.chron_add(tick, "death", victim, room, "gm", f"TRUTH: {vname}'s death was {shown} (no culprit: {kind}).", extra={"victim": victim, "kind": kind})
-
-    def chron_query(self, **kw):
-        return query_chronicle(self.s.get("chronicle", []), **kw)

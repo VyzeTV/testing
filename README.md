@@ -25,7 +25,7 @@ What is new in this fork
 
 Phone and remote use: run `start_remote.bat` (same as `python server.py --host`). It listens on your network and asks for a password on every device except the PC itself; it prints the addresses and a password made up for that run (set your own with `--password` or the `MC_PASSWORD` variable). Use it only on your own Wi-Fi or over a private network such as Tailscale (install it on the PC and the phone, then open `http://<the PC's Tailscale address>:8766`); never forward the port on your router. The PC must stay on, because the game and the Claude CLI run there. The map supports touch (drag to pan, pinch to zoom, tap to select) and the page has a phone layout.
 
-Checks: `python tests/smoke.py` (760 checks, mock backend, never touches your saves), `python tests/week_metrics.py` (mock weeks: sanity and calls per day), `python tests/real_body.py` / `real_day.py` / `real_smoke.py` (real AI, a few cents to a few dollars of plan usage).
+Checks: `python tests/smoke.py` (about 760 checks, mock backend, never touches your saves; a check marked KNOWN is a failure that is expected until a later rebuild phase fixes it), `python tests/baseline.py --write` (mock weeks measured against `docs/BASELINE.md`: model calls per day, chats, deaths, verdicts, sanity), `python tests/week_metrics.py` (mock weeks: sanity and calls per day), `python tests/real_body.py` / `real_day.py` / `real_smoke.py` (real AI, a few cents to a few dollars of plan usage).
 
 ---
 
