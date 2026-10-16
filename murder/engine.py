@@ -45,6 +45,7 @@ from .conditions import ConditionMixin
 from .chronicle import ChronicleMixin
 from .sim import SimMixin
 from .clock import ClockMixin, Timeline
+from .falls import FallMixin
 from .perception import PerceptionMixin
 from .envsys import EnvironmentMixin
 from .mind import MindMixin
@@ -130,7 +131,7 @@ class Stop(Exception):
     pass
 
 
-class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
+class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
     def __init__(self, world, llm, on_tick, gate=None, should_stop=None, step=2, workers=6, seed=None,
                  murders=True, motive="", rule_mode="roulette", rule_text="", confessionals=True, mischief="occasional", chaos="normal",
                  variation=0, gm_pull=None, lean=False, call_cap=0, autodir=False, autodir_get=None, tuning_get=None):
@@ -822,6 +823,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         arrivals = []
         for cid in self.apply_order(rest):
             self.apply_decision(tick, cid, decisions[cid], intents, attacks, defer=arrivals)
+        self._m = 0.0
         self._arrived = {cid: m for m, cid, _, _ in arrivals}
         tl = Timeline(self)
         for m, cid, d, start in arrivals:
@@ -1044,6 +1046,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                 self.log_event(tick, ev, witnesses=before, actor=cid)
             self.traversal_risks(tick, cid, mv)
             tick["moves"][cid]["to"] = a["room"]
+            dest_room = a["room"]
             if a["room"] != start:
                 pth = mv["path"]
                 self.log_event(tick, {"type": "move", "who": cid, "room": start, "vis": "public",
@@ -1052,25 +1055,53 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                     self.witness(o, {"type": "leave", "who": cid, "room": start, "to": pth[1] if len(pth) > 1 else a["room"], "hour": tick["hour"]})
                 if turn_clock:
                     self._m = self.sim_go(tick, cid, self._m)         # the walk: they arrive when they get there
-                arrivals = [o for o in w.occupants(a["room"]) if o != cid and self.present(o, a["room"])]
-                self.log_event(tick, {"type": "arrive", "who": cid, "room": a["room"], "vis": "public",
-                                      "text": f"{name} {'slips into' if a.get('sneaking') else 'arrives in'} {w.room_name(a['room'])}."}, actor=cid)
-                for o in arrivals:
-                    self.witness(o, {"type": "arrive", "who": cid, "room": a["room"], "frm": pth[-2] if len(pth) > 1 else start, "hour": tick["hour"]})
-                self.vault_traps(tick, cid)
+                if cid in w.agents and a["room"] == dest_room:        # (unless they fell on the way)
+                    arrivals = [o for o in w.occupants(a["room"]) if o != cid and self.present(o, a["room"])]
+                    self.log_event(tick, {"type": "arrive", "who": cid, "room": a["room"], "vis": "public",
+                                          "text": f"{name} {'slips into' if a.get('sneaking') else 'arrives in'} {w.room_name(a['room'])}."}, actor=cid)
+                    for o in arrivals:
+                        self.witness(o, {"type": "arrive", "who": cid, "room": a["room"], "frm": pth[-2] if len(pth) > 1 else start, "hour": tick["hour"]})
+                    self.vault_traps(tick, cid)
+            if mv["blocked"] and not mv["arrived"] and a["room"] == start and self.revealed and self.shut_in(cid) and self.outside_windows(start) and self.climb_out(tick, cid):
+                if cid in w.agents and not w.agents[cid].get("out") and a["room"] != start:
+                    mv2 = w.move(cid, d["target_room"], int(MOVE_BUDGET * self.step * self.move_factor(cid)))
+                    tick["moves"][cid] = {"from": start, "path": [start] + mv2["path"], "to": a["room"]}
+                    mv = {**mv2, "blocked": mv2["blocked"]}
+                    dest_room = a["room"]
+                    if turn_clock:
+                        self._m = self.sim_go(tick, cid, max(self._m, self.sim().end_t(cid)))
+                else:
+                    if turn_clock:
+                        self._m = 0.0
+                    return
             if mv["blocked"] and not mv["arrived"]:
                 self.log_event(tick, {"type": "blocked", "who": cid, "room": a["room"], "vis": "public",
                                       "text": f"{name} is stopped: {mv['blocked']}."}, witnesses=w.occupants(a["room"]), actor=cid)
         else:
             tick["moves"][cid] = {"from": start, "path": [start], "to": start}
+            dest_room = start
         if turn_clock:
+            d["_dest"] = dest_room
             defer.append((self._m, cid, d, start))
             self._m = 0.0
             return
         self.apply_act(tick, cid, d, intents, attacks, start)
 
+    def shut_in(self, cid):
+        """Locked in (the door is bolted and they have no key) or every way out is barred."""
+        w = self.world
+        room = w.agents[cid]["room"]
+        lk = self.s.get("locks", {}).get(room)
+        if lk and lk.get("keyed") and not w.has_room_key(cid, room):
+            return True
+        exits = [x for x in w.adjacent(cid, room) if x["kind"] != "secret"]
+        return bool(exits) and not any(x["ok"] for x in exits)
+
     def arrive_and_act(self, tick, cid, d, intents, attacks, start):
-        if cid in self.world.agents and not self.world.agents[cid].get("out"):
+        a = self.world.agents.get(cid)
+        if a and d.get("_dest") and a["room"] != d["_dest"]:
+            return                                              # they never got there (a fall on the way)
+        if a and not a.get("out"):
             self.apply_act(tick, cid, d, intents, attacks, start)
 
     def meet_minute(self, cid, target):

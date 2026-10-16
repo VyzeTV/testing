@@ -399,6 +399,9 @@ class EnvironmentMixin:
         reach = w.reachable_rooms(cid, max(6, int(20 * self.move_factor(cid))))
         safe = [(c, r) for r, c in reach.items() if not fire_rooms.get(r) and smoke_rooms.get(r, 0) < 3 and not self._unsafe(r)]
         if not safe:
+            if fire_rooms.get(a["room"], 0) >= 3 and self.jump_from_fire(tick, cid, m):
+                a["fled"] = {"day": self.day, "m": m}
+                return True
             return False
         dest = min(safe)[1]
         start = a["room"]

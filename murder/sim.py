@@ -14,6 +14,7 @@ from .gridnav import GridNav, _h
 TILES_PER_MIN = 40.0                   # a stroll, in metres (tiles) a minute: crossing the house takes under a minute, the island a few
 MAX_SPEED = 110.0                      # a hurry: someone with somewhere to be
 PORTAL_MIN = 0.4                       # a flight of stairs or a hatch takes a moment
+LADDER_MIN = 1.0                       # a ladder takes longer
 IDLE_EVERY = 22                        # minutes between little wanders inside a room when nothing else is going on
 LINE_GAP_MIN = 0.3                     # the shortest gap between two lines of a conversation
 
@@ -60,6 +61,7 @@ class Sim:
         self.tracks, self.cur, self.hold = {}, {}, {}
         self.start_at, self.arrive_at = {}, {}
         self.jumps = 0
+        self.portals, self.falls = {}, []
         self.avoid = frozenset()
         self.dur = 120
         self.start = 0
@@ -71,6 +73,7 @@ class Sim:
         self.start = start if self.st["clock"] is None else max(self.st["clock"], start)
         self.dur = dur
         self.tracks, self.cur, self.hold, self.start_at, self.arrive_at = {}, {}, {}, {}, {}
+        self.portals, self.falls = {}, []
         new_day = self.st["clock"] is None or self.st["clock"] // 1440 != self.start // 1440 or self.start - self.st["clock"] > 180
         taken = set()
         for cid in sorted(rooms):
@@ -170,7 +173,10 @@ class Sim:
                 last_dir = dirv
             else:
                 out.append([round(t, 2), tp[0], tp[1], tp[2]])
-                t += PORTAL_MIN
+                ladder = nav.char(*tp) == "l" or nav.char(*tile) == "l"
+                kind = "ladder" if ladder else next((l["kind"] for o, l in nav.links.get(tp, []) if o == tile), "jump")
+                self.portals.setdefault(cid, []).append((round(t, 2), tp, tile, kind, v / TILES_PER_MIN))
+                t += LADDER_MIN if ladder else PORTAL_MIN
                 out.append([round(t, 2), tile[0], tile[1], tile[2]])
                 last_dir = None
             tp = tile
@@ -196,7 +202,7 @@ class Sim:
         inside = self.nav.room_at(*here) == room
         dest = None
         if at:
-            dest = self.nav.stand_near(at[0], at[1], at[2], self.occupied(cid), room)
+            dest = self.nav.stand_near(at[0], at[1], at[2], self.occupied(cid), room) or self.nav.stand_near(at[0], at[1], at[2], frozenset(), room)
         if dest is None and (not inside or force):
             dest = self.spot(room, cid, self.occupied(cid), salt)
         if dest is None or (inside and not at and not force):
@@ -265,6 +271,8 @@ class SimMixin:
         path = ((tick.get("moves") or {}).get(cid) or {}).get("path") or []
         sm.avoid = self.env_avoid()
         t = sm.go_room(cid, a["room"], m0, deadline=min(sm.dur - 1.0, float(m0) + 40.0), hidden=sm.nav.hidden_links_between(path), speed=self.move_factor(cid))
+        if self.walk_hazards(tick, cid):
+            t = sm.end_t(cid)
         return round(float(t), 2)
 
     def first_in(self, cid, room):
@@ -302,6 +310,7 @@ class SimMixin:
                 m0 = max(float(m), sm.end_t(cid) if not stagger else 0.0) + (self._stagger(cid, tick) if stagger else 0)
                 path = ((tick.get("moves") or {}).get(cid) or {}).get("path") or []
                 sm.go_room(cid, a["room"], m0, deadline=min(sm.dur - 1.0, m0 + 40.0), hidden=sm.nav.hidden_links_between(path), speed=self.move_factor(cid))
+                self.walk_hazards(tick, cid)
 
     def sim_seg(self, tick, cid, m0, room, at, act):
         """A free-time activity starts: walk them to it (to the piece of furniture it is done at, if any)."""
@@ -317,6 +326,7 @@ class SimMixin:
         path = ((tick.get("moves") or {}).get(cid) or {}).get("path") or []
         sm.go_room(cid, room, m0, at=at if act != "walk" else None, salt=5, deadline=min(sm.dur - 1.0, float(m0) + 14.0),
                    hidden=sm.nav.hidden_links_between(path), speed=self.move_factor(cid))
+        self.walk_hazards(tick, cid)
 
     # ------------------------------------------------------------------ conversations
     def sim_talk(self, tick):
@@ -339,7 +349,7 @@ class SimMixin:
                 if sp in sm.tracks and sp not in members and (self.world.all_agents.get(sp) or {}).get("status", "alive") == "alive":
                     members.append(sp)
             chat = free and g.get("m") is not None
-            m0 = float(g["m"]) + 1.0 if chat else min((94.0 + 2 * gi) if free else (58.0 + 3 * gi), dur * 0.5 + gi)
+            m0 = float(g["m"]) + 1.0 if chat else min((94.0 + 2 * gi) if free else (58.0 + 3 * gi), max(dur * 0.5, dur - 26.0) + gi)    # (short night turns talk earlier)
             anchor = tuple(g["at"]) if chat and g.get("at") else None
             # whoever is not in the room at the start walks there (cutting short what they were doing) and arrives in time, or the talk waits for them
             for i, sp in enumerate(members):
@@ -443,6 +453,8 @@ class SimMixin:
         if sm.jumps:
             live["jumps"] = sm.jumps
             sm.jumps = 0
+        if sm.falls:
+            live["falls"] = sm.falls
         sm.end()
         sm.tick_id = None
         self._sim_m = 0.0

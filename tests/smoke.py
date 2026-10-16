@@ -3302,7 +3302,7 @@ for t in wk_ticks:
     for cid, tr in t["live"]["tracks"].items():
         for a_, b_ in zip(tr, tr[1:]):
             pa_, pb_ = (a_[1], a_[2], a_[3]), (b_[1], b_[2], b_[3])
-            if pa_ == pb_ or (pa_, pb_) in link_pairs_:
+            if pa_ == pb_ or (pa_, pb_) in link_pairs_ or [list(pa_), list(pb_)] in [f_[1:] for f_ in t["live"].get("falls", [])]:
                 continue
             if pa_[0] != pb_[0] or (pa_[1] != pb_[1] and pa_[2] != pb_[2]):
                 wall_.append((t["day"], t["hour"], cid, pa_, pb_))
@@ -4606,6 +4606,76 @@ mv_ = next((e for e in atk_["events"] if e["type"] == "move" and e["who"] == ac_
 arv_ = next((e for e in atk_["events"] if e["type"] == "arrive" and e["who"] == ac_), None)
 tk2_ = next((e for e in atk_["events"] if e["type"] == "take" and e["who"] == ac_), None)
 check("someone sent upstairs for something sets off, walks, and picks it up when they get there", mv_ and arv_ and tk2_ and 0 < mv_["m"] < arv_["m"] <= tk2_["m"], str([(e["type"], e.get("m")) for e in atk_["events"]]))
+
+# ---- heights: falling, jumping and climbing (rebuild phase 2)
+from murder import falls as _fl  # noqa: E402
+hw_, hr_, _ = fresh(1800)
+hn_ = hr_.nav()
+void_ = next((p_, x_, y_) for (p_, x_, y_) in hn_.room_tiles["landing"] if hn_.char(p_, x_, y_) == "v")
+dv_ = hr_.drop_below(*void_)
+check("going over the gallery's open floor drops one storey into the foyer below", dv_ and dv_[1] == 1.0 and hn_.room_at(*dv_[0]) == "foyer", str(dv_))
+w2_ = next(o for (wt_, it_, o) in hr_.outside_windows("library"))
+dw_ = hr_.drop_below(*w2_)
+check("out of a first-floor window is a storey down to the ground outside", dw_ and dw_[1] == 1.0 and dw_[0][0] == "ground", str(dw_))
+cl_ = next((("ground", x_, y_) for y_ in range(hn_.h) for x_ in range(hn_.w) if hn_.char("ground", x_, y_) == "C"), None)
+dc_ = hr_.drop_below(*cl_) if cl_ else None
+check("over the cliff is a long drop onto the shore below", dc_ and dc_[1] >= 2.0 and hn_.char(*dc_[0]) in "sa~qn", str(dc_))
+def fall_dmg(seed, ch, levels):
+    fw_, fr_, _ = fresh(seed)
+    fc_ = sorted(fw_.agents)[0]
+    fw_.agents[fc_]["hp"] = 100
+    t_ = next(("ground", x_, y_) for y_ in range(fr_.nav().h) for x_ in range(fr_.nav().w) if fr_.nav().char("ground", x_, y_) == ch)
+    d_ = fr_.fall(fr_.new_tick(14), fc_, t_, t_, levels, "push")
+    return d_, fc_ not in fw_.agents
+wet_ = [fall_dmg(1810 + i, "~", 2.0) for i in range(12)]
+hard_ = [fall_dmg(1830 + i, "q", 2.0) for i in range(12)]
+check("water forgives a fall that rock does not (two storeys)", sum(d for d, _ in wet_) * 2 < sum(d for d, _ in hard_), f"{[d for d, _ in wet_]} vs {[d for d, _ in hard_]}")
+fw3_, fr3_, _ = fresh(1870)
+c3_ = sorted(fw3_.agents)[0]
+fw3_.agents[c3_]["hp"] = 30
+fr3_.fall(fr3_.new_tick(14), c3_, ("ground", 1, 1), next(("ground", x_, y_) for y_ in range(fr3_.nav().h) for x_ in range(fr3_.nav().w) if fr3_.nav().char("ground", x_, y_) == "q"), 2.0, "push")
+check("two storeys onto rock can kill", c3_ not in fw3_.agents)
+# a slip on the stairs ends the walk at the foot of them
+old_slip_ = _fl.STAIR_SLIP
+_fl.STAIR_SLIP = 1.0
+sw_, sr_, _ = fresh(1880)
+sw_.state["revealed"] = True
+sc_ = sorted(sw_.agents)[0]
+sw_.agents[sc_]["room"] = "library"
+sw_.state["room_items"].setdefault("kitchen", {})["paperweight"] = 1
+stk_ = sr_.new_tick(12)
+sr_.clock_start()
+sr_.sim_turn(stk_)
+sdf_ = []
+sr_.apply_decision(stk_, sc_, sr_.clean_decision({"action": "take", "target_room": "kitchen", "item": "paperweight", "activity": "Fetching it"}), {}, [], defer=sdf_)
+tl3_ = _TL(sr_)
+for m_, c_, d_, st_ in sdf_:
+    tl3_.at(m_, sr_.arrive_and_act, stk_, c_, d_, {}, [], st_)
+tl3_.run()
+_fl.STAIR_SLIP = old_slip_
+fe_ = [e for e in stk_["events"] if e["type"] == "fall"]
+check("somebody who slips on the stairs tumbles to the foot of them, with the minute it happened", fe_ and fe_[0].get("m") is not None and "stairs" in fe_[0]["text"], str([e["text"] for e in stk_["events"]][:6]))
+check("and never gets where they were going to do what they meant to", sc_ not in sw_.agents or (sw_.agents[sc_]["room"] != "kitchen" and not any(e["type"] == "take" for e in stk_["events"])))
+sr_.clock_stop()
+# a burning room upstairs with no way out: out of the window
+jw_, jr_, _ = fresh(1890)
+jw_.state["revealed"] = True
+jc_ = sorted(jw_.agents)[0]
+jw_.agents[jc_]["room"] = "library"
+jw_.agents[jc_]["hp"] = 100
+jtk_ = jr_.new_tick(14)
+ok_j_ = jr_.jump_from_fire(jtk_, jc_, 30)
+check("trapped by a fire upstairs, somebody jumps from the window and lands outside, hurt", ok_j_ and any(e["type"] == "fall" and "jumps" in e["text"] for e in jtk_["events"]) and (jc_ not in jw_.agents or jr_.nav().rooms[jw_.agents[jc_]["room"]]["plane"] == "ground"))
+# locked in on the ground floor: out through the window
+lw_, lr_, _ = fresh(1900)
+lw_.state["revealed"] = True
+lc_, lo_ = sorted(lw_.agents)[:2]
+lw_.agents[lc_]["room"] = "kitchen"
+lw_.agents[lc_]["inv"] = {}
+lw_.state.setdefault("locks", {})["kitchen"] = {"by": lo_, "keyed": True}
+ltk_ = lr_.new_tick(12)
+lr_.apply_decision(ltk_, lc_, lr_.clean_decision({"action": "stay", "target_room": "garden", "activity": "Getting out"}), {}, [])
+check("somebody locked into a ground-floor room climbs out through the window instead", lw_.agents[lc_]["room"] != "kitchen" and any("window" in e["text"] for e in ltk_["events"]), str([e["text"] for e in ltk_["events"]]))
 
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]

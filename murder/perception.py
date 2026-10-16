@@ -19,7 +19,7 @@ SIGHT_BLOCK = set("# +LTH")        # walls, closed doors, trees and hedges block
 BIG_ROOM_AREA = area(220)         # interior tiles above which a room can hold separate conversations
 TALK_RANGE = int(tiles(8, 4))             # tiles within which normal speech carries between two people in the same room
 # how loud each kind of event is, for hearing it from outside its own spot
-EVENT_LOUD = {"attack": "loud", "assault": "loud", "sabotage": "normal", "outburst": "shout", "punish": "loud", "island": "loud", "door": "normal", "faint": "normal",
+EVENT_LOUD = {"fall": "loud", "attack": "loud", "assault": "loud", "sabotage": "normal", "outburst": "shout", "punish": "loud", "island": "loud", "door": "normal", "faint": "normal",
               "friction": "normal", "reaction": "normal", "madness": "normal", "frame": "quiet", "rob": "quiet", "carry": "quiet", "lock": "quiet", "hide": "whisper",
               "conceal": "whisper", "stash": "quiet", "take": "quiet", "give": "quiet", "frisk": "quiet", "search": "quiet", "craft": "quiet", "treat": "quiet", "use": "quiet"}
 
