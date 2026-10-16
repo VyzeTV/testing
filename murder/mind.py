@@ -183,7 +183,7 @@ class MindMixin:
                 n["rest"] = min(100, n["rest"] + 25 * scale)
             else:
                 n["rest"] = max(0, n["rest"] - (5 if not night else 3) * scale)
-            if tick.get("hour", 12) >= 22 and not a.get("night_owl"):
+            if tick.get("hour", 12) >= 22 and a.get("asleep"):
                 n["rest"] = min(100, n["rest"] + 35)
             # safety
             d = danger.get(a["room"], 0)

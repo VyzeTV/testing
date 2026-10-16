@@ -663,8 +663,6 @@ class ConditionMixin:
                 self.add_cond(tick, cid, "chilled", 1, "the cold store")
             if self.blackout_until >= self.idx and not a.get("lit") and a["sanity"] < 50 and len([o for o in w.occupants(a["room"]) if o in w.agents]) <= 1:
                 self.maybe_panic(tick, cid, "alone in the dark", 0.1)
-            if a.get("night_owl") and not self.has_cond(cid, "exhausted") and self.rng.random() < 0.4:
-                self.add_cond(tick, cid, "exhausted", 1, "no sleep")
 
     def after_use(self, tick, cid, item):
         """Using an item also feeds or waters the person (hunger and thirst), and strong drink makes them drunk."""

@@ -944,7 +944,7 @@ for _ in range(20):
     r.stale_notices(dec)
 check("someone who set out to talk to a person who left is told", any("were not there" in m for m in w.agents[ids[0]]["memory"]["recent"]))
 
-# ---- the night turn
+# ---- the night: bedtime, two-hour blocks, waking and sleep
 w, r, _ = fresh(170)
 ids = list(w.agents)
 w.state["revealed"] = True
@@ -955,12 +955,15 @@ for c in ids:
 w.agents[owl]["room"] = w.agents[victim]["room"] = w.agents[sleeper]["room"] = "blue_room"
 w.cast[victim]["home"] = "blue_room"
 r.night_votes = {owl}
-check("a night turn is allowed on an ordinary day", r.night_allowed())
-nt = r.run_night_turn()
-check("the night turn happens at night with only the owls awake", nt and nt["hour"] == 23 and w.agents[sleeper].get("asleep") and not w.agents[owl].get("asleep"))
-check("staying up costs health", w.agents[owl]["hp"] <= 84, str(w.agents[owl]["hp"]))
+check("a night is allowed on an ordinary day", r.night_allowed())
+bt_ = r.run_bedtime()
+check("at bedtime everyone but the owl goes to bed and falls asleep", bt_["hour"] == 22 and w.agents[sleeper].get("asleep") and not w.agents[owl].get("asleep")
+      and all(w.agents[c].get("asleep") for c in ids if c != owl and not w.agents[c].get("out")))
+check("staying up costs no health by itself", w.agents[owl]["hp"] == 90, str(w.agents[owl]["hp"]))
 sr = w.agents[sleeper]["room"]
 check("sleepers are not counted as present", sleeper not in w.occupants(sr) and sleeper in w.occupants(sr, include_hidden=True))
+nt = r.run_night_block(23)
+check("the first night block starts at 23:00 and the owl is awake in it", nt["hour"] == 23 and nt["time"] == "23:00" and owl in nt["awake"])
 killed = False
 for i in range(30):
     w.state["case"] = None
@@ -979,12 +982,40 @@ w.state["revealed"] = True
 w.state["deadline_day"] = w.state["day"] + 3
 for c in ids:
     w.agents[c]["hp"] = 90
+    w.agents[c]["hunger"] = w.agents[c]["thirst"] = 0
+    r.body(c)["bladder"] = 0
+    r.mind(c)["stress"] = 0
 r.night_votes = {ids[0]}
-r.run_night_turn()
+d0_ = r.day
+r.run_bedtime()
+blocks_ = [r.run_night_block(h) for h in (23, 25, 27, 29)]
 hp_owl, hp_sleeper = w.agents[ids[0]]["hp"], w.agents[ids[3]]["hp"]
-r.run_night()
-check("morning wakes everyone and a sleeper recovers health while an owl does not", not any(a.get("asleep") for a in w.agents.values())
-      and w.agents[ids[3]]["hp"] == min(100, hp_sleeper + 3) and w.agents[ids[0]]["hp"] == hp_owl)
+dawn_ = r.run_dawn()
+check("the night runs on past midnight as 23:00, 01:00, 03:00, 05:00 and ends at 07:00", [b["time"] for b in blocks_] == ["23:00", "01:00", "03:00", "05:00"] and dawn_["time"] == "07:00"
+      and w.state["day"] == d0_ + 1)
+check("a block where the whole house sleeps is quiet (the viewer can skip it)", any(b.get("quiet") for b in blocks_), str([len(b["awake"]) for b in blocks_]))
+check("morning wakes everyone; a full night mends a little, a short one leaves the owl exhausted", not any(a.get("asleep") for a in w.agents.values())
+      and w.agents[ids[3]]["hp"] == min(100, hp_sleeper + 3) and w.agents[ids[3]]["slept"] >= 7
+      and (w.agents[ids[0]]["slept"] >= 5 or r.has_cond(ids[0], "exhausted")), f"{w.agents[ids[3]]['slept']} {w.agents[ids[0]]['slept']}")
+w, r, _ = fresh(172)
+ids = sorted(w.agents)
+w.state["revealed"] = True
+w.state["deadline_day"] = w.state["day"] + 3
+for c in ids:
+    w.agents[c]["hunger"] = w.agents[c]["thirst"] = 0
+    r.body(c)["bladder"] = 0
+    r.mind(c)["stress"] = 0
+r.run_bedtime()
+r.body(ids[1])["bladder"] = 95
+w.agents[ids[2]]["hunger"] = 95
+w.state["_night_noise"] = {w.agents[ids[3]]["room"]: 1}
+nb_ = r.run_night_block(25)
+woke_ = {e["who"]: e["text"] for e in nb_["events"] if e.get("type") == "wake"}
+check("sleepers wake for a reason: their bladder, hunger, a noise", ids[1] in woke_ and "bathroom" in woke_[ids[1]] and ids[2] in woke_ and ids[3] in woke_, str(woke_))
+acts_ = {c: [sg["act"] for sg in nb_["free"].get(c, [])] for c in (ids[1], ids[2])}
+check("whoever wakes does something about it (and once it is done, goes back to bed)", "bathroom" in acts_[ids[1]] and any(a_ in ("eat", "snack", "cook") for a_ in acts_[ids[2]])
+      and w.agents[ids[1]].get("asleep"), str(acts_))
+check("nothing loud happens in a sleeping house", not any(sg["act"] in ("game", "darts", "music", "jukebox", "swim") for segs in nb_["free"].values() for sg in segs))
 w.state["deadline_day"] = r.day
 check("no night turn on the deadline day", not r.night_allowed())
 
@@ -1738,7 +1769,7 @@ r2 = DayRunner(w_b, LLM(backend="mock"), after.append, step=2, murders=False, ru
 r2.run(resume_after=last_hour, start_idx=last_idx + 1)
 check("a resumed day carries on from the turn after the last completed one", after[0]["hour"] == last_hour + 2 and after[0]["idx"] == last_idx + 1)
 check("it does not announce a new rule", not any("RULE CHECK" in e["text"] or "NO RULE" in e["text"] for t in after for e in t["events"]))
-check("and it finishes the day, through to the night", [t["hour"] for t in after][-1] in (22, 23) and not any(t["hour"] <= last_hour and t.get("phase") != "night" for t in after))
+check("and it finishes the day, through the night to the morning", [t["hour"] for t in after][-1] == 31 and not any(t["hour"] <= last_hour and t.get("phase") != "night" for t in after))
 check("the morning broadcast is not repeated", sum(1 for t in after for b in t["broadcasts"] if b.get("kind") == "morning") == 0)
 ends_ = {c: tuple(tr[-1][1:]) for c, tr in seen_ticks[-1]["live"]["tracks"].items()}
 starts_ = {c: tuple(tr[0][1:]) for c, tr in after[0]["live"]["tracks"].items()}
@@ -2144,8 +2175,8 @@ from murder import settings as settings_mod  # noqa: E402
 check("every setting has a default inside its range", all(lo <= d <= hi for k, _, _, lo, hi, _, d, _ in settings_mod.SETTINGS))
 check("values are clamped to their range and unknown keys dropped", settings_mod.clean({"friction_rate": 99, "calm_days": -4, "nonsense": 1, "night_cost": "x"}) == {"friction_rate": 3.0, "calm_days": 0})
 w, r, _ = fresh(900)
-check("with nothing set the defaults apply", r.tune("friction_rate") == 1.0 and r.tune("night_cost") == 8)
-r.tuning_get = lambda: {"friction_rate": 0, "calm_days": 0, "night_cost": 15, "drain_mult": 0}
+check("with nothing set the defaults apply", r.tune("friction_rate") == 1.0 and r.tune("drain_mult") == 1.0)
+r.tuning_get = lambda: {"friction_rate": 0, "calm_days": 0, "drain_mult": 0}
 w.state["deadline_day"] = r.day + 1
 for c in w.agents.values():
     c["room"] = "lounge"
@@ -2168,8 +2199,8 @@ r.night_votes = {list(w.agents)[0]}
 for c in w.agents.values():
     c["hp"] = 90
 owl = list(w.agents)[0]
-r.run_night_turn()
-check("the cost of staying up follows the dial", w.agents[owl]["hp"] <= 90 - 15 + 3)
+r.run_bedtime()
+check("staying up has no flat health cost any more", w.agents[owl]["hp"] == 90)
 import tempfile as _tf  # noqa: E402
 from murder import session as _S  # noqa: E402
 g_ = _S.Game()
@@ -3418,8 +3449,9 @@ for seed_ in (31, 32, 33):
             if not tr:
                 continue
             p_ = pos_at(tr, sp["m"])
+            nx_ = next((q for q in tr if q[0] > sp["m"]), p_)          # mid-step through a doorway: the waypoint on the other side counts too
             checked += 1
-            if nav_.room_at(p_[1], p_[2], p_[3]) != sp["room"]:
+            if nav_.room_at(p_[1], p_[2], p_[3]) != sp["room"] and not (nx_[0] - sp["m"] < 0.1 and nav_.room_at(nx_[1], nx_[2], nx_[3]) == sp["room"]):
                 remote += 1
                 print("REMOTE", seed_, t["day"], t["hour"], t.get("segment"), sp["who"], sp["m"], sp["room"], nav_.room_at(p_[1], p_[2], p_[3]), tr[-3:], (L.get("acts") or {}).get(sp["who"]))
 check("nobody speaks from a different room than the one they are talking in (property over many turns)", checked > 100 and remote == 0, f"{remote} of {checked}")
@@ -3585,7 +3617,9 @@ def quiet_day(n_days):
             tq = r.new_tick(h_)
             if h_ in (10, 14, 18):
                 tq["talk"] = [{"room": "garden", "lines": [{"speaker": mc, "kind": "say", "text": "hi"}, {"speaker": oth_, "kind": "say", "text": "hi"}]}]
+            a_["asleep"] = h_ == 22                     # the night: asleep in bed
             r.mind_tick(tq)
+            a_.pop("asleep", None)
 quiet_day(2)
 check("with nothing new going wrong, sanity recovers by itself", a_["sanity"] > low0 + 12, f"{low0} -> {a_['sanity']}")
 quiet_day(3)

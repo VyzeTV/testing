@@ -948,7 +948,7 @@ async function playChat(t, gi, g, minute, tok) {
 async function showSegment(t, tok) {
   const m = t.segment_msg;
   if (!m || (window.TileMap && !TileMap.segMsgOn())) return;
-  const hh = String(t.hour).padStart(2, "0") + ":00";
+  const hh = String(t.hour % 24).padStart(2, "0") + ":00";
   feedAdd(`<b>${esc(m.title)}</b> \u00b7 ${hh}<br><span style="opacity:.75">${esc(m.sub || "")}</span>`, "segment");
   const el = $("#segcard");
   el.innerHTML = `<div class="st">${esc(m.title)}</div><div class="ss">Day ${t.day} \u00b7 ${hh}${m.sub ? " \u00b7 " + esc(m.sub) : ""}</div>`;
@@ -1133,7 +1133,7 @@ function updateUI() {
   const n = S.ticks.length;
   const cur = S.ticks[Math.max(0, Math.min(S.cursor, n - 1))] || S.ticks[0];
   $("#clock").innerHTML = S.session
-    ? `Day ${S.day || (cur && cur.day) || ""} · ${String(S.hour).padStart(2, "0")}:00<small>${cur ? cur.phase : ""}</small>`
+    ? `Day ${S.day || (cur && cur.day) || ""} · ${String(S.hour % 24).padStart(2, "0")}:00<small>${cur ? cur.phase : ""}</small>`
     : "No session<small></small>";
   const chip = $("#modeChip");
   if (S.session) { chip.style.display = ""; chip.textContent = S.mode === "live" ? "LIVE" : "REPLAY"; chip.className = "chip " + (S.mode === "live" ? "live" : "replay"); }
@@ -1458,7 +1458,7 @@ function renderChronicle() {
     if (e.day !== day) { day = e.day; html += `<div class="chday">Day ${day}</div>`; }
     const who = e.who && (S.W.characters[e.who] || (S.W.hosts || {})[e.who]) ? `<img class="chav" src="portraits/${e.who}.png" onerror="this.style.visibility='hidden'">` : '<span class="chav"></span>';
     html += `<div class="chrow ${e.cls} ${e.vis === "gm" ? "gmonly" : ""}" ${e.room && S.W.rooms[e.room] ? `onclick="S.selRoom='${e.room}';setTab('room');renderRoom()"` : ""}>
-      <span class="chtime">${String(e.hour).padStart(2, "0")}:00</span>${who}<span class="chtype">${esc(e.type)}</span><span class="chtext">${esc(e.text)}</span></div>`;
+      <span class="chtime">${String(e.hour % 24).padStart(2, "0")}:00</span>${who}<span class="chtype">${esc(e.type)}</span><span class="chtext">${esc(e.text)}</span></div>`;
   }
   wrap.innerHTML = html;
 }
@@ -1543,7 +1543,7 @@ async function openModal() {
   $("#autodir").checked = !!st.autodir;
   $("#slotSel").innerHTML = (st.slots || []).map((x) => `<option value="${esc(x.name)}">${esc(x.name)} (Day ${x.day}, ${x.alive} alive, ${esc(x.saved_at)})</option>`).join("") || "<option value=''>No saves yet</option>";
   $("#dayStartSel").innerHTML = (st.day_starts || []).map((d) => `<option value="${d}">Start of Day ${d}</option>`).join("") || "<option value=''>No earlier days</option>";
-  $("#resumeBox").innerHTML = st.checkpoint ? `<div class="warn">Day ${st.checkpoint.day} was interrupted after ${String(st.checkpoint.hour).padStart(2, "0")}:00. <button id="btnResume" class="primary">Resume it</button></div>` : "";
+  $("#resumeBox").innerHTML = st.checkpoint ? `<div class="warn">Day ${st.checkpoint.day} was interrupted after ${String(st.checkpoint.hour % 24).padStart(2, "0")}:00. <button id="btnResume" class="primary">Resume it</button></div>` : "";
   if ($("#btnResume")) $("#btnResume").onclick = () => { S.resumeNext = true; $("#btnGo").click(); };
   $("#seasonInfo").textContent = hasRec ? `This season so far: ${st.season_calls || 0} AI calls over ${st.recorded.length} recorded day(s).` : "";
   $("#modal").style.display = "flex";

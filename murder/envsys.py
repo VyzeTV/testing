@@ -457,7 +457,7 @@ class EnvironmentMixin:
         if not tick.pop("_hazards_done", False):
             self.env_hazards(tick, hour)
         phase = tick.get("phase")
-        minutes = (60 if hour >= 23 else 30) if phase == "night" else 120
+        minutes = ((120 if 23 <= hour < 31 else 30) if phase == "night" else 120)
         done = tick.pop("_env_done", 0)
         self.env_advance(tick, done, minutes)
         frames = tick.pop("_env_frames", None) or [self.env_frame(0)]

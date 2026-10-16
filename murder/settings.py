@@ -18,8 +18,6 @@ SETTINGS = [
     ("dread_mult", "Deadline dread", "Sanity", 0, 2, 0.1, 1.0, "How hard the approaching deadline hits everyone's sanity."),
     ("calm_days", "Calm window after a death", "Sanity", 0, 3, 1, 1, "Days after a closed case with no drain, dread or new quarrels. 0 = none."),
     ("vigil_gain", "Remembrance lift", "Sanity", 0, 12, 1, 6, "Sanity everyone regains at the remembrance after a death (+3 if they loved the dead)."),
-    ("night_cost", "Cost of staying up", "Night", 0, 20, 1, 8, "Health lost by a character who stays up for the night turn."),
-    ("night_owls_max", "Most people up at night", "Night", 1, 8, 1, 4, "The most characters who can take the night turn together."),
     ("lock_fear", "Locking doors at night", "Night", 0, 2, 0.1, 1.0, "How readily frightened people bolt their doors."),
     ("affliction_rate", "Afflictions", "Body", 0, 2, 0.1, 1.0, "How readily sickness, panic, blindness, dizziness and the like take hold. 0 = never."),
     ("injury_severity", "Injuries", "Body", 0, 2, 0.1, 1.0, "How often blows, falls and fire cause broken bones, bleeding, concussion and worse."),

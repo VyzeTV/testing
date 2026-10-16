@@ -27,7 +27,7 @@ def turn_window(tick):
     """(absolute start minute, length) of a turn."""
     H = int(tick["hour"])
     start = (int(tick["day"]) - 1) * 1440 + H * 60
-    dur = (60 if H >= 23 else 30) if tick.get("phase") == "night" else 120
+    dur = (120 if 23 <= H < 31 else 30) if tick.get("phase") == "night" else 120         # the night blocks are two hours; bedtime (22) and dawn are short
     return start, dur
 
 

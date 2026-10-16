@@ -62,6 +62,7 @@ ACTS = {
     "stargaze": ("at the telescope", 30, [], ["telescope"], "looks through the telescope"),
     "mirror":   ("at the mirror", 15, [], ["mirror"], "checks themselves in the mirror"),
     "nap":      ("napping", 60, [], ["bed"], "lies down"),
+    "sleep":    ("asleep", 120, [], ["bed"], "goes back to bed"),
     "tinker":   ("making something", 45, [], ["workbench", "table"], "tinkers with something"),
     "look":     ("looking around", 30, [], [], "looks around"),
     "explore":  ("exploring", 30, [], [], "has a look around"),
@@ -81,6 +82,8 @@ SEATS = ["sofa", "armchair", "bench", "deckChair", "firepit", "fireplace", "tabl
 IDLE_ACTS = {"look", "explore", "stroll", "gather", "stay", "sit", "walk", "jukebox", "mirror"}               # an activity somebody can be talked out of
 PRIVATE_ROOMS = {"blue_room", "green_room", "yellow_room", "red_room", "violet_room", "orange_room", "grey_room", "white_room", "master_suite"}
 MAX_CHATS = 3
+NIGHT_ACTS = {"eat", "drink", "snack", "wash", "bathroom", "read", "sit", "look", "explore", "stargaze", "radio", "tinker", "mirror", "confess", "chat", "gather", "company",
+              "stalk", "flee", "rescue", "fight", "warn", "sleep"}                                  # what people do in a sleeping house (nothing loud)
 MAIN_DUR = {"experiment": 90, "craft": 45, "rest": 60, "search": 30, "spy": 45, "treat": 30, "frisk": 30, "stash": 30, "retrieve": 30, "build": 45, "hide": 45, "lock": 15,
             "unlock": 15, "barricade": 30, "give": 15, "take": 15, "use": 15, "drop": 15, "wear": 15, "stay": 15, "attack": 15, "knock": 15, "pick": 30, "break": 30}
 
@@ -161,7 +164,7 @@ class FreeTimeMixin:
             a = w.agents.get(cid)
             if not a:
                 continue
-            self.body_tick(cid, SLICE)
+            self.body_tick(cid, SLICE // 3 if a.get("asleep") else SLICE)        # a sleeping body slows down
             if a.get("out") or a.get("asleep") or self.restrained(cid):
                 continue
             self.modesty_check(tick, cid, m)
@@ -358,10 +361,11 @@ class FreeTimeMixin:
         recent = a.setdefault("free_recent", [])
         sc = []                                          # (score, act, room, at, why, partner)
 
-        def add(score, act, rooms=None, kinds=None, why="", partner=None, room=None, home_only=False):
+        def add(score, act, rooms=None, kinds=None, why="", partner=None, room=None, home_only=False, far=False):
             if score <= 0:
                 return
             at = None
+            reach_ = w.reachable_rooms(cid, 30) if far else reach        # a real need sends people further than a whim does
             kinds = kinds if kinds is not None else ACTS[act][3]
             rooms = rooms if rooms is not None else ACTS[act][2]
             r = None
@@ -369,13 +373,13 @@ class FreeTimeMixin:
             if room is not None:
                 r = room
             elif kinds:
-                got = self._find_furn(tick, cid, kinds, reach, m, [here] if late else (rooms or None), home_only)
+                got = self._find_furn(tick, cid, kinds, reach_, m, [here] if late else (rooms or None), home_only)
                 if got:
                     r, at = got
                 elif rooms and not (late and here not in rooms):
-                    r = self._nearest(cid, [here] if late else rooms, reach)
+                    r = self._nearest(cid, [here] if late else rooms, reach_)
             elif rooms:
-                r = self._nearest(cid, [here] if late else rooms, reach) if not (late and here not in rooms) else None
+                r = self._nearest(cid, [here] if late else rooms, reach_) if not (late and here not in rooms) else None
             else:
                 r = here
             if not r:
@@ -411,10 +415,10 @@ class FreeTimeMixin:
         hungry = max(a.get("hunger", 0) - 28, 0) / 35 + (0.3 if a.get("hunger", 0) >= 60 else 0)
         thirsty = max(a.get("thirst", 0) - 30, 0) / 35
         kind_cook = 0.35 * (f("altruism") - 40) / 60 + 0.25 * (f("orderliness") - 40) / 60
-        add(hungry * 1.4, "eat", why="hungry")
+        add(hungry * 1.4, "eat", why="hungry", far=hungry > 1.0)
         add(hungry * 0.9 + kind_cook + (0.25 if hungry > 0.2 else 0), "cook", why="cooking for themselves and whoever is around")
-        add(hungry * 0.7, "snack", why="hungry")
-        add(thirsty * 1.2, "drink", why="thirsty")
+        add(hungry * 0.7, "snack", why="hungry", far=hungry > 1.0)
+        add(thirsty * 1.2, "drink", why="thirsty", far=thirsty > 1.0)
         add(max(b["bladder"] - 45, 0) / 25, "bathroom", why="needs the bathroom")
         add(max(72 - b["hygiene"], 0) / 22 + (0.6 if a.get("conds") and "burned" in a["conds"] else 0), "shower", why="needs a wash")
         add(max(72 - b["hygiene"], 0) / 40 + 0.3 * (f("vanity") - 50) / 50, "bath", why="a long soak")
@@ -493,7 +497,14 @@ class FreeTimeMixin:
             tr = w.agents[t]["room"]
             if tr in reach or tr == here:
                 sc.append((3.0 if pl["stage"] == "striking" else 2.0, "stalk", tr, None, "", None))
-        if m >= FINALE:
+        night = tick.get("phase") == "night"
+        if night:
+            # the house is asleep: back to bed sooner or later, nothing loud in the meantime
+            late = max(0, (int(hour) - 23)) / 2
+            urgent = max(max(b["bladder"] - 45, 0) / 25, hungry * 1.4, thirsty * 1.2)          # nobody sleeps on a full bladder or an empty stomach
+            add(0.9 + (100 - mi["rest"]) / 45 + 0.3 * late + 0.02 * m - (0.6 if a["sanity"] < 25 else 0) - 1.5 * urgent, "sleep", room=home, why="back to bed")
+            sc = [x for x in sc if x[1] in NIGHT_ACTS]
+        if m >= FINALE and not night:
             # the last half hour leans towards company, but somebody with something in hand (work, a lead, a need) carries on with it
             sc = [(x[0] + (0.45 if x[1] == "gather" else 0.0),) + x[1:] for x in sc]
         if m >= 90:
@@ -826,6 +837,8 @@ class FreeTimeMixin:
             a["thirst"] = max(0, a.get("thirst", 0) - 15)
         elif act == "confess":
             self.booth_visit(tick, cid, m)
+        elif act == "sleep":
+            a["asleep"], a["activity"], a["slept_at"] = True, "Asleep", m
         elif act == "drink":
             a["thirst"] = max(0, a.get("thirst", 0) - 55)
             note(f"{name} {verb}.")

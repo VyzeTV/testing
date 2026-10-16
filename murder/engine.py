@@ -27,7 +27,7 @@ from .refcheck import RefereeMixin
 from .pace import PaceMixin
 from .plotting import PlotMixin
 from .reaction import ReactMixin
-from .night import NightMixin
+from .night import NightMixin, NIGHT_BLOCKS, DAWN_HOUR
 from .aftermath import AftermathMixin
 from .doors import DoorMixin
 from .craft import CraftMixin
@@ -67,7 +67,7 @@ TRIAL_ROOM = _TR
 
 
 def hhmm(h):
-    return f"{h:02d}:00"
+    return f"{int(h) % 24:02d}:00"                  # night hours run on past midnight (25 = 01:00) so time only goes forward
 
 
 def phase_of(h):
@@ -1838,10 +1838,14 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             return "Hehe. Technical difficulties, my darlings. I'm still watching."
 
     # ---------- night and end of day ----------
-    def run_night(self):
+    def run_bedtime(self):
+        """22:00: poison and the deadline reckoning, the night's bookkeeping, and everyone to bed except the ones who stay up. Returns the tick; self._night_over is
+        set when the day already ended here (the reckoning)."""
         w, s = self.world, self.s
+        self._night_over = False
         tick = self.new_tick(DAY_END, phase="night")
         tick["segment_msg"] = self.segment_msg(22, None)
+        s["_hour"] = DAY_END
         # Poison takes effect
         self.clear_hiding()
         self.finish_internal(tick)
@@ -1853,33 +1857,41 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             s["history"].append({"day": self.day, "notes": self.day_notable[-20:]})
             s["rule"] = None
             s["day"] = self.day + 1
+            self._night_over = True
             return tick
         self.plot_nightly(tick)
         self.hook_night(tick)
         self.neovi_report(tick)
-        # Bedtime
         if self.day % s.get("week_len", 7) == 0:
             self.repair_doors(tick)
             self.restock_medicine(tick)
-        for cid, a in w.agents.items():
-            self.send_to_bed(tick, cid)
-            a["activity"] = "Sleeping"
-            if self.revealed and self.worn(cid) and self.rng.random() < 0.5:
-                a["wearing"] = None                       # most people sleep in their underwear
-            # sleep mends the body but not the mind: sanity returns only through special moments (a night owl did not sleep)
-            owl_ = a.pop("night_owl", None)
-            a["slept"] = not owl_
-            a["hp"] = clamp(a["hp"] + (0 if owl_ else 3))
-            if a.get("slept_where") == "rough":
-                a["hp"] = clamp(a["hp"] - 3)
-                self.stat(tick, cid, "sanity", -2, "slept rough")
-            a.pop("asleep", None)
+        owls = self.night_cast() if self.night_allowed() else []
+        self.bed_down(tick, owls)
         nstart = s["npcs"]["neovi"]["room"]
         if nstart != "none":
             s["npcs"]["neovi"]["room"] = "laundry"
             tick["moves"]["neovi"] = {"from": nstart, "path": [nstart, "laundry"] if nstart != "laundry" else [nstart], "to": "laundry"}
-        self.auto_night_locks(tick)
-        tick["events"].append({"type": "system", "who": "terevi", "room": "foyer", "vis": "public", "text": f"Lights out. Day {self.day} ends."})
+        self.auto_night_locks(tick, only_asleep=True)
+        up = [c for c in owls if c in w.agents]
+        tick["events"].append({"type": "system", "who": "terevi", "room": "foyer", "vis": "public",
+                               "text": "Lights out." + (f" {', '.join(self.nm(c) for c in up)} {'stays' if len(up) == 1 else 'stay'} up." if up else "")})
+        return tick
+
+    def run_dawn(self, tick=None):
+        """07:00: how everyone slept (a short night leaves them exhausted), the diaries, and the day ends."""
+        w, s = self.world, self.s
+        if tick is None:
+            tick = self.new_tick(DAWN_HOUR, phase="night")
+            s["_hour"] = DAWN_HOUR
+        for cid, a in w.agents.items():
+            self.night_rest(tick, cid)
+            self.rouse(tick, cid)
+            if self.revealed and self.worn(cid) and self.rng.random() < 0.5:
+                a["wearing"] = None                       # most people sleep in their underwear
+            if a.get("slept_where") == "rough":
+                a["hp"] = clamp(a["hp"] - 3)
+                self.stat(tick, cid, "sanity", -2, "slept rough")
+        tick["events"].append({"type": "system", "who": "terevi", "room": "foyer", "vis": "public", "text": f"Day {self.day} ends."})
         # Diaries
         ids = list(w.agents.keys())
         asks = []
@@ -1906,6 +1918,16 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         s["rule"] = None
         s["day"] = self.day + 1
         return tick
+
+    def run_night(self):
+        """The whole night in one tick (bedtime, a full night's sleep for whoever went to bed, the morning), for callers that do not play the night out."""
+        tick = self.run_bedtime()
+        if self._night_over:
+            return tick
+        for a in self.world.agents.values():
+            if a.get("asleep"):
+                a["sleep_m"] = a.get("sleep_m", 0) + 480
+        return self.run_dawn(tick)
 
     def budget_check(self):
         """At 75% of the day's call cap the run turns lean and calm; at the cap model calls simply fail softly and characters idle."""
@@ -1977,14 +1999,22 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         self.gate(self.idx)
         if self.should_stop():
             raise Stop()
-        if self.night_allowed() and (resume_after is None or resume_after < 23):
-            nt = self.run_night_turn()
-            if nt:
-                self.emit(nt)
+        if resume_after is None or resume_after < DAY_END:
+            self.emit(self.run_bedtime())
+        else:
+            self._night_over = False
+        if not self._night_over:
+            for h in NIGHT_BLOCKS:
+                if resume_after is not None and h <= resume_after:
+                    continue
                 self.gate(self.idx)
                 if self.should_stop():
                     raise Stop()
-        self.emit(self.run_night())
+                self.emit(self.run_night_block(h))
+            self.gate(self.idx)
+            if self.should_stop():
+                raise Stop()
+            self.emit(self.run_dawn())
         return self.idx
 
 
