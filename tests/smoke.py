@@ -1740,6 +1740,10 @@ check("a resumed day carries on from the turn after the last completed one", aft
 check("it does not announce a new rule", not any("RULE CHECK" in e["text"] or "NO RULE" in e["text"] for t in after for e in t["events"]))
 check("and it finishes the day, through to the night", [t["hour"] for t in after][-1] in (22, 23) and not any(t["hour"] <= last_hour and t.get("phase") != "night" for t in after))
 check("the morning broadcast is not repeated", sum(1 for t in after for b in t["broadcasts"] if b.get("kind") == "morning") == 0)
+ends_ = {c: tuple(tr[-1][1:]) for c, tr in seen_ticks[-1]["live"]["tracks"].items()}
+starts_ = {c: tuple(tr[0][1:]) for c, tr in after[0]["live"]["tracks"].items()}
+check("a resumed day picks everybody up exactly where they stood (positions are saved with the game)", ends_ and all(starts_.get(c) == p_ for c, p_ in ends_.items() if c in starts_), str([(c, ends_[c], starts_.get(c)) for c in ends_ if starts_.get(c) != ends_[c]][:3]))
+check("and its clock carries on from the last turn", after[0]["live"]["start"] >= seen_ticks[-1]["live"]["start"] + seen_ticks[-1]["live"]["dur"])
 
 # ---- trial evidence variety and plot motives
 def case_in(seed, room, culprit_idx=0, victim_idx=1, asleep=False):
