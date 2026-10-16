@@ -6,13 +6,15 @@ into tile paths. Furniture blocks tiles; doors, stairs and open floor do not; wi
 import hashlib
 import heapq
 
-from .gridmap import build_grid_map, load_custom, PLANES
+from .gridmap import build_grid_map, load_custom, PLANES, WALK
+from .data_world import ROOMS
+
 
 def _h(*a):
     return int(hashlib.md5(repr(a).encode()).hexdigest()[:8], 16)
 
 
-WALK = set("wkcrmgsp,:+LUDh")
+LINK_TILES = "+LUDhl="                    # doors, stairs, ladders, hatches and windows: kept clear when people pick where to stand
 _CACHE = {}
 
 
@@ -28,8 +30,19 @@ class GridNav:
         self.gm = gm or default_map()
         self.w, self.h = self.gm["w"], self.gm["h"]
         self.rows = {p["id"]: p["rows"] for p in self.gm["planes"]}
-        self.blocked = {(f["plane"], f["x"], f["y"]) for f in self.gm["furniture"] if f["k"] != "camera"}
+        self.z = {p["id"]: p.get("z", 0) for p in self.gm["planes"]}
+        self.blocked = {(f["plane"], f["x"] + i, f["y"] + j) for f in self.gm["furniture"] if f["k"] != "camera" for i in range(f.get("w", 1)) for j in range(f.get("h", 1))}
         self.rooms = self.gm["rooms"]
+        codes = self.gm.get("zone_codes") or {}
+        self.zones = {p["id"]: p.get("zones") for p in self.gm["planes"]}
+        self.codes = {c: r for c, r in codes.items() if r in ROOMS}
+        self.room_tiles = {}
+        for p in self.gm["planes"]:
+            for y, row in enumerate(p.get("zones") or []):
+                for x, c in enumerate(row):
+                    rid = self.codes.get(c)
+                    if rid:
+                        self.room_tiles.setdefault(rid, []).append((p["id"], x, y))
         self.links = {}
         self.link_ids = {}
         for l in self.gm["links"]:
@@ -63,34 +76,41 @@ class GridNav:
         return self.char(plane, x, y) in WALK and (plane, x, y) not in self.blocked
 
     def room_at(self, plane, x, y):
-        for rid, r in self.rooms.items():
-            x0, y0, x1, y1 = r["rect"]
-            if r["plane"] == plane and x0 <= x < x1 and y0 <= y < y1:
-                return rid
-        return None
+        zr = self.zones.get(plane)
+        if zr is None or not (0 <= y < len(zr) and 0 <= x < len(zr[y])):
+            return None
+        return self.codes.get(zr[y][x])
+
+    def area(self, room):
+        """Floor area of a room in tiles (square metres)."""
+        r = self.rooms.get(room)
+        return r["area"] if r and "area" in r else len(self.room_tiles.get(room, ()))
+
+    def level_above(self, plane, d=1):
+        """The level d storeys above (or below, for negative d), or None."""
+        z = self.z.get(plane, 0) + d
+        return next((p for p, zz in self.z.items() if zz == z), None)
 
     # ------------------------------------------------------------------ where people stand
     def spots(self, room):
         """Free floor tiles inside a room, nearest the middle first, keeping the tiles in front of doors and stairs clear."""
         if room in self._spots:
             return self._spots[room]
-        r = self.rooms[room]
-        plane = r["plane"]
-        x0, y0, x1, y1 = r["rect"]
-        if r["open"]:
-            pass                                    # open zones have no walls; only their walkable tiles (the pool's deck, not its water) count
-        else:
-            x0, y0, x1, y1 = x0 + 1, y0 + 1, x1 - 1, y1 - 1
+        tiles = self.room_tiles.get(room, [])
+        if not tiles:
+            self._spots[room] = []
+            return []
+        plane = tiles[0][0]
         keep_clear = set()
-        for yy in range(y0 - 1, y1 + 1):
-            for xx in range(x0 - 1, x1 + 1):
-                if self.char(plane, xx, yy) in "+LUDh=":
-                    for dx, dy in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)):
-                        keep_clear.add((xx + dx, yy + dy))
-        cx, cy = (x0 + x1 - 1) / 2, (y0 + y1 - 1) / 2
-        out = [(plane, xx, yy) for yy in range(y0, y1) for xx in range(x0, x1) if self.walkable(plane, xx, yy) and (xx, yy) not in keep_clear and self.char(plane, xx, yy) not in "+LUDh="]
+        for (p, x, y) in tiles:
+            for dx, dy in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)):
+                if self.char(p, x + dx, y + dy) in LINK_TILES:
+                    keep_clear.add((x, y))
+        lab = (self.rooms.get(room) or {}).get("label")
+        cx, cy = lab if lab else (sum(t[1] for t in tiles) / len(tiles), sum(t[2] for t in tiles) / len(tiles))
+        out = [t for t in tiles if self.walkable(*t) and (t[1], t[2]) not in keep_clear and self.char(*t) not in LINK_TILES]
         if not out:
-            out = [(plane, xx, yy) for yy in range(y0, y1) for xx in range(x0, x1) if self.walkable(plane, xx, yy)]
+            out = [t for t in tiles if self.walkable(*t)]
         out.sort(key=lambda t: (abs(t[1] - cx) + abs(t[2] - cy), t[2], t[1]))
         self._spots[room] = out
         return out
@@ -112,7 +132,7 @@ class GridNav:
                     if max(abs(dx), abs(dy)) != r:
                         continue
                     t = (plane, x + dx, y + dy)
-                    if t in taken or not self.walkable(plane, x + dx, y + dy) or self.char(plane, x + dx, y + dy) in "+LUDh=":
+                    if t in taken or not self.walkable(plane, x + dx, y + dy) or self.char(plane, x + dx, y + dy) in LINK_TILES:
                         continue
                     if room is not None and self.room_at(*t) != room:
                         continue

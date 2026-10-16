@@ -14,6 +14,8 @@ from .scale import tiles, area, MAP_SCALE
 LOUD = {"whisper": tiles(2.0, 1.5), "quiet": tiles(3.5, 2.5), "normal": tiles(8.0), "loud": tiles(14.0), "shout": tiles(18.0)}
 SIGHT = {"lit": int(tiles(18)), "dim": int(tiles(7, 3)), "dark": 2}
 WALL_COST, DOOR_COST, WINDOW_COST, STAIR_COST = 5.0 * MAP_SCALE, 2.0 * MAP_SCALE, 3.0 * MAP_SCALE, 4.0 * MAP_SCALE      # what blocks sound is measured in the same (scaled) tiles
+FLOOR_COST = 7.0 * MAP_SCALE      # sound through a floor or a ceiling: a shout upstairs is heard below, a whisper is not
+SIGHT_BLOCK = set("# +LTH")        # walls, closed doors, trees and hedges block sight (and nothing, outside a level); windows, railings and open drops do not
 BIG_ROOM_AREA = area(220)         # interior tiles above which a room can hold separate conversations
 TALK_RANGE = int(tiles(8, 4))             # tiles within which normal speech carries between two people in the same room
 # how loud each kind of event is, for hearing it from outside its own spot
@@ -41,7 +43,7 @@ class Perception:
                 return False
             if env.st["smoke"].get(k, 0) >= 4:
                 return True
-        return c in "# +L" and c != "="
+        return c in SIGHT_BLOCK
 
     def los(self, a, b):
         """Clear line between two tiles on the same level (walls and closed doors block it; windows, furniture and people do not)."""
@@ -60,10 +62,28 @@ class Perception:
         return True
 
     def sees(self, a, b, light="lit"):
-        if a[0] != b[0]:
-            return False
         d = max(abs(a[1] - b[1]), abs(a[2] - b[2]))
-        return d <= SIGHT.get(light, SIGHT["lit"]) and self.los(a, b)
+        if d > SIGHT.get(light, SIGHT["lit"]):
+            return False
+        if a[0] == b[0]:
+            return self.los(a, b)
+        return self.sees_across(a, b)
+
+    def sees_across(self, a, b):
+        """Between neighbouring levels, only through an open drop (a gallery over a hall): someone above looks down into it, someone below looks up at its edge."""
+        nav = self.nav
+        za, zb = nav.z.get(a[0], 0), nav.z.get(b[0], 0)
+        if abs(za - zb) != 1:
+            return False
+        hi, lo = (a, b) if za > zb else (b, a)
+        if nav.char(hi[0], lo[1], lo[2]) == "v":                     # the one below stands under the void: look down through it
+            return self.los(hi, (hi[0], lo[1], lo[2]))
+        for dx in (-1, 0, 1):                                        # the one above stands at the void's edge: seen from below through it
+            for dy in (-1, 0, 1):
+                v = (hi[0], hi[1] + dx, hi[2] + dy)
+                if nav.char(*v) == "v" and self.los(lo, (lo[0], v[1], v[2])):
+                    return True
+        return False
 
     def visible_tiles(self, a, light="lit"):
         r = SIGHT.get(light, SIGHT["lit"])
@@ -103,6 +123,12 @@ class Perception:
                 for other, link in nav.links.get(cur, []):
                     if link["kind"] == "stairs":
                         nxt.append((other, STAIR_COST))
+            for d in (1, -1):                                        # up through the ceiling, down through the floor (freely through an open drop)
+                op = nav.level_above(pl, d)
+                if op is None or nav.char(op, x, y) == " ":
+                    continue
+                here_c, there_c = nav.char(pl, x, y), nav.char(op, x, y)
+                nxt.append(((op, x, y), 1.0 if "v" in (here_c, there_c) else FLOOR_COST))
             for t, cost in nxt:
                 nl = lv - cost
                 if nl > best.get(t, 0):
@@ -202,9 +228,7 @@ class PerceptionMixin:
         if not self.perception_on() or room not in ROOMS or ROOMS[room][1] == "":
             return members
         nav = self.perc().nav
-        r = nav.rooms[room]
-        x0, y0, x1, y1 = r["rect"]
-        if (x1 - x0 - 2) * (y1 - y0 - 2) < BIG_ROOM_AREA:
+        if nav.area(room) < BIG_ROOM_AREA:
             return members
         humans = [m for m in members if m in self.world.agents]
         pos = {m: self.tile_of(m) for m in humans}

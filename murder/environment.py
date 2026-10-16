@@ -12,8 +12,9 @@ STEP_MIN = 5
 FLAMMABLE_FURN = {"bed", "wardrobe", "desk", "table", "chair", "shelf", "sofa", "piano", "easel", "chest", "crate", "barrel", "bench", "tree", "plantBed", "deckChair", "driftwood", "boat", "poolTable", "cabinet", "podium"}
 HEAVY_FURN = {"wardrobe": 14, "piano": 16, "poolTable": 14, "boiler": 40, "generator": 40, "freezer": 30, "locker": 24, "terminal": 12, "boat": 20, "bed": 9, "table": 8}
 NO_BREAK = {"camera", "railing", "tree", "monitor", "boiler", "generator", "freezer", "locker", "terminal", "fuseBox", "lamp"}
-FLOOR_FLAMMABLE = {"w": 0.18, "c": 0.26, "g": 0.10, ",": 0.06, ":": 0.10}
-OPEN_FLOOR = set("wkcrmgsp,:")
+FLOOR_FLAMMABLE = {"w": 0.18, "c": 0.26, "g": 0.10, ",": 0.06, ":": 0.10, "T": 0.22, "b": 0.28, "H": 0.2, "f": 0.12, "n": 0.05, "B": 0.15, "j": 0.12}
+OPEN_FLOOR = set("wkcrmgsp,:nqfBjKabTH")
+OUTDOOR = set(",gsp:~anqfBjKTbHC")             # open air: smoke thins, daylight reaches
 DOOR_HP, LOCKED_DOOR_HP, WINDOW_HP = 10, 14, 3
 
 
@@ -219,7 +220,7 @@ class Environment:
             for n, w in nbrs:
                 ns[n] = ns.get(n, 0) + out_share * w
             keep = c - out_share * sum(w for _, w in nbrs)
-            outdoors = nav.char(p, x, y) in ",gs:p"
+            outdoors = nav.char(p, x, y) in OUTDOOR
             ns[k] = ns.get(k, 0) + keep * (0.6 if outdoors else 0.92)
         st["smoke"] = {k: min(9.0, round(v, 2)) for k, v in ns.items() if v >= 0.3}
         # --- reports
@@ -293,7 +294,7 @@ class Environment:
                 c = rows[y][x]
                 if c == " ":
                     continue
-                if c in ",gsp:~":
+                if c in OUTDOOR:
                     lv[y][x] = 15 * day
                 elif c != "#":
                     lv[y][x] = 11.0 if power else 0.0
@@ -325,8 +326,7 @@ class Environment:
         """lit / dim / dark: the average light over a room's floor."""
         r = self.nav.rooms[room]
         rows = self.light_rows(r["plane"], hour, power)
-        x0, y0, x1, y1 = r["rect"]
-        vals = [int(rows[y][x], 16) for y in range(y0 + 1, y1 - 1) for x in range(x0 + 1, x1 - 1) if rows[y][x] != " "]
+        vals = [int(rows[y][x], 16) for (_p, x, y) in self.nav.room_tiles.get(room, []) if rows[y][x] != " "]
         avg = sum(vals) / len(vals) if vals else 0
         return "lit" if avg >= 8 else "dim" if avg >= 3 else "dark"
 

@@ -1,0 +1,1796 @@
+{
+ "version": 4,
+ "tile_m": 1,
+ "w": 160,
+ "h": 120,
+ "planes": [
+  {
+   "id": "basement",
+   "z": -1
+  },
+  {
+   "id": "ground",
+   "z": 0
+  },
+  {
+   "id": "first",
+   "z": 1
+  },
+  {
+   "id": "second",
+   "z": 2
+  },
+  {
+   "id": "roof",
+   "z": 3
+  }
+ ],
+ "zone_codes": {
+  "A": "art_studio",
+  "B": "attic",
+  "C": "basement_hall",
+  "D": "bathroom",
+  "E": "beach",
+  "F": "blue_room",
+  "G": "boathouse",
+  "H": "boiler_room",
+  "I": "cold_store",
+  "J": "core_vault",
+  "K": "dining_hall",
+  "L": "foyer",
+  "M": "games_room",
+  "N": "garden",
+  "O": "generator_shed",
+  "P": "green_room",
+  "Q": "greenhouse",
+  "R": "grey_room",
+  "S": "kitchen",
+  "T": "landing",
+  "U": "laundry",
+  "V": "library",
+  "W": "lighthouse",
+  "X": "linen_store",
+  "Y": "lookout",
+  "Z": "lounge",
+  "a": "master_suite",
+  "b": "music_room",
+  "c": "observatory",
+  "d": "orange_room",
+  "e": "pantry",
+  "f": "pool",
+  "g": "red_room",
+  "h": "study",
+  "i": "upper_landing",
+  "j": "violet_room",
+  "k": "voting_grounds",
+  "l": "water_tower",
+  "m": "white_room",
+  "n": "wine_cellar",
+  "o": "yellow_room"
+ },
+ "furniture": [
+  {
+   "k": "poolTable",
+   "plane": "ground",
+   "x": 63,
+   "y": 50,
+   "w": 3,
+   "h": 2,
+   "room": "games_room"
+  },
+  {
+   "k": "dartboard",
+   "plane": "ground",
+   "x": 67,
+   "y": 48,
+   "w": 1,
+   "h": 1,
+   "room": "games_room"
+  },
+  {
+   "k": "chessTable",
+   "plane": "ground",
+   "x": 62,
+   "y": 53,
+   "w": 1,
+   "h": 1,
+   "room": "games_room"
+  },
+  {
+   "k": "armchair",
+   "plane": "ground",
+   "x": 66,
+   "y": 53,
+   "w": 1,
+   "h": 1,
+   "room": "games_room"
+  },
+  {
+   "k": "radio",
+   "plane": "ground",
+   "x": 61,
+   "y": 47,
+   "w": 1,
+   "h": 1,
+   "room": "games_room"
+  },
+  {
+   "k": "shelf",
+   "plane": "ground",
+   "x": 73,
+   "y": 50,
+   "w": 1,
+   "h": 1,
+   "room": "pantry"
+  },
+  {
+   "k": "shelf",
+   "plane": "ground",
+   "x": 75,
+   "y": 50,
+   "w": 1,
+   "h": 1,
+   "room": "pantry"
+  },
+  {
+   "k": "shelf",
+   "plane": "ground",
+   "x": 73,
+   "y": 54,
+   "w": 1,
+   "h": 1,
+   "room": "pantry"
+  },
+  {
+   "k": "barrel",
+   "plane": "ground",
+   "x": 75,
+   "y": 54,
+   "w": 1,
+   "h": 1,
+   "room": "pantry"
+  },
+  {
+   "k": "stove",
+   "plane": "ground",
+   "x": 80,
+   "y": 50,
+   "w": 2,
+   "h": 1,
+   "room": "kitchen"
+  },
+  {
+   "k": "fridge",
+   "plane": "ground",
+   "x": 82,
+   "y": 50,
+   "w": 1,
+   "h": 1,
+   "room": "kitchen"
+  },
+  {
+   "k": "sink",
+   "plane": "ground",
+   "x": 77,
+   "y": 54,
+   "w": 1,
+   "h": 1,
+   "room": "kitchen"
+  },
+  {
+   "k": "table",
+   "plane": "ground",
+   "x": 78,
+   "y": 52,
+   "w": 2,
+   "h": 2,
+   "room": "kitchen"
+  },
+  {
+   "k": "washer",
+   "plane": "ground",
+   "x": 84,
+   "y": 50,
+   "w": 1,
+   "h": 1,
+   "room": "laundry"
+  },
+  {
+   "k": "washer",
+   "plane": "ground",
+   "x": 85,
+   "y": 50,
+   "w": 1,
+   "h": 1,
+   "room": "laundry"
+  },
+  {
+   "k": "sink",
+   "plane": "ground",
+   "x": 84,
+   "y": 54,
+   "w": 1,
+   "h": 1,
+   "room": "laundry"
+  },
+  {
+   "k": "shelf",
+   "plane": "ground",
+   "x": 86,
+   "y": 54,
+   "w": 1,
+   "h": 1,
+   "room": "laundry"
+  },
+  {
+   "k": "table",
+   "plane": "ground",
+   "x": 78,
+   "y": 57,
+   "w": 6,
+   "h": 2,
+   "room": "dining_hall"
+  },
+  {
+   "k": "chair",
+   "plane": "ground",
+   "x": 78,
+   "y": 56,
+   "w": 1,
+   "h": 1,
+   "room": "dining_hall"
+  },
+  {
+   "k": "chair",
+   "plane": "ground",
+   "x": 80,
+   "y": 56,
+   "w": 1,
+   "h": 1,
+   "room": "dining_hall"
+  },
+  {
+   "k": "chair",
+   "plane": "ground",
+   "x": 81,
+   "y": 56,
+   "w": 1,
+   "h": 1,
+   "room": "dining_hall"
+  },
+  {
+   "k": "chair",
+   "plane": "ground",
+   "x": 82,
+   "y": 56,
+   "w": 1,
+   "h": 1,
+   "room": "dining_hall"
+  },
+  {
+   "k": "chair",
+   "plane": "ground",
+   "x": 83,
+   "y": 56,
+   "w": 1,
+   "h": 1,
+   "room": "dining_hall"
+  },
+  {
+   "k": "chair",
+   "plane": "ground",
+   "x": 78,
+   "y": 59,
+   "w": 1,
+   "h": 1,
+   "room": "dining_hall"
+  },
+  {
+   "k": "chair",
+   "plane": "ground",
+   "x": 79,
+   "y": 59,
+   "w": 1,
+   "h": 1,
+   "room": "dining_hall"
+  },
+  {
+   "k": "chair",
+   "plane": "ground",
+   "x": 80,
+   "y": 59,
+   "w": 1,
+   "h": 1,
+   "room": "dining_hall"
+  },
+  {
+   "k": "chair",
+   "plane": "ground",
+   "x": 81,
+   "y": 59,
+   "w": 1,
+   "h": 1,
+   "room": "dining_hall"
+  },
+  {
+   "k": "chair",
+   "plane": "ground",
+   "x": 82,
+   "y": 59,
+   "w": 1,
+   "h": 1,
+   "room": "dining_hall"
+  },
+  {
+   "k": "chair",
+   "plane": "ground",
+   "x": 83,
+   "y": 59,
+   "w": 1,
+   "h": 1,
+   "room": "dining_hall"
+  },
+  {
+   "k": "sofa",
+   "plane": "ground",
+   "x": 62,
+   "y": 57,
+   "w": 3,
+   "h": 1,
+   "room": "lounge"
+  },
+  {
+   "k": "sofa",
+   "plane": "ground",
+   "x": 62,
+   "y": 62,
+   "w": 3,
+   "h": 1,
+   "room": "lounge"
+  },
+  {
+   "k": "armchair",
+   "plane": "ground",
+   "x": 66,
+   "y": 58,
+   "w": 1,
+   "h": 1,
+   "room": "lounge"
+  },
+  {
+   "k": "armchair",
+   "plane": "ground",
+   "x": 66,
+   "y": 60,
+   "w": 1,
+   "h": 1,
+   "room": "lounge"
+  },
+  {
+   "k": "fireplace",
+   "plane": "ground",
+   "x": 61,
+   "y": 59,
+   "w": 1,
+   "h": 2,
+   "room": "lounge"
+  },
+  {
+   "k": "table",
+   "plane": "ground",
+   "x": 63,
+   "y": 59,
+   "w": 2,
+   "h": 2,
+   "room": "lounge"
+  },
+  {
+   "k": "jukebox",
+   "plane": "ground",
+   "x": 67,
+   "y": 56,
+   "w": 1,
+   "h": 1,
+   "room": "lounge"
+  },
+  {
+   "k": "bench",
+   "plane": "ground",
+   "x": 71,
+   "y": 56,
+   "w": 2,
+   "h": 1,
+   "room": "foyer"
+  },
+  {
+   "k": "plant",
+   "plane": "ground",
+   "x": 74,
+   "y": 56,
+   "w": 1,
+   "h": 1,
+   "room": "foyer"
+  },
+  {
+   "k": "plant",
+   "plane": "ground",
+   "x": 70,
+   "y": 64,
+   "w": 1,
+   "h": 1,
+   "room": "foyer"
+  },
+  {
+   "k": "mirror",
+   "plane": "ground",
+   "x": 74,
+   "y": 64,
+   "w": 1,
+   "h": 1,
+   "room": "foyer"
+  },
+  {
+   "k": "barrel",
+   "plane": "basement",
+   "x": 71,
+   "y": 49,
+   "w": 1,
+   "h": 1,
+   "room": "wine_cellar"
+  },
+  {
+   "k": "barrel",
+   "plane": "basement",
+   "x": 73,
+   "y": 49,
+   "w": 1,
+   "h": 1,
+   "room": "wine_cellar"
+  },
+  {
+   "k": "barrel",
+   "plane": "basement",
+   "x": 71,
+   "y": 53,
+   "w": 1,
+   "h": 1,
+   "room": "wine_cellar"
+  },
+  {
+   "k": "barrel",
+   "plane": "basement",
+   "x": 73,
+   "y": 53,
+   "w": 1,
+   "h": 1,
+   "room": "wine_cellar"
+  },
+  {
+   "k": "table",
+   "plane": "basement",
+   "x": 72,
+   "y": 51,
+   "w": 1,
+   "h": 1,
+   "room": "wine_cellar"
+  },
+  {
+   "k": "crate",
+   "plane": "basement",
+   "x": 73,
+   "y": 56,
+   "w": 1,
+   "h": 1,
+   "room": "basement_hall"
+  },
+  {
+   "k": "bench",
+   "plane": "basement",
+   "x": 73,
+   "y": 59,
+   "w": 1,
+   "h": 2,
+   "room": "basement_hall"
+  },
+  {
+   "k": "boiler",
+   "plane": "basement",
+   "x": 79,
+   "y": 57,
+   "w": 2,
+   "h": 2,
+   "room": "boiler_room"
+  },
+  {
+   "k": "fuseBox",
+   "plane": "basement",
+   "x": 81,
+   "y": 56,
+   "w": 1,
+   "h": 1,
+   "room": "boiler_room"
+  },
+  {
+   "k": "workbench",
+   "plane": "basement",
+   "x": 77,
+   "y": 59,
+   "w": 2,
+   "h": 1,
+   "room": "boiler_room"
+  },
+  {
+   "k": "freezer",
+   "plane": "basement",
+   "x": 68,
+   "y": 57,
+   "w": 2,
+   "h": 1,
+   "room": "cold_store"
+  },
+  {
+   "k": "shelf",
+   "plane": "basement",
+   "x": 68,
+   "y": 60,
+   "w": 1,
+   "h": 1,
+   "room": "cold_store"
+  },
+  {
+   "k": "terminal",
+   "plane": "basement",
+   "x": 121,
+   "y": 22,
+   "w": 2,
+   "h": 1,
+   "room": "core_vault"
+  },
+  {
+   "k": "terminal",
+   "plane": "basement",
+   "x": 125,
+   "y": 22,
+   "w": 2,
+   "h": 1,
+   "room": "core_vault"
+  },
+  {
+   "k": "terminal",
+   "plane": "basement",
+   "x": 119,
+   "y": 24,
+   "w": 1,
+   "h": 2,
+   "room": "core_vault"
+  },
+  {
+   "k": "terminal",
+   "plane": "basement",
+   "x": 128,
+   "y": 24,
+   "w": 1,
+   "h": 2,
+   "room": "core_vault"
+  },
+  {
+   "k": "generator",
+   "plane": "basement",
+   "x": 123,
+   "y": 25,
+   "w": 2,
+   "h": 2,
+   "room": "core_vault"
+  },
+  {
+   "k": "locker",
+   "plane": "basement",
+   "x": 119,
+   "y": 29,
+   "w": 1,
+   "h": 1,
+   "room": "core_vault"
+  },
+  {
+   "k": "locker",
+   "plane": "basement",
+   "x": 121,
+   "y": 29,
+   "w": 1,
+   "h": 1,
+   "room": "core_vault"
+  },
+  {
+   "k": "locker",
+   "plane": "basement",
+   "x": 127,
+   "y": 29,
+   "w": 1,
+   "h": 1,
+   "room": "core_vault"
+  },
+  {
+   "k": "locker",
+   "plane": "basement",
+   "x": 128,
+   "y": 29,
+   "w": 1,
+   "h": 1,
+   "room": "core_vault"
+  },
+  {
+   "k": "bed",
+   "plane": "first",
+   "x": 61,
+   "y": 47,
+   "w": 1,
+   "h": 2,
+   "room": "blue_room"
+  },
+  {
+   "k": "wardrobe",
+   "plane": "first",
+   "x": 63,
+   "y": 47,
+   "w": 1,
+   "h": 1,
+   "room": "blue_room"
+  },
+  {
+   "k": "desk",
+   "plane": "first",
+   "x": 63,
+   "y": 49,
+   "w": 1,
+   "h": 1,
+   "room": "blue_room"
+  },
+  {
+   "k": "mirror",
+   "plane": "first",
+   "x": 61,
+   "y": 50,
+   "w": 1,
+   "h": 1,
+   "room": "blue_room"
+  },
+  {
+   "k": "bed",
+   "plane": "first",
+   "x": 65,
+   "y": 47,
+   "w": 1,
+   "h": 2,
+   "room": "green_room"
+  },
+  {
+   "k": "wardrobe",
+   "plane": "first",
+   "x": 67,
+   "y": 47,
+   "w": 1,
+   "h": 1,
+   "room": "green_room"
+  },
+  {
+   "k": "desk",
+   "plane": "first",
+   "x": 67,
+   "y": 49,
+   "w": 1,
+   "h": 1,
+   "room": "green_room"
+  },
+  {
+   "k": "mirror",
+   "plane": "first",
+   "x": 65,
+   "y": 50,
+   "w": 1,
+   "h": 1,
+   "room": "green_room"
+  },
+  {
+   "k": "bed",
+   "plane": "first",
+   "x": 69,
+   "y": 47,
+   "w": 1,
+   "h": 2,
+   "room": "yellow_room"
+  },
+  {
+   "k": "wardrobe",
+   "plane": "first",
+   "x": 71,
+   "y": 47,
+   "w": 1,
+   "h": 1,
+   "room": "yellow_room"
+  },
+  {
+   "k": "desk",
+   "plane": "first",
+   "x": 71,
+   "y": 49,
+   "w": 1,
+   "h": 1,
+   "room": "yellow_room"
+  },
+  {
+   "k": "mirror",
+   "plane": "first",
+   "x": 69,
+   "y": 50,
+   "w": 1,
+   "h": 1,
+   "room": "yellow_room"
+  },
+  {
+   "k": "bed",
+   "plane": "first",
+   "x": 73,
+   "y": 47,
+   "w": 1,
+   "h": 2,
+   "room": "red_room"
+  },
+  {
+   "k": "wardrobe",
+   "plane": "first",
+   "x": 75,
+   "y": 47,
+   "w": 1,
+   "h": 1,
+   "room": "red_room"
+  },
+  {
+   "k": "desk",
+   "plane": "first",
+   "x": 75,
+   "y": 49,
+   "w": 1,
+   "h": 1,
+   "room": "red_room"
+  },
+  {
+   "k": "mirror",
+   "plane": "first",
+   "x": 73,
+   "y": 50,
+   "w": 1,
+   "h": 1,
+   "room": "red_room"
+  },
+  {
+   "k": "bed",
+   "plane": "first",
+   "x": 80,
+   "y": 47,
+   "w": 1,
+   "h": 2,
+   "room": "violet_room"
+  },
+  {
+   "k": "wardrobe",
+   "plane": "first",
+   "x": 82,
+   "y": 47,
+   "w": 1,
+   "h": 1,
+   "room": "violet_room"
+  },
+  {
+   "k": "desk",
+   "plane": "first",
+   "x": 82,
+   "y": 49,
+   "w": 1,
+   "h": 1,
+   "room": "violet_room"
+  },
+  {
+   "k": "mirror",
+   "plane": "first",
+   "x": 80,
+   "y": 50,
+   "w": 1,
+   "h": 1,
+   "room": "violet_room"
+  },
+  {
+   "k": "bed",
+   "plane": "first",
+   "x": 84,
+   "y": 47,
+   "w": 1,
+   "h": 2,
+   "room": "white_room"
+  },
+  {
+   "k": "wardrobe",
+   "plane": "first",
+   "x": 86,
+   "y": 47,
+   "w": 1,
+   "h": 1,
+   "room": "white_room"
+  },
+  {
+   "k": "desk",
+   "plane": "first",
+   "x": 86,
+   "y": 49,
+   "w": 1,
+   "h": 1,
+   "room": "white_room"
+  },
+  {
+   "k": "mirror",
+   "plane": "first",
+   "x": 84,
+   "y": 50,
+   "w": 1,
+   "h": 1,
+   "room": "white_room"
+  },
+  {
+   "k": "bed",
+   "plane": "first",
+   "x": 77,
+   "y": 58,
+   "w": 1,
+   "h": 2,
+   "room": "orange_room"
+  },
+  {
+   "k": "wardrobe",
+   "plane": "first",
+   "x": 79,
+   "y": 59,
+   "w": 1,
+   "h": 1,
+   "room": "orange_room"
+  },
+  {
+   "k": "desk",
+   "plane": "first",
+   "x": 79,
+   "y": 57,
+   "w": 1,
+   "h": 1,
+   "room": "orange_room"
+  },
+  {
+   "k": "mirror",
+   "plane": "first",
+   "x": 77,
+   "y": 57,
+   "w": 1,
+   "h": 1,
+   "room": "orange_room"
+  },
+  {
+   "k": "bed",
+   "plane": "first",
+   "x": 65,
+   "y": 61,
+   "w": 1,
+   "h": 2,
+   "room": "grey_room"
+  },
+  {
+   "k": "wardrobe",
+   "plane": "first",
+   "x": 65,
+   "y": 64,
+   "w": 1,
+   "h": 1,
+   "room": "grey_room"
+  },
+  {
+   "k": "desk",
+   "plane": "first",
+   "x": 66,
+   "y": 64,
+   "w": 1,
+   "h": 1,
+   "room": "grey_room"
+  },
+  {
+   "k": "mirror",
+   "plane": "first",
+   "x": 67,
+   "y": 64,
+   "w": 1,
+   "h": 1,
+   "room": "grey_room"
+  },
+  {
+   "k": "shelf",
+   "plane": "first",
+   "x": 77,
+   "y": 47,
+   "w": 1,
+   "h": 1,
+   "room": "linen_store"
+  },
+  {
+   "k": "shelf",
+   "plane": "first",
+   "x": 78,
+   "y": 47,
+   "w": 1,
+   "h": 1,
+   "room": "linen_store"
+  },
+  {
+   "k": "shelf",
+   "plane": "first",
+   "x": 77,
+   "y": 49,
+   "w": 1,
+   "h": 1,
+   "room": "linen_store"
+  },
+  {
+   "k": "shelf",
+   "plane": "first",
+   "x": 61,
+   "y": 56,
+   "w": 1,
+   "h": 1,
+   "room": "library"
+  },
+  {
+   "k": "shelf",
+   "plane": "first",
+   "x": 62,
+   "y": 56,
+   "w": 1,
+   "h": 1,
+   "room": "library"
+  },
+  {
+   "k": "shelf",
+   "plane": "first",
+   "x": 66,
+   "y": 56,
+   "w": 1,
+   "h": 1,
+   "room": "library"
+  },
+  {
+   "k": "shelf",
+   "plane": "first",
+   "x": 67,
+   "y": 56,
+   "w": 1,
+   "h": 1,
+   "room": "library"
+  },
+  {
+   "k": "desk",
+   "plane": "first",
+   "x": 64,
+   "y": 58,
+   "w": 1,
+   "h": 1,
+   "room": "library"
+  },
+  {
+   "k": "armchair",
+   "plane": "first",
+   "x": 62,
+   "y": 59,
+   "w": 1,
+   "h": 1,
+   "room": "library"
+  },
+  {
+   "k": "armchair",
+   "plane": "first",
+   "x": 66,
+   "y": 59,
+   "w": 1,
+   "h": 1,
+   "room": "library"
+  },
+  {
+   "k": "desk",
+   "plane": "first",
+   "x": 85,
+   "y": 57,
+   "w": 1,
+   "h": 1,
+   "room": "study"
+  },
+  {
+   "k": "radio",
+   "plane": "first",
+   "x": 86,
+   "y": 56,
+   "w": 1,
+   "h": 1,
+   "room": "study"
+  },
+  {
+   "k": "shelf",
+   "plane": "first",
+   "x": 81,
+   "y": 56,
+   "w": 1,
+   "h": 1,
+   "room": "study"
+  },
+  {
+   "k": "armchair",
+   "plane": "first",
+   "x": 82,
+   "y": 58,
+   "w": 1,
+   "h": 1,
+   "room": "study"
+  },
+  {
+   "k": "terminal",
+   "plane": "first",
+   "x": 86,
+   "y": 59,
+   "w": 1,
+   "h": 1,
+   "room": "study"
+  },
+  {
+   "k": "tub",
+   "plane": "first",
+   "x": 79,
+   "y": 61,
+   "w": 2,
+   "h": 1,
+   "room": "bathroom"
+  },
+  {
+   "k": "sink",
+   "plane": "first",
+   "x": 77,
+   "y": 64,
+   "w": 1,
+   "h": 1,
+   "room": "bathroom"
+  },
+  {
+   "k": "cabinet",
+   "plane": "first",
+   "x": 80,
+   "y": 64,
+   "w": 1,
+   "h": 1,
+   "room": "bathroom"
+  },
+  {
+   "k": "mirror",
+   "plane": "first",
+   "x": 78,
+   "y": 64,
+   "w": 1,
+   "h": 1,
+   "room": "bathroom"
+  },
+  {
+   "k": "plant",
+   "plane": "first",
+   "x": 61,
+   "y": 54,
+   "w": 1,
+   "h": 1,
+   "room": "landing"
+  },
+  {
+   "k": "bench",
+   "plane": "first",
+   "x": 72,
+   "y": 55,
+   "w": 2,
+   "h": 1,
+   "room": "landing"
+  },
+  {
+   "k": "plant",
+   "plane": "first",
+   "x": 75,
+   "y": 64,
+   "w": 1,
+   "h": 1,
+   "room": "landing"
+  },
+  {
+   "k": "bed",
+   "plane": "second",
+   "x": 61,
+   "y": 47,
+   "w": 2,
+   "h": 2,
+   "room": "master_suite"
+  },
+  {
+   "k": "wardrobe",
+   "plane": "second",
+   "x": 66,
+   "y": 47,
+   "w": 1,
+   "h": 1,
+   "room": "master_suite"
+  },
+  {
+   "k": "sofa",
+   "plane": "second",
+   "x": 65,
+   "y": 51,
+   "w": 2,
+   "h": 1,
+   "room": "master_suite"
+  },
+  {
+   "k": "desk",
+   "plane": "second",
+   "x": 66,
+   "y": 49,
+   "w": 1,
+   "h": 1,
+   "room": "master_suite"
+  },
+  {
+   "k": "piano",
+   "plane": "second",
+   "x": 69,
+   "y": 48,
+   "w": 2,
+   "h": 1,
+   "room": "music_room"
+  },
+  {
+   "k": "armchair",
+   "plane": "second",
+   "x": 72,
+   "y": 50,
+   "w": 1,
+   "h": 1,
+   "room": "music_room"
+  },
+  {
+   "k": "shelf",
+   "plane": "second",
+   "x": 68,
+   "y": 47,
+   "w": 1,
+   "h": 1,
+   "room": "music_room"
+  },
+  {
+   "k": "easel",
+   "plane": "second",
+   "x": 75,
+   "y": 48,
+   "w": 1,
+   "h": 1,
+   "room": "art_studio"
+  },
+  {
+   "k": "easel",
+   "plane": "second",
+   "x": 77,
+   "y": 48,
+   "w": 1,
+   "h": 1,
+   "room": "art_studio"
+  },
+  {
+   "k": "table",
+   "plane": "second",
+   "x": 74,
+   "y": 50,
+   "w": 1,
+   "h": 2,
+   "room": "art_studio"
+  },
+  {
+   "k": "shelf",
+   "plane": "second",
+   "x": 78,
+   "y": 47,
+   "w": 1,
+   "h": 1,
+   "room": "art_studio"
+  },
+  {
+   "k": "telescope",
+   "plane": "second",
+   "x": 82,
+   "y": 48,
+   "w": 1,
+   "h": 1,
+   "room": "observatory"
+  },
+  {
+   "k": "armchair",
+   "plane": "second",
+   "x": 84,
+   "y": 50,
+   "w": 1,
+   "h": 1,
+   "room": "observatory"
+  },
+  {
+   "k": "desk",
+   "plane": "second",
+   "x": 80,
+   "y": 50,
+   "w": 1,
+   "h": 1,
+   "room": "observatory"
+  },
+  {
+   "k": "crate",
+   "plane": "second",
+   "x": 66,
+   "y": 56,
+   "w": 1,
+   "h": 1,
+   "room": "attic"
+  },
+  {
+   "k": "crate",
+   "plane": "second",
+   "x": 68,
+   "y": 56,
+   "w": 1,
+   "h": 1,
+   "room": "attic"
+  },
+  {
+   "k": "crate",
+   "plane": "second",
+   "x": 68,
+   "y": 58,
+   "w": 1,
+   "h": 1,
+   "room": "attic"
+  },
+  {
+   "k": "chest",
+   "plane": "second",
+   "x": 69,
+   "y": 61,
+   "w": 1,
+   "h": 1,
+   "room": "attic"
+  },
+  {
+   "k": "armchair",
+   "plane": "second",
+   "x": 64,
+   "y": 61,
+   "w": 1,
+   "h": 1,
+   "room": "attic"
+  },
+  {
+   "k": "plant",
+   "plane": "second",
+   "x": 73,
+   "y": 54,
+   "w": 1,
+   "h": 1,
+   "room": "upper_landing"
+  },
+  {
+   "k": "bench",
+   "plane": "second",
+   "x": 79,
+   "y": 54,
+   "w": 2,
+   "h": 1,
+   "room": "upper_landing"
+  },
+  {
+   "k": "telescope",
+   "plane": "roof",
+   "x": 68,
+   "y": 48,
+   "w": 1,
+   "h": 1,
+   "room": "lookout"
+  },
+  {
+   "k": "bench",
+   "plane": "roof",
+   "x": 65,
+   "y": 52,
+   "w": 2,
+   "h": 1,
+   "room": "lookout"
+  },
+  {
+   "k": "railing",
+   "plane": "roof",
+   "x": 61,
+   "y": 47,
+   "w": 3,
+   "h": 1,
+   "room": "lookout"
+  },
+  {
+   "k": "barrel",
+   "plane": "roof",
+   "x": 74,
+   "y": 49,
+   "w": 2,
+   "h": 2,
+   "room": "water_tower"
+  },
+  {
+   "k": "barrel",
+   "plane": "roof",
+   "x": 77,
+   "y": 49,
+   "w": 1,
+   "h": 1,
+   "room": "water_tower"
+  },
+  {
+   "k": "bench",
+   "plane": "roof",
+   "x": 72,
+   "y": 53,
+   "w": 2,
+   "h": 1,
+   "room": "water_tower"
+  },
+  {
+   "k": "plantBed",
+   "plane": "ground",
+   "x": 31,
+   "y": 51,
+   "w": 2,
+   "h": 1,
+   "room": "greenhouse"
+  },
+  {
+   "k": "plantBed",
+   "plane": "ground",
+   "x": 33,
+   "y": 51,
+   "w": 2,
+   "h": 1,
+   "room": "greenhouse"
+  },
+  {
+   "k": "plantBed",
+   "plane": "ground",
+   "x": 31,
+   "y": 56,
+   "w": 2,
+   "h": 1,
+   "room": "greenhouse"
+  },
+  {
+   "k": "bench",
+   "plane": "ground",
+   "x": 33,
+   "y": 54,
+   "w": 1,
+   "h": 1,
+   "room": "greenhouse"
+  },
+  {
+   "k": "generator",
+   "plane": "ground",
+   "x": 54,
+   "y": 36,
+   "w": 1,
+   "h": 1,
+   "room": "generator_shed"
+  },
+  {
+   "k": "workbench",
+   "plane": "ground",
+   "x": 53,
+   "y": 38,
+   "w": 1,
+   "h": 1,
+   "room": "generator_shed"
+  },
+  {
+   "k": "barrel",
+   "plane": "ground",
+   "x": 53,
+   "y": 35,
+   "w": 1,
+   "h": 1,
+   "room": "generator_shed"
+  },
+  {
+   "k": "lamp",
+   "plane": "ground",
+   "x": 126,
+   "y": 26,
+   "w": 1,
+   "h": 1,
+   "room": "lighthouse"
+  },
+  {
+   "k": "crate",
+   "plane": "ground",
+   "x": 124,
+   "y": 30,
+   "w": 1,
+   "h": 1,
+   "room": "lighthouse"
+  },
+  {
+   "k": "monitor",
+   "plane": "ground",
+   "x": 137,
+   "y": 48,
+   "w": 1,
+   "h": 1,
+   "room": "voting_grounds"
+  },
+  {
+   "k": "boat",
+   "plane": "ground",
+   "x": 74,
+   "y": 96,
+   "w": 2,
+   "h": 3,
+   "room": "boathouse"
+  },
+  {
+   "k": "workbench",
+   "plane": "ground",
+   "x": 73,
+   "y": 95,
+   "w": 1,
+   "h": 1,
+   "room": "boathouse"
+  },
+  {
+   "k": "crate",
+   "plane": "ground",
+   "x": 77,
+   "y": 95,
+   "w": 1,
+   "h": 1,
+   "room": "boathouse"
+  },
+  {
+   "k": "podium",
+   "plane": "ground",
+   "x": 140,
+   "y": 51,
+   "w": 1,
+   "h": 1,
+   "room": "voting_grounds"
+  },
+  {
+   "k": "podium",
+   "plane": "ground",
+   "x": 139,
+   "y": 53,
+   "w": 1,
+   "h": 1,
+   "room": "voting_grounds"
+  },
+  {
+   "k": "podium",
+   "plane": "ground",
+   "x": 138,
+   "y": 53,
+   "w": 1,
+   "h": 1,
+   "room": "voting_grounds"
+  },
+  {
+   "k": "podium",
+   "plane": "ground",
+   "x": 136,
+   "y": 53,
+   "w": 1,
+   "h": 1,
+   "room": "voting_grounds"
+  },
+  {
+   "k": "podium",
+   "plane": "ground",
+   "x": 135,
+   "y": 51,
+   "w": 1,
+   "h": 1,
+   "room": "voting_grounds"
+  },
+  {
+   "k": "podium",
+   "plane": "ground",
+   "x": 136,
+   "y": 49,
+   "w": 1,
+   "h": 1,
+   "room": "voting_grounds"
+  },
+  {
+   "k": "podium",
+   "plane": "ground",
+   "x": 138,
+   "y": 49,
+   "w": 1,
+   "h": 1,
+   "room": "voting_grounds"
+  },
+  {
+   "k": "podium",
+   "plane": "ground",
+   "x": 139,
+   "y": 49,
+   "w": 1,
+   "h": 1,
+   "room": "voting_grounds"
+  },
+  {
+   "k": "deckChair",
+   "plane": "ground",
+   "x": 44,
+   "y": 45,
+   "w": 1,
+   "h": 1,
+   "room": "pool"
+  },
+  {
+   "k": "deckChair",
+   "plane": "ground",
+   "x": 47,
+   "y": 57,
+   "w": 1,
+   "h": 1,
+   "room": "pool"
+  },
+  {
+   "k": "deckChair",
+   "plane": "ground",
+   "x": 52,
+   "y": 57,
+   "w": 1,
+   "h": 1,
+   "room": "pool"
+  },
+  {
+   "k": "deckChair",
+   "plane": "ground",
+   "x": 57,
+   "y": 46,
+   "w": 1,
+   "h": 1,
+   "room": "pool"
+  },
+  {
+   "k": "bench",
+   "plane": "ground",
+   "x": 58,
+   "y": 52,
+   "w": 1,
+   "h": 1,
+   "room": "pool"
+  },
+  {
+   "k": "bench",
+   "plane": "ground",
+   "x": 64,
+   "y": 70,
+   "w": 1,
+   "h": 1,
+   "room": "garden"
+  },
+  {
+   "k": "bench",
+   "plane": "ground",
+   "x": 86,
+   "y": 44,
+   "w": 1,
+   "h": 1,
+   "room": "garden"
+  },
+  {
+   "k": "bench",
+   "plane": "ground",
+   "x": 37,
+   "y": 63,
+   "w": 1,
+   "h": 1,
+   "room": "garden"
+  },
+  {
+   "k": "hammock",
+   "plane": "ground",
+   "x": 66,
+   "y": 40,
+   "w": 1,
+   "h": 1,
+   "room": "garden"
+  },
+  {
+   "k": "bench",
+   "plane": "ground",
+   "x": 99,
+   "y": 44,
+   "w": 1,
+   "h": 1,
+   "room": "garden"
+  },
+  {
+   "k": "driftwood",
+   "plane": "ground",
+   "x": 112,
+   "y": 95,
+   "w": 1,
+   "h": 1,
+   "room": "beach"
+  },
+  {
+   "k": "driftwood",
+   "plane": "ground",
+   "x": 126,
+   "y": 84,
+   "w": 1,
+   "h": 1,
+   "room": "beach"
+  },
+  {
+   "k": "driftwood",
+   "plane": "ground",
+   "x": 98,
+   "y": 106,
+   "w": 1,
+   "h": 1,
+   "room": "beach"
+  },
+  {
+   "k": "firepit",
+   "plane": "ground",
+   "x": 116,
+   "y": 98,
+   "w": 1,
+   "h": 1,
+   "room": "beach"
+  },
+  {
+   "k": "deckChair",
+   "plane": "ground",
+   "x": 114,
+   "y": 100,
+   "w": 1,
+   "h": 1,
+   "room": "beach"
+  },
+  {
+   "k": "deckChair",
+   "plane": "ground",
+   "x": 118,
+   "y": 100,
+   "w": 1,
+   "h": 1,
+   "room": "beach"
+  }
+ ],
+ "secrets": [
+  {
+   "id": "SP-1",
+   "ends": [
+    [
+     "ground",
+     74,
+     51
+    ],
+    [
+     "basement",
+     74,
+     51
+    ]
+   ],
+   "note": "a sliding wall in the pantry onto a stair down"
+  },
+  {
+   "id": "SP-2",
+   "ends": [
+    [
+     "basement",
+     70,
+     51
+    ],
+    [
+     "basement",
+     68,
+     51
+    ]
+   ],
+   "note": "the rusted grate behind the crates into the smugglers' tunnel"
+  },
+  {
+   "id": "SP-2",
+   "ends": [
+    [
+     "basement",
+     131,
+     34
+    ],
+    [
+     "ground",
+     127,
+     27
+    ]
+   ],
+   "note": "the tunnel's far end, a ladder up into the lighthouse"
+  },
+  {
+   "id": "SP-3",
+   "ends": [
+    [
+     "first",
+     61,
+     58
+    ],
+    [
+     "second",
+     61,
+     58
+    ]
+   ],
+   "note": "the bookcase door onto a hidden stair to the attic"
+  },
+  {
+   "id": "SP-4",
+   "ends": [
+    [
+     "ground",
+     78,
+     50
+    ],
+    [
+     "first",
+     78,
+     50
+    ]
+   ],
+   "note": "the dumbwaiter shaft from the kitchen to the linen store"
+  },
+  {
+   "id": "SP-5",
+   "ends": [
+    [
+     "ground",
+     125,
+     29
+    ],
+    [
+     "basement",
+     125,
+     29
+    ]
+   ],
+   "note": "the floor hatch in the lighthouse onto the steps down to the vault"
+  }
+ ],
+ "labels": {
+  "garden": [
+   70,
+   36
+  ],
+  "beach": [
+   118,
+   96
+  ],
+  "pool": [
+   50,
+   60
+  ]
+ }
+}

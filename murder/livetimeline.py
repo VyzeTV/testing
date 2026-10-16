@@ -7,8 +7,8 @@ used), so it changes no behaviour and can be recomputed for a replay. LiveMixin 
 from .gridnav import GridNav, _h
 from .scale import MAP_SCALE
 
-TILES_PER_MIN = 4.0                    # a stroll across a 4x4 room takes about a minute; between buildings it is a walk of several
-MAX_SPEED = 12.0                       # a hurry: someone with somewhere to be
+TILES_PER_MIN = 40.0                   # a stroll, in metres (tiles) a minute: crossing the house takes under a minute, the island a few
+MAX_SPEED = 110.0                      # a hurry: someone with somewhere to be
 ARRIVE_BY = 54.0
 IDLE_EVERY = 22
 PORTAL_MIN = 0.4                              # a flight of stairs or a hatch takes a moment

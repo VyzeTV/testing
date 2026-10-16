@@ -300,11 +300,9 @@ class EnvironmentMixin:
         return {"m": m, "fire": sn["fire"], "smoke": sn["smoke"], "water": sn["water"]}
 
     def env_room_area(self, room):
-        r = self.nav().rooms.get(room)
-        if not r:
+        if room not in self.nav().rooms:
             return 100
-        x0, y0, x1, y1 = r["rect"]
-        return max(9, (x1 - x0 - 2) * (y1 - y0 - 2))
+        return max(9, self.nav().area(room))
 
     def env_advance(self, tick, m0, m1):
         """Advance the environment from minute m0 to m1 of this turn in five-minute steps. At every step the people are where they really are: they notice, flee, burn, choke and collapse then."""
@@ -362,7 +360,7 @@ class EnvironmentMixin:
                     a["asleep"] = False
                     self.log_event(tick, {"type": "reaction", "who": cid, "room": room, "vis": "public", "text": f"{self.nm(cid)} wakes choking on smoke."}, actor=cid)
                 if not a.get("asleep"):
-                    p = 0.5 * (0.6 if a["sanity"] < 25 else 1.0) * (0.45 if self.has_cond(cid, "panicking") else 1.0) * (0.5 if self.has_cond(cid, "blinded") else 1.0)
+                    p = 0.7 * (0.6 if a["sanity"] < 25 else 1.0) * (0.45 if self.has_cond(cid, "panicking") else 1.0) * (0.5 if self.has_cond(cid, "blinded") else 1.0)
                     if self.rng.random() < p and self.fire_flee(tick, cid, m, fire_rooms, smoke_rooms):
                         continue
             area = self.env_room_area(room)

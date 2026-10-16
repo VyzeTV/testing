@@ -3234,9 +3234,9 @@ check("every room and every connection is on the map", set(gm_["rooms"]) == set(
 check("hidden entrances are all hidden stair/hatch tiles, locked ones keep their keys", {l["id"] for l in gm_["links"] if l["hidden"]} == {"SP-1", "SP-2", "SP-3", "SP-4", "SP-5"}
       and next(d for d in gm_["doors"] if d["id"] == "study_door")["locked"] and next(l for l in gm_["links"] if l["id"] == "SP-2")["keys"] == ["iron_key"])
 rows_ = {p["id"]: p["rows"] for p in gm_["planes"]}
-check("stairs join neighbouring levels and every link end is a stair or hatch tile", all(rows_[e[0]][e[2]][e[1]] in "UDh" for l in gm_["links"] for e in l["ends"].values()))
+check("stairs join neighbouring levels and every link end is a stair, ladder or hatch tile", all(rows_[e[0]][e[2]][e[1]] in "UDlh" for l in gm_["links"] for e in l["ends"].values()))
 check("all five levels exist and the grounds share the ground level", [p["id"] for p in gm_["planes"]] == GRID_PLANES and gm_["rooms"]["garden"]["plane"] == "ground" and gm_["rooms"]["foyer"]["plane"] == "ground")
-check("furniture never stands on a wall, door or stair", all(rows_[f["plane"]][f["y"]][f["x"]] not in "#+L=UDh " for f in gm_["furniture"] if f["k"] != "camera"))
+check("furniture never stands on a wall, door or stair", all(rows_[f["plane"]][f["y"] + j][f["x"] + i] not in "#+L=UDlh " for f in gm_["furniture"] if f["k"] != "camera" for i in range(f.get("w", 1)) for j in range(f.get("h", 1))))
 check("every door tile is a door, window or open link", all(rows_[d["plane"]][t[1]][t[0]] in "+L=" for d in gm_["doors"] if d["via"] != "open" for t in d["tiles"]))
 import json as _j, os as _o  # noqa: E402
 _p = _o.path.join(_o.path.dirname(_o.path.dirname(_o.path.abspath(__file__))), "static", "grid_map.json")
@@ -3283,7 +3283,7 @@ for t in wk_ticks:
             ok_end &= (r_ == a["room"]) or r_ is None
         opened_ = {(q[0], q[1], q[2]) for q in (t.get("env") or {}).get("struct", [])}
         for p in tr:
-            ok_walk &= (nav_.char(p[1], p[2], p[3]) in "wkcrmgsp,:+LUDh" and (p[1], p[2], p[3]) not in nav_.blocked) or (p[1], p[2], p[3]) in opened_
+            ok_walk &= nav_.walkable(p[1], p[2], p[3]) or (p[1], p[2], p[3]) in opened_
         ts_ = [p[0] for p in tr]
         ok_time &= ts_ == sorted(ts_)
     ok_ev &= all(0 <= e["m"] <= L["dur"] for e in L["events"]) and all(0 <= s_["m"] <= L["dur"] for s_ in L["talk"])
@@ -3313,8 +3313,7 @@ k2 = ("ground", kt[0] + 3, kt[1] + 2)
 dr = nv_.rooms["dining_hall"]["rect"]
 d1 = ("ground", kt[0] + 1, kt[3] + 1)
 check("people in the same room see each other; a wall blocks the view into the next room", pc_.los(k1, k2) and not pc_.los(k1, d1))
-gx_ = nv_.rooms["garden"]["rect"]
-g0_ = ("ground", gx_[0] + 3, gx_[1] + 3)
+g0_ = ("ground", *nv_.rooms["garden"]["label"])
 check("darkness cuts sight to two tiles", pc_.sees(g0_, ("ground", g0_[1] + 2, g0_[2]), "dark") and not pc_.sees(g0_, ("ground", g0_[1] + 5, g0_[2]), "dark") and pc_.sees(g0_, ("ground", g0_[1] + 5, g0_[2]), "lit"))
 check("a window lets you see through", pc_.los(win_in_, win_out_))
 check("normal speech carries across a room but a whisper does not", pc_.hears(k1, k2, "normal") and not pc_.hears(k1, k2, "whisper"))
@@ -3332,8 +3331,8 @@ for c in ids:
 for c in (ax, bx, cx):
     w.agents[c]["room"] = "garden"
 w.state["npcs"]["neovi"]["room"] = "none"
-gr = nv_.rooms["garden"]["rect"]
-tiles_ = {ax: ("ground", gr[0] + 3, gr[1] + 3), bx: ("ground", gr[0] + 4, gr[1] + 3), cx: ("ground", gr[0] + 9, gr[1] + 3)}
+gl_ = nv_.rooms["garden"]["label"]
+tiles_ = {ax: ("ground", gl_[0], gl_[1]), bx: ("ground", gl_[0] + 1, gl_[1]), cx: ("ground", gl_[0] + 15, gl_[1])}
 r.tile_of = lambda cid: tiles_.get(cid)
 check("in daylight someone across a big garden still sees what happens", r.event_witnesses(ax, "garden", "friction", [bx, cx]) == [bx, cx])
 r.blackout_until = 10 ** 6
@@ -3435,13 +3434,13 @@ tkx = r.new_tick(14)
 tkx["state"] = {"agents": {}}
 hp0 = w.agents[fa]["hp"]
 r.tile_of = lambda cid, _o=r.tile_of: (nav_.nominal("library", cid, 3) if cid == fa else _o(cid))
-r.env().ignite("ground", *nav_.nominal("library", fa, 3)[1:], 2, force=True)
+r.env().ignite(*nav_.nominal("library", fa, 3), 2, force=True)
 r.env_tick(tkx)
 check("a turn of fire produces frames for the viewer and burns people standing in it", "env" in tkx and len(tkx["env"]["frames"]) >= 4 and (w.agents[fa]["hp"] < hp0 or r.has_cond(fa, "burned")))
 check("the turn's fire shows in the feed as events", any(e["type"] in ("fire", "wreck") for e in tkx["events"]) or any(e.get("type") == "fire" for e in tkx["events"]) or True)
 if fa in w.agents:
     w.agents[fa]["room"] = "library"                 # (they ran from the flames during the turn; put them back to read what they are told)
-    r.env().ignite("ground", *nav_.nominal("library", fa, 3)[1:], 2, force=True)
+    r.env().ignite(*nav_.nominal("library", fa, 3), 2, force=True)
 check("people in the room are told it is on fire", fa in w.agents and any("FIRE" in l for l in r.env_lines(fa)))
 check("people who can run from a fire do, and the fire turn left them hurt or burned", fa not in w.agents or w.agents[fa]["room"] != "library" or w.agents[fa]["hp"] < 90)
 w2, r2, _ = fresh(1601)
@@ -3723,50 +3722,60 @@ import copy as _cp  # noqa: E402
 base_ = _gmm.build_grid_map()
 check("the generated map is a valid edit of itself", _gmm.validate_edit(base_) == [])
 ed_ = _cp.deepcopy(base_)
-lb_ = ed_["rooms"]["library"]["rect"]
-pl_ = next(p for p in ed_["planes"] if p["id"] == "ground")
-row_ = list(pl_["rows"][lb_[1] + 6])
-row_[lb_[0] + 6] = "r"
-pl_["rows"][lb_[1] + 6] = "".join(row_)
-ed_["furniture"].append({"k": "table", "plane": "ground", "x": lb_[0] + 7, "y": lb_[1] + 7, "room": "library"})
-check("repainting a floor tile and adding a table is a valid edit", _gmm.validate_edit(ed_) == [])
+lpl_ = ed_["rooms"]["library"]["plane"]
+pl_ = next(p for p in ed_["planes"] if p["id"] == lpl_)
+taken_ = {(f["plane"], f["x"] + i, f["y"] + j) for f in ed_["furniture"] for i in range(f.get("w", 1)) for j in range(f.get("h", 1))}
+_nv0 = _gnn.GridNav(base_)
+free_ = [t for t in _nv0.spots("library") if t not in taken_]
+fx_ = free_[0]
+row_ = list(pl_["rows"][fx_[2]])
+row_[fx_[1]] = "r"
+pl_["rows"][fx_[2]] = "".join(row_)
+tx_ = free_[-1]
+ed_["furniture"].append({"k": "table", "plane": lpl_, "x": tx_[1], "y": tx_[2], "w": 1, "h": 1, "room": "library"})
+check("repainting a floor tile and adding a table is a valid edit", _gmm.validate_edit(ed_) == [], str(_gmm.validate_edit(ed_))[:200])
 bad_ = _cp.deepcopy(base_)
 dt_ = bad_["doors"][0]["tiles"][0]
 rw_ = list(next(p for p in bad_["planes"] if p["id"] == bad_["doors"][0]["plane"])["rows"][dt_[1]])
 rw_[dt_[0]] = "#"
 next(p for p in bad_["planes"] if p["id"] == bad_["doors"][0]["plane"])["rows"][dt_[1]] = "".join(rw_)
-check("walling up a door is refused", any("lost its door" in p for p in _gmm.validate_edit(bad_)))
+check("walling up a door is refused", any("missing" in p for p in _gmm.validate_edit(bad_)))
 bad2_ = _cp.deepcopy(base_)
-bad2_["furniture"].append({"k": "bed", "plane": "ground", "x": lb_[0], "y": lb_[1], "room": "library"})
+lr0_ = bad2_["rooms"]["library"]["rect"]
+bad2_["furniture"].append({"k": "bed", "plane": lpl_, "x": lr0_[0], "y": lr0_[1], "room": "library"})
 check("furniture inside a wall is refused", any("stands on" in p for p in _gmm.validate_edit(bad2_)))
 bad3_ = _cp.deepcopy(base_)
-bad3_["rooms"]["library"]["rect"][2] += 1
-check("rooms cannot be resized in the editor", any("resized" in p for p in _gmm.validate_edit(bad3_)))
+bad3_["planes"][0]["rows"] = bad3_["planes"][0]["rows"][:-1]
+check("an edited level of the wrong size is refused", _gmm.validate_edit(bad3_) != [])
 bad4_ = _cp.deepcopy(base_)
-lnk_ = bad4_["links"][0]
-pe_ = next(iter(lnk_["ends"].values()))
-rr4_ = next(p for p in bad4_["planes"] if p["id"] == pe_[0])["rows"]
-rr4_[pe_[2]] = rr4_[pe_[2]][:pe_[1]] + "w" + rr4_[pe_[2]][pe_[1] + 1:]
-check("removing a staircase is refused", any("lost its stairs" in p for p in _gmm.validate_edit(bad4_)))
+lnk_ = next(l for l in bad4_["links"] if l["kind"] == "stairs")
+for pe_ in lnk_["ends"].values():
+    rr4_ = next(p for p in bad4_["planes"] if p["id"] == pe_[0])["rows"]
+    rr4_[pe_[2]] = rr4_[pe_[2]][:pe_[1]] + "w" + rr4_[pe_[2]][pe_[1] + 1:]
+check("removing a staircase is refused", any("missing" in p for p in _gmm.validate_edit(bad4_)))
 bad5_ = _cp.deepcopy(base_)
-lr_ = bad5_["rooms"]["landing"]["rect"]
-pf_ = next(p for p in bad5_["planes"] if p["id"] == "ground")
-furn_xy_ = {(f["x"], f["y"]) for f in base_["furniture"]}
-xcut_ = next(x for x in range((lr_[0] + lr_[2]) // 2, lr_[2] - 3) if all((x, y) not in furn_xy_ and pf_["rows"][y][x] == "w" for y in range(lr_[1] + 1, lr_[3] - 1)))
-for yy_ in range(lr_[1] + 1, lr_[3] - 1):
+_nv5 = _gnn.GridNav(base_)
+lp_ = bad5_["rooms"]["landing"]["plane"]
+pf_ = next(p for p in bad5_["planes"] if p["id"] == lp_)
+furn_xy_ = {(f["plane"], f["x"], f["y"]) for f in base_["furniture"]}
+cols_ = {}
+for (pp_, x_, y_) in _nv5.room_tiles["landing"]:
+    cols_.setdefault(x_, []).append(y_)
+xcut_ = max(x_ for x_, ys_ in cols_.items() if len(ys_) == 2 and all(pf_["rows"][y_][x_] == "w" and (lp_, x_, y_) not in furn_xy_ for y_ in ys_) and pf_["rows"][ys_[0]][x_ - 1] == "w")
+for yy_ in cols_[xcut_]:
     row_ = list(pf_["rows"][yy_])
     row_[xcut_] = "#"
     pf_["rows"][yy_] = "".join(row_)
 check("an edit that cuts rooms off from the rest of the house is refused", any("cannot be reached" in p for p in _gmm.validate_edit(bad5_)))
 check("saving a valid edit stores it, the navigator then uses it, and reset brings the generated map back",
-      _gmm.save_custom(ed_) == [] and (_gnn._CACHE.clear() or True) and _gnn.GridNav().char("ground", lb_[0] + 6, lb_[1] + 6) == "r" and _gmm.reset_custom() and (_gnn._CACHE.clear() or True) and _gnn.GridNav().char("ground", lb_[0] + 6, lb_[1] + 6) != "r")
+      _gmm.save_custom(ed_) == [] and (_gnn._CACHE.clear() or True) and _gnn.GridNav().char(*fx_) == "r" and _gmm.reset_custom() and (_gnn._CACHE.clear() or True) and _gnn.GridNav().char(*fx_) != "r")
 check("an invalid edit is not saved", _gmm.save_custom(bad_) != [] and _gmm.load_custom() is None)
 
 
 # ---- a burnt thing is reported once
 evb_ = Environment(nav=nav_)
 rb_ = nav_.rooms["library"]["rect"]
-evb_.ignite("ground", rb_[0] + 4, rb_[1] + 4, 2, force=True)
+evb_.ignite(nav_.rooms["library"]["plane"], rb_[0] + 3, rb_[1] + 2, 2, force=True)
 rgb_ = _rnd.Random(2).random
 wr_ = []
 for _ in range(80):
@@ -4039,16 +4048,18 @@ t_slow_ = pl2_.walk(tr_b_, 0, pl2_.nav.spots("kitchen")[0], pl2_.nav.spots("libr
 check("the live planner makes a slow walker take longer over the same route", t_slow_ > 1.7 * t_fast_, f"{t_fast_:.1f} vs {t_slow_:.1f}")
 
 # map scale
-check("the map is the tighter one and every distance that depends on tile size follows the same scale", _sc.MAP_SCALE < 1 and gm_["scale"] == _sc.MAP_SCALE
+check("a tile is a metre and every distance that depends on tile size follows the same scale", gm_["tile_m"] == 1 and gm_["scale"] == _sc.MAP_SCALE
       and _pcm.LOUD["normal"] == _sc.tiles(8.0) and _pcm.BIG_ROOM_AREA == _sc.area(220) and _ltm.TILES_PER_MIN > 0 and _pcm.LOUD["whisper"] < _pcm.LOUD["quiet"] < _pcm.LOUD["normal"] < _pcm.LOUD["shout"])
-area_ = {rid: (r["rect"][2] - r["rect"][0] - 2) * (r["rect"][3] - r["rect"][1] - 2) for rid, r in gm_["rooms"].items()}
-check("no room is the huge near-empty hall it used to be (the biggest indoor room holds less than 200 tiles)", max(a for rid, a in area_.items() if not gm_["rooms"][rid]["open"]) < 200)
+area_ = {rid: r["area"] for rid, r in gm_["rooms"].items() if not r["open"]}
+check("no indoor room is a huge empty hall (the biggest holds less than 120 square metres)", max(area_.values()) < 120, str(max(area_.items(), key=lambda kv: kv[1])))
+check("bedrooms are the smallest rooms people live in (12 to 15 square metres)", all(12 <= area_[b] <= 15 for b in ("blue_room", "green_room", "orange_room", "grey_room", "white_room")))
 fk_ = {}
 for f in gm_["furniture"]:
-    if f["k"] != "camera":
-        fk_[f["room"]] = fk_.get(f["room"], 0) + 1
+    if f["k"] != "camera" and f["room"] in area_:
+        fk_[f["room"]] = fk_.get(f["room"], 0) + f.get("w", 1) * f.get("h", 1)
 dens_ = sum(fk_.values()) / sum(area_.values())
-check("rooms are better furnished than on the first map (more than 4 pieces per 100 tiles)", dens_ > 0.04, f"{dens_:.3f}")
+check("indoor rooms are furnished (furniture covers more than a sixth of the floor)", dens_ > 1 / 6, f"{dens_:.3f}")
+check("no lived-in room is mostly empty", all(v >= _gmm.FILL_MIN for rid, v in _gmm.room_fill(gm_).items() if rid not in _gmm.HUBS), str(_gmm.room_fill(gm_)))
 kinds_ = {f["k"] for f in gm_["furniture"]}
 check("the house has things to use: sofas, armchairs, a chess table, a dartboard, a fireplace, a jukebox, a firepit and more", {"sofa", "armchair", "chessTable", "dartboard", "fireplace", "jukebox", "firepit", "fridge", "hammock", "mirror"} <= kinds_)
 check("a person can walk to a spot next to a piece of furniture", all(nav_.stand_near(f["plane"], f["x"], f["y"]) is not None for f in nav_.gm["furniture"] if f["k"] in ("sofa", "armchair", "stove", "bench")))
@@ -4440,6 +4451,30 @@ rs2_.wellness_check(tk3_, 12)
 rs2_.check_discovery(tk3_, 12)
 c2_ = ws2_.state["case"]
 check("when somebody misses a meal a friend goes to knock and NeoVi opens the locked door, so the body is found before the forced announcement", len(c2_["discovered_by"]) >= 1 and room2_ not in ws2_.state["locks"], str(c2_["discovered_by"]))
+
+# ---- map v4: levels, the gallery, floors, trees, the tunnel
+from murder.perception import Perception as _Pc4  # noqa: E402
+pc4_ = _Pc4()
+n4_ = pc4_.nav
+gal_ = next(t for t in n4_.room_tiles["landing"] if n4_.char(*t) == "v")
+below_ = ("ground", gal_[1], gal_[2])
+edge_ = next(t for t in n4_.room_tiles["landing"] if n4_.char(*t) == "w" and any(n4_.char(t[0], t[1] + dx, t[2] + dy) == "v" for dx in (-1, 0, 1) for dy in (-1, 0, 1)))
+bed_up_ = n4_.spots("blue_room")[0]
+check("from the gallery you see down into the foyer through the open drop, and are seen from it", n4_.room_at(*below_) == "foyer" and pc4_.sees(edge_, below_) and pc4_.sees(below_, edge_))
+check("a floor blocks sight: a bedroom upstairs cannot see the foyer", not pc4_.sees(bed_up_, below_))
+k4_ = n4_.spots("kitchen")[0]
+above_k_ = next(t for t in n4_.room_tiles["linen_store"] + n4_.room_tiles["red_room"] + n4_.room_tiles["violet_room"] if (t[1], t[2]) == (k4_[1], k4_[2])) if any((t[1], t[2]) == (k4_[1], k4_[2]) for t in n4_.room_tiles["linen_store"] + n4_.room_tiles["red_room"] + n4_.room_tiles["violet_room"]) else None
+if above_k_ is None:
+    above_k_ = ("first", k4_[1], k4_[2])
+check("a shout in the kitchen is heard through the ceiling, a whisper is not", pc4_.hears(k4_, above_k_, "shout") and not pc4_.hears(k4_, above_k_, "whisper"), str(above_k_))
+tree_ = next((x, y) for y in range(10, 44) for x in range(92, 120) if n4_.char("ground", x, y) == "T" and n4_.char("ground", x - 1, y) not in "T#" and n4_.char("ground", x + 1, y) not in "T#")
+check("trees block sight and cannot be walked through", not pc4_.los(("ground", tree_[0] - 1, tree_[1]), ("ground", tree_[0] + 1, tree_[1])) and not n4_.walkable("ground", *tree_))
+wc_ = n4_.spots("wine_cellar")[0]
+lh_ = n4_.spots("lighthouse")[0]
+via_ = n4_.route(wc_, lh_, frozenset({"SP-2"}))
+check("the smugglers' tunnel is a real passage under the island, used only by those who know it",
+      via_ is not None and sum(1 for t in via_ if t[0] == "basement" and n4_.room_at(*t) is None) > 60 and all(t[0] != "basement" or n4_.room_at(*t) in (None, "wine_cellar") for t in via_[:-3]))
+check("the core vault sits under the lighthouse", n4_.rooms["core_vault"]["plane"] == "basement" and any((t[1], t[2]) in {(q[1], q[2]) for q in n4_.room_tiles["lighthouse"]} for t in n4_.room_tiles["core_vault"]))
 
 # ---- a seeded run is reproducible: the same seed gives the same day, whatever order the parallel model calls finish in
 import json as _json  # noqa: E402

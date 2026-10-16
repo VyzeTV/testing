@@ -1,13 +1,12 @@
 """Everything that depends on how big a tile is, in one place.
 
-The island is one section made of 4x4-tile rooms, so a tile is roughly a metre and a half. The old schematic had rooms of about twelve tiles; `MAP_SCALE` (0.35) is the ratio, and every distance that used
-to be measured on the old scale is multiplied by it: how far a whisper or a shout carries, how far you can see in light and in the dark, what blocks sound, and when a space is big enough to hold
-two separate conversations. How fast people walk is set in livetimeline.py (a stroll of a few tiles a minute, a hurry of twelve). Change MAP_SCALE (or set MC_MAP_SCALE) and everything below follows;
-the map itself is laid out in gridmap.py (LAYOUT) and regenerated with `python -m murder.gridmap`.
+A tile is one metre (the island map in murder/maps/, built by gridmap.py). The distances below were first written for the old schematic, whose tiles were also
+about a metre, so `MAP_SCALE` is 1.0: a whisper carries 2 m, normal speech 8, a shout 18; you see 18 m in light and 2 in the dark. Change MAP_SCALE (or set
+MC_MAP_SCALE) to scale all of them together. How fast people walk is set in livetimeline.py.
 """
 import os
 
-MAP_SCALE = float(os.environ.get("MC_MAP_SCALE", "0.35"))
+MAP_SCALE = float(os.environ.get("MC_MAP_SCALE", "1.0"))
 
 
 def tiles(v, lo=1.0):
