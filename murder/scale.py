@@ -2,7 +2,7 @@
 
 A tile is one metre (the island map in murder/maps/, built by gridmap.py). The distances below were first written for the old schematic, whose tiles were also
 about a metre, so `MAP_SCALE` is 1.0: a whisper carries 2 m, normal speech 8, a shout 18; you see 18 m in light and 2 in the dark. Change MAP_SCALE (or set
-MC_MAP_SCALE) to scale all of them together. How fast people walk is set in livetimeline.py.
+MC_MAP_SCALE) to scale all of them together. How fast people walk is set in sim.py.
 """
 import os
 

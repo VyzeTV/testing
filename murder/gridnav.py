@@ -1,7 +1,7 @@
 """Walking on the tile map: which tiles can be stood on, where people stand in a room, and A* routes between tiles (across levels through stairs and, when allowed, hidden hatches).
 
-GridNav is built from the generated grid map (murder/gridmap.py) and is pure: it holds no game state. The live planner (livetimeline.py) uses it to turn the engine's room-level moves
-into tile paths. Furniture blocks tiles; doors, stairs and open floor do not; windows and walls do.
+GridNav is built from the generated grid map (murder/gridmap.py) and is pure: it holds no game state. The engine's position simulation (sim.py) uses it to walk people
+along tile paths. Furniture blocks tiles; doors, stairs and open floor do not; windows and walls do.
 """
 import hashlib
 import heapq

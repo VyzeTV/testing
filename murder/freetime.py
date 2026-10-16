@@ -128,6 +128,7 @@ class FreeTimeMixin:
         segs.append(sg)
         if kind != "main" and room in ROOMS and cid in self.world.agents:
             self.a_visited(cid).add(room)
+            self.sim_seg(tick, cid, m0, room, at, act)
 
     def a_visited(self, cid):
         a = self.world.agents[cid]

@@ -325,6 +325,16 @@ def verify(gm):
         for rid in ROOMS:
             if rid in gm["rooms"] and rid not in reached:
                 problems.append(f"{rid} cannot be reached on foot from the front door")
+        # no floor is walled off by furniture: every free tile of a room can be walked to
+        cut = {}
+        for p in zones:
+            for y, row in enumerate(zones[p]):
+                for x, c in enumerate(row):
+                    rid = codes.get(c)
+                    if rid is not None and rid in reached and ok(p, x, y) and (p, x, y) not in seen:
+                        cut.setdefault(rid, []).append((x, y))
+        for rid, ts in sorted(cut.items()):
+            problems.append(f"{len(ts)} floor tile(s) of {rid} cannot be walked to (walled off by furniture or plants, e.g. {ts[0][0]},{ts[0][1]})")
     else:
         problems.append("the foyer has no front door")
     # every secret passage leads from one of its rooms to the other by itself (through its own tunnel, if it has one)

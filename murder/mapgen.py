@@ -130,6 +130,32 @@ def woods(g, x0, y0, x1, y1, dens, seed):
                 g.put(x, y, "b")
 
 
+def open_clearings(g, start, walk=",gspa:fBjKqn+LUDhlkwcrm", plants="TbH"):
+    """Random woods can ring a clearing with trees. Find every walkable tile that cannot be reached from `start` and clear the plants beside it until it can."""
+    for _ in range(60):
+        seen, stack = {start}, [start]
+        while stack:
+            x, y = stack.pop()
+            for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                if (nx, ny) not in seen and g.get(nx, ny) in walk:
+                    seen.add((nx, ny))
+                    stack.append((nx, ny))
+        cut = [(x, y) for y in range(H) for x in range(W) if g.get(x, y) in walk and (x, y) not in seen]
+        if not cut:
+            return
+        opened = False
+        for x, y in cut:
+            for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                if g.get(nx, ny) in plants and any(g.get(qx, qy) in walk and (qx, qy) in seen for qx, qy in ((nx + 1, ny), (nx - 1, ny), (nx, ny + 1), (nx, ny - 1))):
+                    g.put(nx, ny, ",")
+                    opened = True
+        if not opened:                                         # a pocket two plants deep: thin the plants next to it and try again
+            for x, y in cut:
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if g.get(nx, ny) in plants:
+                        g.put(nx, ny, ",")
+
+
 def line(g, pts, ch, width=2, over=",gTbnsq"):
     """A path, tunnel or jetty along the points. Diagonal steps get a corner tile, so a one-tile line can be walked end to end."""
     for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
@@ -282,7 +308,7 @@ def draw():
     f("basement", "barrel", 11, 3, 1, 1, "wine_cellar"); f("basement", "barrel", 13, 3, 1, 1, "wine_cellar"); f("basement", "barrel", 11, 7, 1, 1, "wine_cellar")
     f("basement", "barrel", 13, 7, 1, 1, "wine_cellar"); f("basement", "table", 12, 5, 1, 1, "wine_cellar")
     f("basement", "crate", 13, 10, 1, 1, "basement_hall"); f("basement", "bench", 13, 13, 1, 2, "basement_hall")
-    f("basement", "boiler", 19, 11, 2, 2, "boiler_room"); f("basement", "fuseBox", 21, 10, 1, 1, "boiler_room"); f("basement", "workbench", 17, 13, 2, 1, "boiler_room")
+    f("basement", "boiler", 20, 11, 2, 2, "boiler_room"); f("basement", "fuseBox", 21, 10, 1, 1, "boiler_room"); f("basement", "workbench", 17, 13, 2, 1, "boiler_room")
     f("basement", "freezer", 8, 11, 2, 1, "cold_store"); f("basement", "shelf", 8, 14, 1, 1, "cold_store")
     # the tunnel: a dark stone passage, one metre wide, under the island to the headland
     tunnel = [(HX + 8, HY + 5), (HX + 8, 40), (100, 36), (134, 36), (134, 34), (131, 34)]
@@ -395,6 +421,7 @@ def draw():
         {"id": "SP-5", "ends": [["ground", 125, 29], ["basement", 125, 29]], "note": "the floor hatch in the lighthouse onto the steps down to the vault"},
     ]
     labels = {"garden": [70, 36], "beach": [118, 96], "pool": [50, 60]}
+    open_clearings(g, (70, 36))
     return L, secrets, labels
 
 

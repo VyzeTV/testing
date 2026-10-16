@@ -3245,7 +3245,7 @@ check("the saved static/grid_map.json is up to date with the generator", _j.load
 
 # ---- live timeline (phase 2)
 from murder.gridnav import GridNav  # noqa: E402
-from murder.livetimeline import LivePlanner  # noqa: E402
+from murder import sim as _simm  # noqa: E402
 nav_ = GridNav()
 check("people can walk between rooms on the tiles, including up and down stairs", nav_.route(nav_.spots("kitchen")[0], nav_.spots("foyer")[0]) and nav_.route(nav_.spots("foyer")[0], nav_.spots("library")[0]) and nav_.route(nav_.spots("foyer")[0], nav_.spots("lookout")[0]))
 direct = nav_.route(nav_.spots("pantry")[0], nav_.spots("wine_cellar")[0], frozenset({"SP-1"}))
@@ -3291,8 +3291,49 @@ check("every alive person ends the window in the room the engine put them in", o
 check("every point on every track is a walkable tile", ok_walk)
 check("track times only go forward and events fall inside their window", ok_time and ok_ev)
 check("the live clock never runs backwards between ticks", all(b["live"]["start"] >= a["live"]["start"] + a["live"]["dur"] for a, b in zip(wk_ticks, wk_ticks[1:])))
-pl1, pl2 = LivePlanner(), LivePlanner()
-check("the plan is deterministic", all(pl1.plan(t) == pl2.plan(t) for t in wk_ticks[:6]))
+link_pairs_ = set()
+for l_ in nav_.gm["links"]:
+    e_ = [tuple(v) for v in l_["ends"].values()]
+    if len(e_) == 2:
+        link_pairs_ |= {(e_[0], e_[1]), (e_[1], e_[0])}
+wall_ = []
+for t in wk_ticks:
+    opened_ = {(q[0], q[1], q[2]) for q in (t.get("env") or {}).get("struct", [])}
+    for cid, tr in t["live"]["tracks"].items():
+        for a_, b_ in zip(tr, tr[1:]):
+            pa_, pb_ = (a_[1], a_[2], a_[3]), (b_[1], b_[2], b_[3])
+            if pa_ == pb_ or (pa_, pb_) in link_pairs_:
+                continue
+            if pa_[0] != pb_[0] or (pa_[1] != pb_[1] and pa_[2] != pb_[2]):
+                wall_.append((t["day"], t["hour"], cid, pa_, pb_))
+                continue
+            dx_, dy_ = (pb_[1] > pa_[1]) - (pb_[1] < pa_[1]), (pb_[2] > pa_[2]) - (pb_[2] < pa_[2])
+            x_, y_ = pa_[1], pa_[2]
+            while (x_, y_) != (pb_[1], pb_[2]):
+                x_, y_ = x_ + dx_, y_ + dy_
+                if not (nav_.walkable(pa_[0], x_, y_) or (pa_[0], x_, y_) in opened_):
+                    wall_.append((t["day"], t["hour"], cid, pa_, pb_))
+                    break
+check("nobody walks through walls: every stretch of every track is open floor, a stair or a passage", not wall_, str(wall_[:3]))
+check("every move is a walk on the tiles: nobody is ever put somewhere without a route", all(not t["live"].get("jumps") for t in wk_ticks), str([t["live"].get("jumps") for t in wk_ticks if t["live"].get("jumps")][:5]))
+w_s, r_s, _ = fresh(1600)
+c_s = sorted(w_s.agents)[0]
+tk_s = r_s.new_tick(14)
+w_s.agents[c_s]["room"] = "kitchen"
+r_s.sim_sync(tk_s, 0)
+w_s.agents[c_s]["room"] = "library"
+r_s.sim_sync(tk_s, 10)
+sm_s = r_s.sim()
+r_s._sim_m = 10.0
+mid_ = r_s.sim_pos(c_s)
+r_s._sim_m = 60.0
+check("when someone sets off, the engine still has them where they were until they have walked there", mid_ is not None and nav_.room_at(*mid_) == "kitchen", str(mid_))
+check("and once arrived the engine's position for them is in the library, where perception finds them", r_s.tile_of(c_s) == sm_s.cur[c_s] and nav_.room_at(*sm_s.cur[c_s]) == "library")
+r_s.emit(tk_s)
+check("positions are saved with the game between turns", tuple(w_s.state["sim"]["pos"][c_s]) == sm_s.cur[c_s] and w_s.state["sim"]["clock"] is not None)
+tk_s2 = r_s.new_tick(16)
+r_s.sim_turn(tk_s2)
+check("the next turn starts where they stood", tuple(sm_s.tracks[c_s][0][1:]) == tuple(w_s.state["sim"]["pos"][c_s]))
 
 
 # ---- live: announcements classes
@@ -3377,8 +3418,7 @@ for seed_ in (31, 32, 33):
             if nav_.room_at(p_[1], p_[2], p_[3]) != sp["room"]:
                 remote += 1
                 print("REMOTE", seed_, t["day"], t["hour"], t.get("segment"), sp["who"], sp["m"], sp["room"], nav_.room_at(p_[1], p_[2], p_[3]), tr[-3:], (L.get("acts") or {}).get(sp["who"]))
-check("nobody speaks from a different room than the one they are talking in (property over many turns)", checked > 100 and remote == 0, f"{remote} of {checked}",
-      known="positions are rooms in the engine and tiles only in the live planner; fixed when tiles become engine state (rebuild phase 2)")
+check("nobody speaks from a different room than the one they are talking in (property over many turns)", checked > 100 and remote == 0, f"{remote} of {checked}")
 
 # ---- environment (phase 4)
 import random as _rnd  # noqa: E402
@@ -3991,7 +4031,7 @@ check("the viewer plays a free-time block over real time with a pace setting and
 # ---- fire at every step, slower walkers, map scale, furniture to use, purposeful free time, chats where people meet
 from murder import scale as _sc  # noqa: E402
 from murder import perception as _pcm  # noqa: E402
-from murder import livetimeline as _ltm  # noqa: E402
+from murder import sim as _ltm  # noqa: E402
 
 
 def fire_trial(seed, n=5, room="library", hp=90, asleep=False, k=None):
@@ -4044,13 +4084,13 @@ ws_.agents[c0_]["inv"] = {}
 rs_.add_cond(rs_.new_tick(14), c0_, "broken_leg", 1, "test") if hasattr(rs_, "add_cond") else None
 leg_ = rs_.move_factor(c0_)
 check("badly hurt people, heavily loaded people and people with a broken leg walk more slowly", base_ > hurt_ and base_ > loaded_ and base_ > leg_, f"{base_:.2f} {hurt_:.2f} {loaded_:.2f} {leg_:.2f}")
-pl2_ = _ltm.LivePlanner()
-tr_a_, tr_b_ = [], []
-pl2_.cur_speed = 1.0
-t_fast_ = pl2_.walk(tr_a_, 0, pl2_.nav.spots("kitchen")[0], pl2_.nav.spots("library")[0])
-pl2_.cur_speed = 0.5
-t_slow_ = pl2_.walk(tr_b_, 0, pl2_.nav.spots("kitchen")[0], pl2_.nav.spots("library")[0])
-check("the live planner makes a slow walker take longer over the same route", t_slow_ > 1.7 * t_fast_, f"{t_fast_:.1f} vs {t_slow_:.1f}")
+sm2_ = _ltm.Sim(state={})
+sm2_.begin(0, 120, {"a": "kitchen", "b": "kitchen"})
+sm2_.cur["b"] = sm2_.cur["a"]
+sm2_.tracks["b"] = [list(x) for x in sm2_.tracks["a"]]
+t_fast_ = sm2_.walk("a", sm2_.nav.spots("library")[0], 0, speed=1.0)
+t_slow_ = sm2_.walk("b", sm2_.nav.spots("library")[0], 0, speed=0.5)
+check("a slow walker takes longer over the same route", t_slow_ > 1.7 * t_fast_, f"{t_fast_:.1f} vs {t_slow_:.1f}")
 
 # map scale
 check("a tile is a metre and every distance that depends on tile size follows the same scale", gm_["tile_m"] == 1 and gm_["scale"] == _sc.MAP_SCALE

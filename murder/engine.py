@@ -43,7 +43,7 @@ from .tone import ToneMixin
 from .itemuse import ItemUseMixin
 from .conditions import ConditionMixin
 from .chronicle import ChronicleMixin
-from .livetimeline import LiveMixin
+from .sim import SimMixin
 from .perception import PerceptionMixin
 from .envsys import EnvironmentMixin
 from .mind import MindMixin
@@ -129,7 +129,7 @@ class Stop(Exception):
     pass
 
 
-class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, LiveMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
+class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, SimMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
     def __init__(self, world, llm, on_tick, gate=None, should_stop=None, step=2, workers=6, seed=None,
                  murders=True, motive="", rule_mode="roulette", rule_text="", confessionals=True, mischief="occasional", chaos="normal",
                  variation=0, gm_pull=None, lean=False, call_cap=0, autodir=False, autodir_get=None, tuning_get=None):
@@ -222,9 +222,13 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         tick["dread"] = self.dread_level()
         tick["island"] = self.current_island()
         try:
-            tick["live"] = self.live_plan(tick)
-        except Exception as e:  # the live view is only a rendering of the turn: never let it break the game
+            tick["speeds"] = {c: v for c, v in ((cid, round(self.move_factor(cid), 2)) for cid in self.world.agents) if v < 0.95}
+            tick["live"] = self.sim_finish(tick)
+        except Exception as e:  # positions must never break the game
             tick["live_error"] = f"{type(e).__name__}: {e}"[:160]
+            sm = self.__dict__.get("_sim")
+            if sm is not None:
+                sm.tick_id = None
         self.on_tick(tick)
 
     def ensure_private_bedrooms(self):
@@ -810,6 +814,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         self.plot_tick(tick, hour, decisions)
         for cid in self.apply_order(rest):
             self.apply_decision(tick, cid, decisions[cid], intents, attacks)
+        self.sim_sync(tick, 0, stagger=True)
         self.stale_notices(decisions)
         if hour >= 20:
             self.auto_sleep(hour)
@@ -838,6 +843,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         self.resolve_end_lives(tick, hour)
         if kind == "free" and not s.get("over"):
             self.free_time(tick, hour, decisions)
+        self._sim_m = 92.0 if kind == "free" else 56.0           # the rest of the turn happens once people have got where they were going
         self.hazard_check(tick, hour)
         self.check_discovery(tick, hour)
         self.investigation_upkeep(tick, hour)
@@ -892,6 +898,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             groups, modes = self.free_chat_groups(tick, groups, modes, intents)
         if groups:
             self.run_conversations(tick, groups, intents, hour, modes=modes)
+        self.sim_talk(tick)
         self.reaction_pass(tick, hour)
         self.occasion_now = None
         self.island_tick_effects(tick, hour)

@@ -172,16 +172,14 @@ class PerceptionMixin:
         return bool(self.tune("perception"))
 
     def tile_of(self, cid):
-        """Where someone nominally stands: the live planner's tile when it matches their room, otherwise their usual spot in the room."""
+        """Where someone stands: their tile in the current turn when it is in the room the engine has them in (they may still be on their way), otherwise their usual spot there."""
         a = self.world.agents.get(cid)
         if not a or a["room"] not in ROOMS:
             return None
         nav = self.perc().nav
-        pl = self.__dict__.get("_live_planner")
-        if pl is not None:
-            t = pl.pos.get(cid)
-            if t is not None and nav.room_at(*t) == a["room"]:
-                return tuple(t)
+        t = self.sim_pos(cid)
+        if t is not None and nav.room_at(*t) == a["room"]:
+            return tuple(t)
         return nav.nominal(a["room"], cid, 3)
 
     def light_of(self, room):
