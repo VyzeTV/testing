@@ -67,7 +67,8 @@ class ChaosMixin:
         return CHAOS[self.chaos]
 
     def fx(self, tick, kind, room=None, who=None):
-        tick.setdefault("fx", []).append({"kind": kind, "room": room, "who": who})
+        m = self.minute()
+        tick.setdefault("fx", []).append({"kind": kind, "room": room, "who": who, **({"m": round(m, 1)} if m is not None else {})})
 
     # ------------------------------------------------------------------ prompt material
     def island_live(self, isl):

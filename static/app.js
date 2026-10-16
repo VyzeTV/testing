@@ -842,6 +842,71 @@ async function playLine(g, l, tok) {
   S.said[l.speaker] = { text: l.text, act: isAct, until: S.clock + dur + 4000 };
   await Promise.all([waitClock(dur), isAct ? Promise.resolve() : speak(l.speaker, l.text)]);
 }
+// ---------- continuous playback ----------
+// A turn plays as one continuous stretch of game minutes at the chosen pace. Events, speech and chats happen at their minute; nobody stops while others talk. When lines come
+// faster than they can be read, the clock slows down (everybody keeps moving, only slower) until the line has been on screen long enough. Pause dialogs and staged scenes
+// (a body, a trial segment) still pause playback, as the pause settings say.
+const readMs = (l) => Math.max(1800, (l.text || "").length * 45);
+async function animateTo(m, minMs, per, tok) {
+  const from = TileMap.minute();
+  if (m <= from + 1e-6 && minMs <= 0) return;
+  const span = Math.max((m - from) * per, minMs);
+  S.tileAnim = { start: S.clock, dur: Math.max(1, span), from, to: Math.max(from, m) };
+  await waitClock(span);
+  if (tok === S.token) { S.tileAnim = null; TileMap.setMinute(Math.max(from, m)); }
+}
+function showLine(g, l) {
+  feedLine(l.speaker, l.text, l.kind);
+  const isAct = l.kind === "act", ms = readMs(l);
+  S.bubbles = S.bubbles.filter((b) => b.id !== l.speaker);
+  S.bubbles.push({ id: l.speaker, room: g.room, act: isAct, text: isAct ? `${info(l.speaker).short || ""} ${l.text}` : l.text, until: S.clock + ms + 400 });
+  S.said[l.speaker] = { text: l.text, act: isAct, until: S.clock + ms + 4000 };
+  if (!isAct) speak(l.speaker, l.text);
+  return ms;
+}
+async function playWindow(t, tok, late) {
+  const L = t.live, dur = L.dur, per = Math.max(40, S.pace * 1000 / 60);
+  S.freeActs = L.acts && Object.keys(L.acts).length ? L.acts : null;
+  TileMap.setTick(t, 0);
+  const byText = {};
+  for (const e of L.events || []) byText[e.text.slice(0, 200)] = e.m;
+  const items = [];
+  t.events.forEach((e, i) => { if (!late.includes(e)) items.push({ m: e.m != null ? e.m : (byText[e.text.slice(0, 200)] != null ? byText[e.text.slice(0, 200)] : 0), o: i, k: "ev", e }); });
+  const lineIdx = {};
+  (L.talk || []).forEach((x, i) => { const g = t.talk[x.g]; if (!g) return; const li = lineIdx[x.g] = (lineIdx[x.g] || 0); lineIdx[x.g]++; if (g.lines[li]) items.push({ m: x.m, o: 1000 + i, k: "line", g, l: g.lines[li], gi: x.g, first: li === 0 }); });
+  t.talk.forEach((g, gi) => { if (!(gi in lineIdx)) { let m = Math.min(dur - 2, dur * 0.5 + gi); g.lines.forEach((l, li) => items.push({ m: m + li * 2, o: 2000 + gi * 100 + li, k: "line", g, l, gi, first: li === 0 })); } });
+  for (const f of t.fx || []) items.push({ m: f.m != null ? f.m : 0, o: 3000, k: "fx", f });
+  if (t.scene_body) { const be = t.events.find((e) => e.type === "body"); items.push({ m: be && be.m != null ? be.m + 0.05 : 1, o: 4000, k: "body" }); }
+  items.sort((a, b) => a.m - b.m || a.o - b.o);
+  t.events.filter((e) => e.m == null && !late.includes(e)).length && (await TileMap.dialogFor(t, { untimed: true }));
+  if (tok !== S.token) return;
+  let readUntil = S.clock, lastDlg = -1;
+  const chatGroups = new Set((L.groups || []).filter((g) => g.chat).map((g) => g.g));
+  for (const it of items) {
+    const m = Math.min(it.m, dur - 0.05);
+    await animateTo(m, it.k === "line" ? readUntil - S.clock : 0, per, tok);
+    if (tok !== S.token) return;
+    if (it.k === "ev") {
+      feedEvent(it.e); eventSfx(it.e);
+      if (it.e.type === "punish") S.flashes.push({ id: it.e.who, until: S.clock + 2200 });
+      if (m > lastDlg) { await TileMap.dialogFor(t, { from: lastDlg < 0 ? 0 : lastDlg, to: m + 0.001 }); lastDlg = m + 0.001; if (tok !== S.token) return; }
+    } else if (it.k === "line") {
+      if (it.first) {
+        S.talkRoom = it.g.room;
+        if (chatGroups.has(it.gi)) { await TileMap.chatDialog(t, it.g); if (tok !== S.token) return; }
+        if (it.g.segment) { await playSegment(it.g.segment, tok); if (tok !== S.token) return; renderTally(it.g.segment); }
+      }
+      readUntil = S.clock + showLine(it.g, it.l);
+    } else if (it.k === "fx") {
+      triggerFx([it.f]);
+    } else if (it.k === "body") {
+      await playBodyScene(t.scene_body, tok); if (tok !== S.token) return;
+    }
+  }
+  await animateTo(dur, Math.max(0, readUntil - S.clock), per, tok);
+  if (tok !== S.token) return;
+  S.talkRoom = null; S.bubbles = [];
+}
 // A chat that starts during a free-time block is played where and when it happens: the day's clock stands still while they talk.
 async function playChat(t, gi, g, minute, tok) {
   S.talkRoom = g.room;
@@ -882,6 +947,14 @@ async function playTick(i, tok) {
   if (t.execution && !t.trial) { await playExecution(t.execution, tok); if (tok !== S.token) return; late.forEach(feedEvent); }
   const { paths, s1, endMap } = buildPaths(t);
   const tiles = S.mapMode === "tiles" && window.TileMap && TileMap.ready(), mdur = tiles ? 4200 : 2600;
+  if (tiles && t.live && !t.live_error) {
+    // the continuous player: the whole turn on one clock, talk included
+    await playWindow(t, tok, late);
+    if (tok !== S.token) return;
+    S.pos = s1.pos; S.rad = s1.rad; S.endMap = endMap;
+    if (!t.trial) { S.state = t.state; renderCast(); renderRoom(); renderWeb(); }
+    return finishTick(t, tok, late);
+  }
   const free = !!(t.live && t.live.segment === "free" && t.live.acts && Object.keys(t.live.acts).length);
   const played = new Set();
   if (free) {
@@ -924,6 +997,10 @@ async function playTick(i, tok) {
   }
   S.talkRoom = null; S.bubbles = []; S.freeTick = null;
   if (window.TileMap) { S.tileAnim = null; TileMap.setMinute(TileMap.duration()); }
+  return finishTick(t, tok, late);
+}
+// What follows a turn's window: the recap, confessionals and the big staged scenes.
+async function finishTick(t, tok, late) {
   if (t.recap) feedRecap(t.recap);
   if (t.confessionals && t.confessionals.length) { await playConfessionals(t, tok); if (tok !== S.token) return; }
   if (t.reckoning) { await playReckoning(t.reckoning, tok); if (tok !== S.token) return; }
