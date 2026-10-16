@@ -49,6 +49,7 @@ from .falls import FallMixin
 from .social import SocialMixin
 from .convo import ConvoMixin
 from .booth import BoothMixin
+from .schedule import ScheduleMixin
 from .perception import PerceptionMixin
 from .envsys import EnvironmentMixin
 from .mind import MindMixin
@@ -134,7 +135,7 @@ class Stop(Exception):
     pass
 
 
-class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
+class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, ScheduleMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
     def __init__(self, world, llm, on_tick, gate=None, should_stop=None, step=2, workers=6, seed=None,
                  murders=True, motive="", rule_mode="roulette", rule_text="", confessionals=True, mischief="occasional", chaos="normal",
                  variation=0, gm_pull=None, lean=False, call_cap=0, autodir=False, autodir_get=None, tuning_get=None):
@@ -274,6 +275,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         if len(side) > 3000:
             side.clear()
         side[id(evt)] = (list(witnesses) if witnesses else None, actor)
+        self.note_news(evt, witnesses, actor)
         if evt.get("type") == "punish":
             self.punish_count = getattr(self, "punish_count", 0) + 1
         text = f"{hhmm(tick['hour'])} {evt['text']}"
@@ -870,6 +872,10 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         self.resolve_sabotages(tick, sabs, hour)
         self.resolve_impulses(tick, hour, decisions, intents)
         self.resolve_end_lives(tick, hour)
+        meal_draw, meal_m = self.meal_in_turn(hour)
+        if meal_draw and not s.get("over") and not (self.occasion_now and self.occasion_now.get("where") == meal_draw["room"]):
+            self.clock_to(max(self._m, meal_m))
+            self.meal_call(tick, hour, meal_draw, self._m)
         if kind == "free" and not s.get("over"):
             self.free_time(tick, hour, decisions)
             self.clock_to(90)
@@ -924,6 +930,9 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                 p = 1.0
             if oc and oc["where"] == room and len(humans) >= 2:
                 p, modes[room] = 1.0, "occasion"
+            meal_ = self.__dict__.get("_meal")
+            if meal_ and meal_["room"] == room and len(humans) >= 2:
+                p = 1.0                                         # people at the table talk
             if self.rng.random() < p:
                 groups[room] = occ
         self._talk_meta = {}
@@ -948,6 +957,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             self.run_conversations(tick, staged, intents, hour, modes=modes)
         self.voice_convos(tick, hour)
         self.sim_talk(tick)
+        self.meal_settle(tick, hour)
         self.clock_to(min(118.0, max([s_["m"] + 1.0 for s_ in self._sim_said] or [self._m])))
         self.reaction_pass(tick, hour)
         self.occasion_now = None

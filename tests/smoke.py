@@ -4894,6 +4894,63 @@ w.state["deadline_day"] = r.day + 3
 s_ = w.agents[dl_]["sanity"]; r.tick_dread(r.new_tick(20), 20)
 check("no hourly deadline loss when the deadline is days away", w.agents[dl_]["sanity"] == s_)
 
+# ---- the schedule: meals in the Dining Hall
+w, r, _ = fresh(182)
+sched_ = [d["id"] for d in r.day_schedule()]
+check("the day's schedule has wake-up, three meals, the evening announcement and curfew", sched_ == ["wake", "breakfast", "lunch", "dinner", "evening", "curfew"], str(sched_))
+check("breakfast, lunch and dinner fall in the 08:00, 12:00 and 18:00 turns at half past", [(r.meal_in_turn(h)[0] or {}).get("id") for h in (8, 10, 12, 14, 16, 18, 20)]
+      == ["breakfast", None, "lunch", None, None, "dinner", None] and r.meal_in_turn(12)[1] == 30)
+w.state["schedule_mods"] = [{"op": "cancel", "id": "lunch", "day": r.day}, {"op": "move", "id": "dinner", "at": 19 * 60 + 15}]
+check("a draw can be cancelled or moved", r.meal_in_turn(12)[0] is None and r.meal_in_turn(18)[0]["at"] == 19 * 60 + 15)
+w.state["schedule_mods"] = []
+
+
+def meal_run_(seed, tense=None):
+    w_, r_, _ = fresh(seed)
+    for c in w_.agents:
+        w_.agents[c]["sanity"] = 60
+        w_.agents[c]["hunger"] = 70
+        r_.mind(c)["needs"]["social"] = 30
+        r_.mind(c)["stress"] = 30
+    t_ = r_.new_tick(12)
+    r_.clock_start()
+    r_.sim_turn(t_)
+    r_.convo_reset()
+    base_ = r_.rng
+    r_.rng = _Fixed(0.0, base_)
+    meal_ = r_.meal_call(t_, 12, r_.meal_in_turn(12)[0], 30.0)
+    r_.rng = base_
+    if tense:
+        t_["events"].append({"type": tense, "who": meal_["came"][0], "room": "dining_hall", "m": 50.0, "text": "x"})
+    r_.meal_settle(t_, 12)
+    r_.clock_stop()
+    return w_, r_, t_, meal_
+
+
+w, r, t_, meal_ = meal_run_(183)
+came_ = meal_["came"]
+check("people who want to come walk to the Dining Hall and eat", len(came_) >= 6 and all(w.agents[c]["room"] == "dining_hall" and w.agents[c]["hunger"] < 70 for c in came_), str(len(came_)))
+check("a calm meal lifts everyone at it: sanity, company, less stress", t_["meal"]["calm"] and all(w.agents[c]["sanity"] > 60 and r.mind(c)["needs"]["social"] >= 50 and r.mind(c)["stress"] < 30 for c in came_))
+w, r, t_, meal_ = meal_run_(183, tense="fight")
+check("a tense meal gives nothing", not t_["meal"]["calm"] and t_["meal"]["sour"] == "fight" and all(w.agents[c]["sanity"] <= 60 and r.mind(c)["needs"]["social"] <= 30 for c in meal_["came"]))
+w, r, _ = fresh(184)
+ids = sorted(w.agents)
+w.state["news"] = [{"day": r.day, "text": "Somebody found a knife under the stairs.", "knows": [ids[0]]}]
+told_ = r.spread_news(r.new_tick(12), ids[:3], "Lunch")
+check("news passes around the table to those who had not heard", told_ == 1 and any("knife under the stairs" in m for m in w.agents[ids[2]]["memory"]["recent"]) and set(ids[:3]) <= set(w.state["news"][0]["knows"]))
+w, r, _ = fresh(185)
+ids = sorted(w.agents)
+w.state["meal_skips"] = {ids[0]: 2}
+r.__dict__["_meal"] = {"id": "lunch", "label": "Lunch", "room": "dining_hall", "m": 30.0, "end_m": 90.0, "came": ids[1:4], "skipped": [ids[0]], "hour": 12}
+r.clock_start(); r.sim_turn(r.new_tick(12)); r.convo_reset()
+tk_ = r.new_tick(12)
+r.meal_settle(tk_, 12)
+r.clock_stop()
+check("someone who keeps skipping meals gets noticed", w.state["meal_skips"][ids[0]] == 3 and any("skipped 3 meals" in m for m in w.agents[ids[1]]["memory"]["recent"]))
+meals_wk_ = [t["meal"] for t in wk_ticks if t.get("meal")]
+check("a mock week serves meals, some calm and some not", len(meals_wk_) >= 8 and {m["id"] for m in meals_wk_} == {"breakfast", "lunch", "dinner"} and any(m["calm"] for m in meals_wk_),
+      f"{len(meals_wk_)} meals, {sum(1 for m in meals_wk_ if m['calm'])} calm")
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

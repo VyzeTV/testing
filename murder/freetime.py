@@ -763,6 +763,8 @@ class FreeTimeMixin:
         self._seg(tick, cid, m, end, a["room"], act, label, "free", at)
         if walked and act not in ("bathroom", "shower", "bath", "nap", "dress", "flee", "rescue", "stalk"):
             self.companion_for(tick, cid, start_room, m_go, end)         # a close friend may come along
+        if cid not in w.agents:
+            return end                                                   # the way there killed them (a fall, a trap)
         self._effect(tick, cid, act, m, at)
         self.plan_done_by_act(cid, act, a["room"])
         return end
