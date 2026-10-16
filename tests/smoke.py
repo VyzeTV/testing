@@ -4824,6 +4824,28 @@ gr_.clock_stop()
 check("a close friend who is at a loose end goes along when somebody sets off, and they walk there together", pal_ == gb_ and gw_.agents[gb_]["room"] == "kitchen"
       and abs(gr_.sim().end_t(gb_) - gr_.sim().end_t(ga_)) < 1.5, f"{pal_} {gw_.agents[gb_]['room']}")
 
+# heard through a wall: the listener has to know the voice
+vw_, vr_, _ = fresh(1995)
+vw_.state["revealed"] = True
+vs_, vt_, vl_ = sorted(vw_.agents)[:3]
+vw_.agents[vs_]["room"] = vw_.agents[vt_]["room"] = "kitchen"
+vw_.agents[vl_]["room"] = "dining_hall"
+vtk_ = vr_.new_tick(14)
+vr_.clock_start()
+vr_.sim_turn(vtk_)
+vr_.sim_sync(vtk_, 0)
+_kt = nav_.rooms["kitchen"]["rect"]
+_wall_y = _kt[3] - 1
+vr_.sim().walk(vs_, vr_.nav().stand_near("ground", _kt[0] + 2, _wall_y - 1, set(), "kitchen") or vr_.sim().cur[vs_], 1)
+vr_.sim().walk(vl_, vr_.nav().stand_near("ground", _kt[0] + 2, _wall_y + 2, set(), "dining_hall") or vr_.sim().cur[vl_], 1)
+vconv_ = {"members": [vs_, vt_], "room": "kitchen", "seen_by": set(), "wary": True, "joined": [], "left": []}
+vbeat_ = {"who": vs_, "m": 20.0, "loud": "heated", "room": "kitchen", "move": "accuse"}
+vr_.overhear(vtk_, vconv_, [vbeat_], notice=False)
+check("a raised voice carries through the wall to the next room, where the listener cannot see who it is", (vbeat_.get("heard") or {}).get(vl_) in ("full", "part") and vl_ in (vbeat_.get("unseen") or []), str(vbeat_))
+vr_.remember_talk(vconv_, [{"speaker": vs_, "kind": "say", "text": "I know it was you.", "move": "accuse", "heard": vbeat_.get("heard") or {}, "unseen": vbeat_.get("unseen") or []}], 14)
+check("and they remember it as a voice through the wall, named only if they knew it", any("through the wall" in m_ for m_ in vw_.agents[vl_]["memory"]["recent"]))
+vr_.clock_stop()
+
 # ---- the confessional booth (rebuild phase 3)
 bw_, br_, _ = fresh(2000)
 bw_.state["revealed"] = True

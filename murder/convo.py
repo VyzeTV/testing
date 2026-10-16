@@ -278,14 +278,18 @@ class ConvoMixin:
                 if not t:
                     continue
                 spying = a.get("spying") == conv["room"] or (a.get("hiding") and a["room"] == conv["room"])
+                seen = perc.sees(src, t, light)
                 if perc.hears(src, t, loud):
                     heard[cid] = "full"
                 elif perc.hears(src, t, LOUDER[loud]):
                     heard[cid] = "full" if spying and self.rng.random() < 0.6 else "part"
-                elif perc.sees(src, t, light) and cid not in conv["seen_by"]:
+                elif seen and cid not in conv["seen_by"]:
                     heard[cid] = "saw"
                     conv["seen_by"].add(cid)
+                if heard.get(cid) in ("full", "part") and not seen:
+                    b.setdefault("unseen", []).append(cid)          # heard through a wall or a floor: they have to know the voice
             b.pop("heard", None)
+            b.pop("unseen", None) if not heard else None
             if heard:
                 b["heard"] = heard
                 for cid, lvl in heard.items():
@@ -381,8 +385,11 @@ class ConvoMixin:
             for ln in lines:
                 b = beats[ln["b"]] if 0 <= ln.get("b", -1) < len(beats) else {}
                 ln.pop("heard", None)
+                ln.pop("unseen", None)
                 if b.get("heard"):
                     ln["heard"] = b["heard"]
+                if b.get("unseen"):
+                    ln["unseen"] = sorted(set(b["unseen"]))
             self.remember_talk(c, lines, hour)
         self._heard_later = []
         self.booth_hearing(tick)
@@ -405,14 +412,25 @@ class ConvoMixin:
                 if cid not in w.agents:
                     continue
                 topic = MOVES.get(ln.get("move"), (None, None, "something"))[2]
+                if cid in (ln.get("unseen") or []):
+                    # not seen, only heard: they recognise the voice if they know it well (or it is raised)
+                    p = 0.45 + 0.05 * min(8, abs(self._aff(cid, ln["speaker"]))) + (0.1 if lvl == "full" else -0.15)
+                    who = f"a voice, probably {self.nm(ln['speaker'])}," if self.rng.random() < p else "a voice they could not place"
+                    if lvl == "full":
+                        w.remember(cid, f"{hh} (heard through the wall, could not see who) {who} saying: \"{ln['text'][:100]}\"")
+                    else:
+                        gist = topic.replace("{x}", "someone")
+                        w.remember(cid, f"{hh} (muffled, through the wall) {who}, too muffled to follow" + (f"; it sounded like {gist}" if gist not in ("something", "small talk") else ""))
+                    continue
                 if lvl == "full":
                     w.remember(cid, f"{hh} (overheard) {who}: \"{ln['text'][:100]}\"" if ln["kind"] == "say" else f"{hh} (overheard) {who} {ln['text'][:100]}")
                     self.tally(cid, "eavesdrops") if w.agents[cid].get("spying") or w.agents[cid].get("hiding") else None
                 elif lvl == "part":
                     words = ln["text"].split()
                     frag = " ".join(words[len(words) // 3: len(words) // 3 + 4]) if len(words) >= 6 else ""
+                    gist = topic.replace("{x}", "someone")
                     w.remember(cid, f"{hh} (overheard, could not make it all out) {who}" + (f" said something like \"...{frag}...\"" if frag else " was talking")
-                               + f", about {topic.replace('{x}', 'someone')}")
+                               + (f"; it sounded like {gist}" if gist not in ("something", "small talk") else ""))
                 elif lvl == "saw":
                     others = [self.nm(o) for o in conv["members"] if o != ln["speaker"]][:2]
                     w.remember(cid, f"{hh} (saw) {who} talking with {', '.join(others) or 'someone'} in the {w.room_name(conv['room'])}, too far to hear.")
