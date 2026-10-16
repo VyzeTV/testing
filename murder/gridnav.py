@@ -14,8 +14,10 @@ def _h(*a):
     return int(hashlib.md5(repr(a).encode()).hexdigest()[:8], 16)
 
 
+LINK_COST = 3                             # steps a stair, ladder or hatch costs
 LINK_TILES = "+LUDhl="                    # doors, stairs, ladders, hatches and windows: kept clear when people pick where to stand
 _CACHE = {}
+_SHARED = {}                              # id(map) -> (map, {room: spots}, {route key: path}): spots and routes depend only on the map, so every GridNav on it shares them
 
 
 def default_map():
@@ -43,6 +45,11 @@ class GridNav:
                     rid = self.codes.get(c)
                     if rid:
                         self.room_tiles.setdefault(rid, []).append((p["id"], x, y))
+        self.walk = {p: [bytearray(1 if c in WALK else 0 for c in row) for row in rows] for p, rows in self.rows.items()}
+        for (p, x, y) in self.blocked:
+            g = self.walk.get(p)
+            if g is not None and 0 <= y < len(g) and 0 <= x < len(g[y]):
+                g[y][x] = 0
         self.links = {}
         self.link_ids = {}
         for l in self.gm["links"]:
@@ -52,10 +59,25 @@ class GridNav:
             a, b = tuple(ends[0]), tuple(ends[1])
             self.links.setdefault(a, []).append((b, l))
             self.links.setdefault(b, []).append((a, l))
-        self._spots = {}
+        # a link can carry you further than it costs to take (a hidden passage's far end); across levels the distance estimate is lowered by that surplus so it never overestimates
+        seen = {}
+        for a, outs in self.links.items():
+            for b, l in outs:
+                seen[(l["id"], frozenset((a, b)))] = max(0, abs(a[1] - b[1]) + abs(a[2] - b[2]) - LINK_COST)
+        self.link_surplus = sum(seen.values())
+        self._spots, self._cache = self._shared()
         self._furn = {}
-        self._cache = {}
         self.open_tiles = set()
+
+    def _shared(self):
+        hit = _SHARED.get(id(self.gm))
+        if hit is None or hit[0] is not self.gm:
+            if len(_SHARED) > 8:
+                _SHARED.clear()
+            hit = _SHARED[id(self.gm)] = (self.gm, {}, {})
+        if len(hit[2]) > 50000:
+            hit[2].clear()
+        return hit[1], hit[2]
 
     # ------------------------------------------------------------------ tiles
     def char(self, plane, x, y):
@@ -67,13 +89,13 @@ class GridNav:
         open_tiles = set(open_tiles)
         if open_tiles != self.open_tiles:
             self.open_tiles = open_tiles
-            self._cache.clear()
-            self._spots.clear()
+            self._spots, self._cache = ({}, {}) if open_tiles else self._shared()
 
     def walkable(self, plane, x, y):
-        if (plane, x, y) in self.open_tiles:
+        if self.open_tiles and (plane, x, y) in self.open_tiles:
             return True
-        return self.char(plane, x, y) in WALK and (plane, x, y) not in self.blocked
+        g = self.walk.get(plane)
+        return g is not None and 0 <= y < len(g) and 0 <= x < len(g[y]) and g[y][x] == 1
 
     def room_at(self, plane, x, y):
         zr = self.zones.get(plane)
@@ -161,6 +183,8 @@ class GridNav:
             return [src]
         best = {src: 0}
         prev = {}
+        walk, opened, surplus = self.walk, self.open_tiles, self.link_surplus
+        dp_, dx_, dy_ = dst
         heap = [(0, 0, 0, src)]
         n = 0
         while heap:
@@ -177,21 +201,23 @@ class GridNav:
                 continue
             pl, x, y = cur
             nbrs = []
+            g_ = walk.get(pl)
             for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                 nx, ny = x + dx, y + dy
                 t = (pl, nx, ny)
-                if t == dst or (self.walkable(pl, nx, ny) and t not in avoid):
+                if t == dst or (((g_ is not None and 0 <= ny < len(g_) and 0 <= nx < len(g_[ny]) and g_[ny][nx]) or (opened and t in opened)) and t not in avoid):
                     nbrs.append((t, 1))
-            for other, link in self.links.get(cur, []):
+            for other, link in self.links.get(cur, ()):
                 if link["kind"] == "secret" and link["id"] not in hidden:
                     continue
-                nbrs.append((other, 3))
+                nbrs.append((other, LINK_COST))
             for t, c in nbrs:
                 ng = g + c
                 if ng < best.get(t, 1e9):
                     best[t] = ng
                     prev[t] = cur
-                    hh = abs(t[1] - dst[1]) + abs(t[2] - dst[2]) if t[0] == dst[0] else 0
+                    md = abs(t[1] - dx_) + abs(t[2] - dy_)
+                    hh = md if t[0] == dp_ else max(0, md - surplus)
                     n += 1
                     heapq.heappush(heap, (ng + hh, n, ng, t))
         self._cache[key] = None

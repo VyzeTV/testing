@@ -15,6 +15,7 @@ NO_BREAK = {"camera", "railing", "tree", "monitor", "boiler", "generator", "free
 FLOOR_FLAMMABLE = {"w": 0.18, "c": 0.26, "g": 0.10, ",": 0.06, ":": 0.10, "T": 0.22, "b": 0.28, "H": 0.2, "f": 0.12, "n": 0.05, "B": 0.15, "j": 0.12}
 OPEN_FLOOR = set("wkcrmgsp,:nqfBjKabTH")
 OUTDOOR = set(",gsp:~anqfBjKTbHC")             # open air: smoke thins, daylight reaches
+_STATIC_LIGHT = {}                              # (level rows, level, daylight, power) -> light from daylight, windows and lamps
 DOOR_HP, LOCKED_DOOR_HP, WINDOW_HP = 10, 14, 3
 
 
@@ -283,21 +284,26 @@ class Environment:
             return (20 - hour) / 2 * 0.8 + 0.1 if hour < 20 else 0.0
         return 1.0
 
-    def light_rows(self, plane, hour, power=True):
-        """Light level 0-15 for every tile of a level, as strings of hex digits (one char per tile; ' ' where there is nothing)."""
-        nav, day = self.nav, self.daylight(hour)
+    def _static_light(self, plane, day, power):
+        """Light from daylight, windows and lamps for every tile of a level (a list of rows of floats). It depends only on the level's tiles,
+        its lamps, the daylight and the power, so it is computed once per combination and shared by every Environment on the same map."""
+        nav, rows = self.nav, self.nav.rows[plane]
+        key = (id(rows), plane, round(day, 4), bool(power))
+        hit = _STATIC_LIGHT.get(key)
+        if hit is not None and hit[0] is rows:
+            return hit[1]
         w, h = nav.w, nav.h
         lv = [[0.0] * w for _ in range(h)]
-        rows = nav.rows[plane]
         for y in range(h):
+            row, out = rows[y], lv[y]
             for x in range(w):
-                c = rows[y][x]
+                c = row[x]
                 if c == " ":
                     continue
                 if c in OUTDOOR:
-                    lv[y][x] = 15 * day
+                    out[x] = 15 * day
                 elif c != "#":
-                    lv[y][x] = 11.0 if power else 0.0
+                    out[x] = 11.0 if power else 0.0
         for y in range(h):
             for x in range(w):
                 if rows[y][x] == "=":
@@ -305,28 +311,54 @@ class Environment:
                         for xx in range(max(0, x - 4), min(w, x + 5)):
                             if rows[yy][xx] not in "# " and max(abs(xx - x), abs(yy - y)) <= 4:
                                 lv[yy][xx] = max(lv[yy][xx], day * 8 * (1 - max(abs(xx - x), abs(yy - y)) / 5))
-        srcs = [(f["x"], f["y"], 7, 10) for f in nav.gm["furniture"] if f["plane"] == plane and f["k"] == "lamp"]
+        for f in nav.gm["furniture"]:
+            if f["plane"] == plane and f["k"] == "lamp":
+                self._shine(lv, rows, f["x"], f["y"], 7, 10)
+        if len(_STATIC_LIGHT) > 256:
+            _STATIC_LIGHT.clear()
+        _STATIC_LIGHT[key] = (rows, lv)
+        return lv
+
+    @staticmethod
+    def _shine(lv, rows, sx, sy, rad, lev):
+        h, w = len(lv), len(lv[0]) if lv else 0
+        for yy in range(max(0, sy - rad), min(h, sy + rad + 1)):
+            for xx in range(max(0, sx - rad), min(w, sx + rad + 1)):
+                if rows[yy][xx] != " ":
+                    lv[yy][xx] = max(lv[yy][xx], lev * (1 - max(abs(xx - sx), abs(yy - sy)) / (rad + 1)))
+
+    def _light_at(self, plane, hour, power, tiles):
+        """Light 0-15 at the given (x, y) tiles of a level: the shared static light, then fires, then smoke."""
+        rows, st = self.nav.rows[plane], self._static_light(plane, self.daylight(hour), power)
+        vals = {(x, y): st[y][x] for (x, y) in tiles}
         for k, (i, age) in self.st["fire"].items():
             p, fx, fy = parse(k)
-            if p == plane:
-                srcs.append((fx, fy, 5, 5 + 3 * i))
-        for (sx, sy, rad, lev) in srcs:
-            for yy in range(max(0, sy - rad), min(h, sy + rad + 1)):
-                for xx in range(max(0, sx - rad), min(w, sx + rad + 1)):
-                    if rows[yy][xx] != " ":
-                        lv[yy][xx] = max(lv[yy][xx], lev * (1 - max(abs(xx - sx), abs(yy - sy)) / (rad + 1)))
-        smoke = self.st["smoke"]
-        for k, c in smoke.items():
+            if p != plane:
+                continue
+            lev = 5 + 3 * i
+            for (x, y) in tiles:
+                d = max(abs(x - fx), abs(y - fy))
+                if d <= 5 and rows[y][x] != " ":
+                    vals[(x, y)] = max(vals[(x, y)], lev * (1 - d / 6))
+        for k, c in self.st["smoke"].items():
             p, sx, sy = parse(k)
-            if p == plane:
-                lv[sy][sx] *= max(0.25, 1 - c / 12)
-        return ["".join(" " if rows[y][x] == " " else "0123456789abcdef"[min(15, int(lv[y][x]))] for x in range(w)) for y in range(h)]
+            if p == plane and (sx, sy) in vals:
+                vals[(sx, sy)] *= max(0.25, 1 - c / 12)
+        return {t: min(15, int(v)) for t, v in vals.items()}
+
+    def light_rows(self, plane, hour, power=True):
+        """Light level 0-15 for every tile of a level, as strings of hex digits (one char per tile; ' ' where there is nothing)."""
+        nav, rows = self.nav, self.nav.rows[plane]
+        lv = self._light_at(plane, hour, power, [(x, y) for y in range(nav.h) for x in range(nav.w)])
+        return ["".join(" " if rows[y][x] == " " else "0123456789abcdef"[lv[(x, y)]] for x in range(nav.w)) for y in range(nav.h)]
 
     def room_light(self, room, hour, power=True):
         """lit / dim / dark: the average light over a room's floor."""
         r = self.nav.rooms[room]
-        rows = self.light_rows(r["plane"], hour, power)
-        vals = [int(rows[y][x], 16) for (_p, x, y) in self.nav.room_tiles.get(room, []) if rows[y][x] != " "]
+        rows = self.nav.rows[r["plane"]]
+        tiles = [(x, y) for (_p, x, y) in self.nav.room_tiles.get(room, []) if rows[y][x] != " "]
+        lv = self._light_at(r["plane"], hour, power, tiles)
+        vals = [lv[t] for t in tiles]
         avg = sum(vals) / len(vals) if vals else 0
         return "lit" if avg >= 8 else "dim" if avg >= 3 else "dark"
 

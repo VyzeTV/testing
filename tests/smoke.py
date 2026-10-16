@@ -4014,8 +4014,13 @@ def fire_trial(seed, n=5, room="library", hp=90, asleep=False, k=None):
     return wf, rf, tk, ids[:n]
 
 
-dead_awake = sum(1 for sd in range(2000, 2040) if any(c not in fire_trial(sd)[0].agents for c in fire_trial(sd)[3]))
-dead_asleep = sum(1 for sd in range(2000, 2040) if any(c not in (lambda t: t[0].agents)(fire_trial(sd, asleep=True)) for c in fire_trial(sd, asleep=True)[3]))
+def fire_killed(*a, **k):
+    wk_, _, _, ids_k = fire_trial(*a, **k)
+    return any(c not in wk_.agents for c in ids_k)
+
+
+dead_awake = sum(fire_killed(sd) for sd in range(2000, 2040))
+dead_asleep = sum(fire_killed(sd, asleep=True) for sd in range(2000, 2040))
 check("an unattended fire in a room with sleepers kills someone far more often than one with awake people (who run)", dead_asleep >= 3 * max(1, dead_awake) or dead_asleep >= 12, f"awake {dead_awake}, asleep {dead_asleep}")
 check("a fire can kill, but awake people usually get out (fewer than a third of fires cost a life)", 0 < dead_awake + dead_asleep and dead_awake < 14, str(dead_awake))
 wf_, rf_, tk_, ids_ = fire_trial(2100)
@@ -4023,7 +4028,7 @@ ran_ = [c for c in ids_ if c in wf_.agents and wf_.agents[c]["room"] != "library
 check("people in a burning room run out of it during the turn, and it is logged with its minute", ran_ and any(e["type"] == "reaction" and e.get("m") is not None and "away from the fire" in e["text"] for e in tk_["events"]))
 hp_awake = [wf_.agents[c]["hp"] for c in ids_ if c in wf_.agents]
 check("the flames and smoke cost the people who stay some health", any(h < 90 for h in hp_awake) or any(r_ for r_ in ran_))
-d0_ = sum(1 for sd in range(2200, 2230) if any(c not in fire_trial(sd, k=0)[0].agents for c in fire_trial(sd, k=0)[3]))
+d0_ = sum(fire_killed(sd, k=0) for sd in range(2200, 2230))
 check("with the fire dial at 0 nobody is hurt by it", d0_ == 0)
 
 # slower walkers
