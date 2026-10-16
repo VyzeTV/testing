@@ -117,6 +117,7 @@ const FURN = {
   hammock: (c) => { c.strokeStyle = "#6e4a1f"; c.lineWidth = 2; c.beginPath(); c.moveTo(2, 8); c.lineTo(2, 24); c.moveTo(30, 8); c.lineTo(30, 24); c.stroke(); c.fillStyle = "#e5a64a"; c.beginPath(); c.moveTo(3, 12); c.quadraticCurveTo(16, 28, 29, 12); c.lineTo(29, 15); c.quadraticCurveTo(16, 31, 3, 15); c.fill(); },
   firepit: (c) => { c.fillStyle = "#6c7278"; c.beginPath(); c.arc(16, 16, 12, 0, 6.3); c.fill(); c.fillStyle = "#241a14"; c.beginPath(); c.arc(16, 16, 8, 0, 6.3); c.fill(); c.fillStyle = "#ff8a30"; c.beginPath(); c.moveTo(16, 8); c.quadraticCurveTo(22, 16, 16, 23); c.quadraticCurveTo(10, 16, 16, 8); c.fill(); },
   jukebox: (c) => { rr(c, 6, 3, 20, 26, "#b0406a", "#6a2040"); c.fillStyle = "#ffd54f"; c.beginPath(); c.arc(16, 12, 7, Math.PI, 0); c.fill(); rr(c, 10, 18, 12, 7, "#3a1a28"); },
+  booth: (c) => { rr(c, 3, 2, 26, 28, "#3a1830", "#1a0a16"); c.fillStyle = "#7a2a5a"; c.fillRect(6, 5, 20, 22); c.fillStyle = "#ff3355"; c.beginPath(); c.arc(22, 9, 3, 0, 6.3); c.fill(); c.fillStyle = "#f4d0e0"; c.fillRect(9, 16, 14, 3); },
   camera: (c) => { c.fillStyle = "rgba(255,95,162,.9)"; c.beginPath(); c.moveTo(16, 4); c.lineTo(29, 11); c.lineTo(16, 18); c.lineTo(3, 11); c.closePath(); c.fill(); dot(c, 16, 11, "#fff"); },
 };
 function rr(c, x, y, w, h, fill, stroke) { c.fillStyle = fill; c.fillRect(x, y, w, h); if (stroke) { c.strokeStyle = stroke; c.lineWidth = 1.6; c.strokeRect(x + 0.8, y + 0.8, w - 1.6, h - 1.6); } }
@@ -378,13 +379,27 @@ function floorBeside(plane, x, y) { for (const [dx, dy] of [[1, 0], [-1, 0], [0,
   function activeTalks(P) {
     const by = {};
     for (const b of S.bubbles || []) {
-      if (b.until < S.clock || !P[b.id]) continue;
+      if (b.until < S.clock || !P[b.id] || b.booth) continue;
       const k = b.room || "?"; (by[k] = by[k] || []).push(b.id);
     }
     return Object.entries(by).map(([room, ids]) => { const p = P[ids[0]]; return { room, ids, p: p.plane, x: p.x, y: p.y, names: ids.map(nameOf).join(", ") }; });
   }
 
   // ---------------------------------------------------------------- drawing
+  // who is overhearing whom: a dashed line from each listener to the speaker while the line is up (solid for heard, faint for half heard)
+  function drawEars(c, P) {
+    const now = S.clock, s = G.view.s;
+    S.ears = (S.ears || []).filter((e) => e.until >= now);
+    for (const e of S.ears) {
+      const a = P[e.id], b = P[e.from];
+      if (!a || !b) continue;
+      const ax = SX(a.plane, a.x) + s / 2, ay = SY(a.plane, a.y) + s / 2, bx = SX(b.plane, b.x) + s / 2, by = SY(b.plane, b.y) + s / 2;
+      c.save(); c.setLineDash([4, 4]); c.lineWidth = e.lvl === "full" ? 2 : 1.2;
+      c.strokeStyle = e.lvl === "full" ? "rgba(255,211,107,.85)" : e.lvl === "part" ? "rgba(255,211,107,.45)" : "rgba(160,170,200,.35)";
+      c.beginPath(); c.moveTo(ax, ay); c.lineTo(bx, by); c.stroke(); c.restore();
+      if (e.lvl !== "saw") { c.font = `700 ${Math.max(9, s * 0.5)}px system-ui`; c.textAlign = "center"; c.textBaseline = "bottom"; c.fillStyle = "rgba(255,211,107,.95)"; c.fillText(e.lvl === "full" ? "((" : "(", ax, ay - Math.max(5, s * 0.46) - 2); }
+    }
+  }
   function drawBubbles(c, P) {
     const now = S.clock, s = G.view.s;
     for (const b of S.bubbles || []) {
@@ -474,7 +489,7 @@ function floorBeside(plane, x, y) { for (const [dx, dy] of [[1, 0], [-1, 0], [0,
     if (G.gm) for (const l of G.map.links.filter((k) => k.kind === "secret")) for (const e of Object.values(l.ends)) if (onScreen(e[0], e[1], e[2])) { c.fillStyle = "#ff4dd2"; c.font = `bold ${Math.max(9, s * 0.45)}px system-ui`; c.textAlign = "center"; c.textBaseline = "bottom"; c.fillText(l.id, SX(e[0], e[1]) + s / 2, SY(e[0], e[2])); }
     if (LY.labels) drawLabels(c);
     const P = positions(), talks = activeTalks(P);
-    drawCameras(c); drawEnv(c, T.tick); drawPerception(c, P); drawPings(c); drawTokens(c, P); drawBubbles(c, P); drawPointers(c, P, talks);
+    drawCameras(c); drawEnv(c, T.tick); drawPerception(c, P); drawPings(c); drawTokens(c, P); drawEars(c, P); drawBubbles(c, P); drawPointers(c, P, talks);
     if (G.hover) { const [hp, hx, hy] = G.hover; c.strokeStyle = "#3ee0d0"; c.lineWidth = 2; c.strokeRect(SX(hp, hx), SY(hp, hy), s, s); }
     G.talks = talks;
   }
@@ -696,7 +711,7 @@ function floorBeside(plane, x, y) { for (const [dx, dy] of [[1, 0], [-1, 0], [0,
   }
 
   // ---------------------------------------------------------------- the toolbar and panels the map brings with it
-  const FURN_KINDS = ["bed", "wardrobe", "desk", "table", "chair", "shelf", "sofa", "stove", "sink", "barrel", "crate", "chest", "plant", "piano", "easel", "telescope", "railing", "poolTable", "washer", "tub", "cabinet", "radio", "boiler", "fuseBox", "workbench", "freezer", "terminal", "locker", "lamp", "generator", "plantBed", "boat", "podium", "monitor", "tree", "bench", "deckChair", "driftwood", "armchair", "fireplace", "chessTable", "dartboard", "mirror", "fridge", "hammock", "firepit", "jukebox"];
+  const FURN_KINDS = ["bed", "wardrobe", "desk", "table", "chair", "shelf", "sofa", "stove", "sink", "barrel", "crate", "chest", "plant", "piano", "easel", "telescope", "railing", "poolTable", "washer", "tub", "cabinet", "radio", "boiler", "fuseBox", "workbench", "freezer", "terminal", "locker", "lamp", "generator", "plantBed", "boat", "podium", "monitor", "tree", "bench", "deckChair", "driftwood", "armchair", "fireplace", "chessTable", "dartboard", "mirror", "fridge", "hammock", "firepit", "jukebox", "booth"];
   const TILES = [["w", "wood floor"], ["k", "tiles"], ["c", "carpet"], ["r", "stone"], ["m", "metal"], ["#", "wall"], ["+", "door"], ["L", "locked door"], ["=", "window"], ["U", "stairs up"], ["D", "stairs down"], ["l", "ladder"],
     ["g", "lawn"], [",", "wild grass"], ["T", "tree"], ["b", "bush"], ["H", "hedge"], ["f", "flower bed"], ["s", "sand"], ["n", "dunes"], ["q", "rock"], ["C", "cliff"], ["K", "steps"], ["a", "shallow water"], ["~", "deep water"],
     [":", "deck"], ["B", "boardwalk"], ["j", "jetty"], ["p", "path"], ["S", "roof"], ["x", "railing"], ["v", "open to the floor below"]];

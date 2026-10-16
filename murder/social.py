@@ -9,6 +9,7 @@ game always used; a language model, when one is used, only puts words to the bea
 Families (after Prom Week's social exchanges): bonding, status, information, conflict, alliance, deception.
 """
 from .drama import GIFT_ITEMS
+from .booth import MOVE_URGE
 
 # move: (family, loudness, short topic used when somebody only half hears it)
 MOVES = {
@@ -416,6 +417,9 @@ class SocialMixin:
             else:
                 reply = "rebuff"
         conv["used"][move] = conv["used"].get(move, 0) + 1
+        u = MOVE_URGE.get(move)
+        if u and outcome != "fail":
+            self.booth_note(t, u[0], u[1], a)                    # something to tell the camera about
         self.apply_talk_fx(tick, conv["room"], [m for m in conv["members"] if m in w.agents], fx, conv.get("hour", tick["hour"]))
         heated = loud == "heated" or outcome == "backfire" and fam == "conflict"
         loud_ = "heated" if heated else loud

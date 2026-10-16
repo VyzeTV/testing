@@ -1105,6 +1105,15 @@
    "room": "landing"
   },
   {
+   "k": "booth",
+   "plane": "first",
+   "x": 74,
+   "y": 64,
+   "w": 1,
+   "h": 1,
+   "room": "landing"
+  },
+  {
    "k": "bed",
    "plane": "second",
    "x": 61,

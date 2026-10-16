@@ -11,7 +11,7 @@ const S = {
   W: null, status: null, session: null, ticks: [], cursor: -1, paused: false, speed: 1, ff: false, gm: false,
   selected: null, selRoom: null, token: 0, clock: 0, done: false, error: null, mode: null, usage: null,
   state: null, thoughts: {}, pos: {}, rad: {}, endMap: {}, moveAnim: null, bubbles: [], talkRoom: null,
-  waiters: [], endShown: false, hour: 8, day: 0, step: 2, imgs: {}, view: { scale: 1, ox: 0, oy: 0 }, playIdx: -1, flashes: [], dread: 0, confessions: [], parts: [], shakeUntil: 0, shakeAmp: 0, flash: null, weather: null, weatherRoom: null, sound: false,
+  waiters: [], endShown: false, hour: 8, day: 0, step: 2, imgs: {}, view: { scale: 1, ox: 0, oy: 0 }, playIdx: -1, flashes: [], dread: 0, confessions: [], ears: [], parts: [], shakeUntil: 0, shakeAmp: 0, flash: null, weather: null, weatherRoom: null, sound: false,
 };
 
 // ---------- helpers ----------
@@ -492,8 +492,10 @@ function feedConf(c) {
   const i = info(c.id);
   feedAdd(`<div class="n">Confessional · ${esc(i.name)}</div>${esc(c.text)}`, "conf");
 }
-function feedLine(id, text, kind) {
+function feedLine(id, text, kind, heard) {
   const i = info(id);
+  const ov = heard && S.gm ? Object.entries(heard).filter(([, v]) => v !== "saw").map(([c, v]) => `${info(c).short || c}${v === "part" ? " (in part)" : ""}`) : [];
+  if (ov.length) text = text + `  [overheard by ${ov.join(", ")}]`;
   if (kind === "act") { feedAdd(`<b style="--c:${i.color}">${esc(i.short || i.name)}</b> ${esc(text)}`, "actrow"); return; }
   feedAdd(`<img src="portraits/${id}.png" onerror="this.style.visibility='hidden'" style="--c:${i.color}"><div><div class="n" style="--c:${i.color}">${esc(i.name)}</div>${esc(text)}</div>`, "line");
 }
@@ -732,9 +734,23 @@ function showSeasonEnd(en) {
   $("#ovNext").onclick = () => { $("#overlay").style.display = "none"; openModal(); };
   refreshStatus();
 }
+// A booth confessional during the turn: a short card in the corner and a bubble over the person in the booth, while everybody else carries on.
+function showBooth(t, c) {
+  const bo = $("#booth"), i = info(c.id), lines = c.lines || [c.text];
+  bo.innerHTML = `<img src="portraits/${c.id}.png" onerror="this.style.visibility='hidden'"><div><div class="rec">\u25CF REC \u00b7 CONFESSIONAL</div><div class="who" style="color:${i.color}">${esc(i.name)}</div><div class="txt">${lines.map(esc).join("<br>")}</div></div>`;
+  bo.style.display = "flex";
+  feedConf(c); S.confessions.push({ ...c, day: t.day, time: t.time }); renderBooth();
+  const ms = Math.max(2600, lines.join(" ").length * 55);
+  S.bubbles = S.bubbles.filter((b) => b.id !== c.id);
+  S.bubbles.push({ id: c.id, room: c.room || null, act: false, booth: true, text: lines[0], until: S.clock + ms });
+  speak(c.id, lines.join(" "), { rate: 0.95 });
+  const until = S.clock + ms;
+  waitClock(ms).then(() => { if (S.clock >= until - 50) bo.style.display = "none"; });
+  return ms;
+}
 async function playConfessionals(t, tok) {
   const bo = $("#booth");
-  for (const c of t.confessionals) {
+  for (const c of t.confessionals.filter((x) => x.m == null || !t._confShown)) {
     const i = info(c.id);
     bo.innerHTML = `<img src="portraits/${c.id}.png" onerror="this.style.visibility='hidden'"><div><div class="rec">\u25CF REC \u00b7 CONFESSIONAL</div><div class="who" style="color:${i.color}">${esc(i.name)}</div><div class="txt" id="boothTxt"></div></div>`;
     bo.style.display = "flex";
@@ -850,13 +866,16 @@ const readMs = (l) => Math.max(1800, (l.text || "").length * 45);
 async function animateTo(m, minMs, per, tok) {
   const from = TileMap.minute();
   if (m <= from + 1e-6 && minMs <= 0) return;
+  // waiting for a line to be read never stops the world: the clock creeps on (a fraction of what it would cover at full pace)
+  if (minMs > 0) m = Math.max(m, from + Math.min(0.6, (minMs / per) * 0.3));
   const span = Math.max((m - from) * per, minMs);
   S.tileAnim = { start: S.clock, dur: Math.max(1, span), from, to: Math.max(from, m) };
   await waitClock(span);
   if (tok === S.token) { S.tileAnim = null; TileMap.setMinute(Math.max(from, m)); }
 }
 function showLine(g, l) {
-  feedLine(l.speaker, l.text, l.kind);
+  feedLine(l.speaker, l.text, l.kind, l.heard);
+  if (l.heard) for (const [id, lvl] of Object.entries(l.heard)) S.ears.push({ id, from: l.speaker, lvl, until: S.clock + readMs(l) });
   const isAct = l.kind === "act", ms = readMs(l);
   S.bubbles = S.bubbles.filter((b) => b.id !== l.speaker);
   S.bubbles.push({ id: l.speaker, room: g.room, act: isAct, text: isAct ? `${info(l.speaker).short || ""} ${l.text}` : l.text, until: S.clock + ms + 400 });
@@ -877,6 +896,8 @@ async function playWindow(t, tok, late) {
   t.talk.forEach((g, gi) => { if (!(gi in lineIdx)) { let m = Math.min(dur - 2, dur * 0.5 + gi); g.lines.forEach((l, li) => items.push({ m: m + li * 2, o: 2000 + gi * 100 + li, k: "line", g, l, gi, first: li === 0 })); } });
   for (const f of t.fx || []) items.push({ m: f.m != null ? f.m : 0, o: 3000, k: "fx", f });
   if (t.scene_body) { const be = t.events.find((e) => e.type === "body"); items.push({ m: be && be.m != null ? be.m + 0.05 : 1, o: 4000, k: "body" }); }
+  (t.confessionals || []).forEach((c, i) => { if (c.m != null) items.push({ m: c.m, o: 5000 + i, k: "conf", c }); });
+  t._confShown = true;
   items.sort((a, b) => a.m - b.m || a.o - b.o);
   t.events.filter((e) => e.m == null && !late.includes(e)).length && (await TileMap.dialogFor(t, { untimed: true }));
   if (tok !== S.token) return;
@@ -901,6 +922,8 @@ async function playWindow(t, tok, late) {
       triggerFx([it.f]);
     } else if (it.k === "body") {
       await playBodyScene(t.scene_body, tok); if (tok !== S.token) return;
+    } else if (it.k === "conf") {
+      readUntil = Math.max(readUntil, S.clock + showBooth(t, it.c));
     }
   }
   await animateTo(dur, Math.max(0, readUntil - S.clock), per, tok);

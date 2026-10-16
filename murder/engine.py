@@ -48,6 +48,7 @@ from .clock import ClockMixin, Timeline
 from .falls import FallMixin
 from .social import SocialMixin
 from .convo import ConvoMixin
+from .booth import BoothMixin
 from .perception import PerceptionMixin
 from .envsys import EnvironmentMixin
 from .mind import MindMixin
@@ -133,7 +134,7 @@ class Stop(Exception):
     pass
 
 
-class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
+class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
     def __init__(self, world, llm, on_tick, gate=None, should_stop=None, step=2, workers=6, seed=None,
                  murders=True, motive="", rule_mode="roulette", rule_text="", confessionals=True, mischief="occasional", chaos="normal",
                  variation=0, gm_pull=None, lean=False, call_cap=0, autodir=False, autodir_get=None, tuning_get=None):
@@ -228,6 +229,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         try:
             tick["speeds"] = {c: v for c, v in ((cid, round(self.move_factor(cid), 2)) for cid in self.world.agents) if v < 0.95}
             tick["live"] = self.sim_finish(tick)
+            self.finish_hearing(tick)
             self.log_whereabouts(tick)
             self.clock_stop()
         except Exception as e:  # positions must never break the game
@@ -263,6 +265,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         if m is not None and "m" not in evt:
             evt["m"] = round(m, 1)                                    # when in the turn this happened
         tick["events"].append(evt)
+        self.booth_note_event(evt)
         if witnesses and actor and evt.get("vis") == "public":
             witnesses = self.event_witnesses(actor, evt.get("room"), evt.get("type"), witnesses)
         side = self.__dict__.setdefault("_chron_w", {})
@@ -948,7 +951,8 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         self.occasion_now = None
         self.island_tick_effects(tick, hour)
         self.enforce_ai_rule(tick, hour)
-        self.make_confessionals(tick, hour)
+        self.booth_turn(tick, hour, kind)
+        self.voice_booth(tick, hour)
 
         if hour >= 20 and hour - self.step < 20 and self.revealed:
             text = self.make_broadcast("evening", {})

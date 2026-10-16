@@ -4824,6 +4824,35 @@ gr_.clock_stop()
 check("a close friend who is at a loose end goes along when somebody sets off, and they walk there together", pal_ == gb_ and gw_.agents[gb_]["room"] == "kitchen"
       and abs(gr_.sim().end_t(gb_) - gr_.sim().end_t(ga_)) < 1.5, f"{pal_} {gw_.agents[gb_]['room']}")
 
+# ---- the confessional booth (rebuild phase 3)
+bw_, br_, _ = fresh(2000)
+bw_.state["revealed"] = True
+br_.confessionals = True
+bt_ = br_.booth_tile()
+check("the confessional booth stands at the end of the first-floor gallery", bt_ and bt_[3] == "landing" and bt_[0] == "first")
+bc_, bo_, bl_ = sorted(bw_.agents)[:3]
+for c_ in (bc_, bo_):
+    bw_.agents[c_]["room"] = "lounge"
+bw_.agents[bl_]["room"] = "landing"
+br_.booth_note(bc_, "hurt", 6, bo_)
+btk_ = br_.new_tick(12)
+br_.clock_start()
+br_.sim_turn(btk_)
+br_.sim_sync(btk_, 0)
+_bt_near = br_.nav().stand_near(bt_[0], bt_[1], bt_[2], set(br_.sim().cur.values()), "landing")
+br_.sim().walk(bl_, _bt_near, 1)
+br_._m = 100.0
+br_.rng = _Fixed(0.0, br_.rng)
+br_.booth_turn(btk_, 12, None)
+br_.voice_booth(btk_, 12)
+br_.emit(btk_)
+cf_ = btk_.get("confessionals") or []
+check("someone with something on their chest walks to the booth and records", cf_ and cf_[0]["id"] == bc_ and bw_.agents[bc_]["room"] == "landing" and cf_[0].get("m") is not None)
+check("a confessional is one to three short lines spoken to the audience, about what happened to them", cf_ and 1 <= len(cf_[0]["lines"]) <= 3 and all(len(l.split()) <= 18 for l in cf_[0]["lines"]) and cf_[0]["topic"] == "hurt", str(cf_[:1]))
+check("someone standing on the gallery nearby overhears the confession", cf_ and bl_ in (cf_[0].get("heard") or {}), str(cf_[0].get("heard") if cf_ else None))
+all_cf_ = [c for t in wk_ticks for c in t.get("confessionals") or []]
+check("every confessional in a mock week is short (at most three lines of at most eighteen words)", all_cf_ and all(1 <= len(c.get("lines") or [c["text"]]) <= 3 and all(len(l.split()) <= 18 for l in (c.get("lines") or [c["text"]])) for c in all_cf_), str(len(all_cf_)))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

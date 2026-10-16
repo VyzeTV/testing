@@ -69,6 +69,7 @@ ACTS = {
     "gather":   ("with the others", 30, [], [], "joins the others"),
     "chat":     ("talking", 30, [], [], "starts talking"),
     "company":  ("keeping someone company", 30, [], [], "goes along"),
+    "confess":  ("in the confessional booth", 15, [], ["booth"], "slips into the confessional booth"),
     "stalk":    ("keeping an eye on someone", 15, [], [], "keeps watch"),
     "flee":     ("getting away from danger", 15, [], [], "gets away from the danger"),
     "rescue":   ("dragging someone out of danger", 15, [], [], "goes in after someone"),
@@ -451,6 +452,9 @@ class FreeTimeMixin:
             r_ = self.rng.choice(fresh)
             add(0.35 + (cur - 40) / 100 + (100 - mi["purpose"]) / 90, "explore", room=r_, why=f"has not been in the {w.room_name(r_)} today")
         add(0.15 + (100 - mi["purpose"]) / 150, "look", why="")
+        urge = self.booth_urge(cid)[0]
+        if urge >= 2.0 and m < 90:
+            add(0.25 + urge * 0.3, "confess", why="something to get off their chest")
         # the loose ends: something is off, someone went through their things
         for h in s.get("hooks", []):
             if cid in (h.get("victims") or []) and not h.get("closed") and h.get("room") in ROOMS and (h["room"] in reach or h["room"] == here) and self.rng.random() < 0.5:
@@ -811,6 +815,8 @@ class FreeTimeMixin:
                 a["hunger"] = max(0, a.get("hunger", 0) - 25)
                 note(f"{name} {verb}.")
             a["thirst"] = max(0, a.get("thirst", 0) - 15)
+        elif act == "confess":
+            self.booth_visit(tick, cid, m)
         elif act == "drink":
             a["thirst"] = max(0, a.get("thirst", 0) - 55)
             note(f"{name} {verb}.")

@@ -357,6 +357,7 @@ def draw():
     f("first", "terminal", 26, 13, 1, 1, "study")
     f("first", "tub", 19, 15, 2, 1, "bathroom"); f("first", "sink", 17, 18, 1, 1, "bathroom"); f("first", "cabinet", 20, 18, 1, 1, "bathroom"); f("first", "mirror", 18, 18, 1, 1, "bathroom")
     f("first", "plant", 1, 8, 1, 1, "landing"); f("first", "bench", 12, 9, 2, 1, "landing"); f("first", "plant", 15, 18, 1, 1, "landing")
+    f("first", "booth", 14, 18, 1, 1, "landing")                         # TereVi's confessional booth, at the end of the gallery over the foyer
 
     # ---- second floor: the upper landing; the attic (only through the hidden stair from the library, SP-3); the lower roof outside the window
     room(f2, "master_suite", 1, 1, 6, 5, "c"); room(f2, "music_room", 8, 1, 5, 5, "c"); room(f2, "art_studio", 14, 1, 5, 5, "w"); room(f2, "observatory", 20, 1, 5, 5, "w")

@@ -8,7 +8,6 @@ they lower their voices and drop what they should not be saying. Friends who fin
 
 The engine resolves every move as it happens (social.py); after the turn each conversation is voiced in one call (voice.py), or by the template voice.
 """
-from .clock import Timeline
 from .social import MOVES
 from .voice import voice_prompt, check_lines
 from .data_world import ROOMS
@@ -346,14 +345,10 @@ class ConvoMixin:
                 tick["errors"].append(f"voicing {cid} fell back to the template voice: {str(err)[:80]}")
         for c in done:
             beats = c["beats"][:MAX_BEATS + 4]
-            c["seen_by"] = set()
-            self.overhear(tick, c, beats, notice=False)
             lines, fixed = check_lines(self, beats, got.get(c["id"]), self.rng)
-            for ln, b in zip(lines, beats):
+            for bi, (ln, b) in enumerate(zip(lines, beats)):
                 ln["text"] = self.clean_line(ln["speaker"], ln["kind"], ln["text"]) or ln["text"]
-                ln["m"], ln["room"], ln["move"] = b["m"], b.get("room") or c["room"], b["move"]
-                if b.get("heard"):
-                    ln["heard"] = b["heard"]
+                ln["m"], ln["room"], ln["move"], ln["b"] = b["m"], b.get("room") or c["room"], b["move"], bi
             people = list(dict.fromkeys([b["who"] for b in beats] + [x[1] for x in c["joined"]] + c["members"]))
             lines = self.filter_props(tick, c["room"], people, lines)
             if not lines:
@@ -363,7 +358,7 @@ class ConvoMixin:
             for ln in lines:
                 if ln["kind"] == "act":
                     self.note_acts(ln["speaker"], ln["text"])
-            self.remember_talk(c, lines, hour)
+            self.__dict__.setdefault("_heard_later", []).append((c, beats, lines, hour))
             entry = {"room": c["room"], "lines": lines, "live": True, "m": c["m0"], "members": people, "why": c.get("why", ""), "matters": c.get("matters", []),
                      "at": c.get("at"), "chat": c["kind"] == "chat", "conv": c["id"], "ended": c.get("ended"), "joined": c["joined"], "left": c["left"]}
             if c.get("noticed"):
@@ -376,6 +371,21 @@ class ConvoMixin:
             for p in people:
                 if p in w.agents:
                     self.fix_memories(p, people, 0.4)
+
+    def finish_hearing(self, tick):
+        """Once the turn's walks are final: who heard each line (from where everybody actually was at its minute), and what they and the members remember of it.
+        Booth confessions are checked the same way."""
+        for c, beats, lines, hour in self.__dict__.get("_heard_later", []):
+            c["seen_by"] = set()
+            self.overhear(tick, c, beats, notice=False)
+            for ln in lines:
+                b = beats[ln["b"]] if 0 <= ln.get("b", -1) < len(beats) else {}
+                ln.pop("heard", None)
+                if b.get("heard"):
+                    ln["heard"] = b["heard"]
+            self.remember_talk(c, lines, hour)
+        self._heard_later = []
+        self.booth_hearing(tick)
 
     def remember_talk(self, conv, lines, hour):
         """Members remember what was said to them; listeners remember what they caught (a fragment at the edge of earshot); a passer-by remembers seeing them talk."""

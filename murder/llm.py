@@ -266,6 +266,8 @@ class LLM:
     def confess(self, system, user, ctx):
         """Confessional-booth entries: {"entries": [{"id", "text"}]}."""
         if self.mock:
+            if ctx.get("booth"):
+                return {"entries": []}                    # the booth's template lines stand in
             r = self._mrng(user)
             return {"entries": [{"id": c, "text": "To the camera: " + r.choice(ctx.get("lines", {}).get(c) or ["I don't know how much longer I can keep smiling."])}
                                 for c in ctx.get("ids", [])]}
