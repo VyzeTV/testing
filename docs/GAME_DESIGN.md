@@ -179,16 +179,17 @@ At the Voting Grounds, up to five segments of: **open debate**, **hot seat** (wh
 
 ## 9. The world
 
-### The map (`gridmap.py`, `static/grid_map.json`)
-**One section, no floors to switch between.** 74 x 67 tiles; every room is **4x4 tiles** (5x5 counting a shared wall).
-* Blocks of cells on one plane: upper floors and roof (top left), first floor with the landing corridor and the **eight bedrooms** (violet, orange, grey, white added to blue, green, yellow, red), ground floor, cellars; a garden, pool and beach outdoors; the greenhouse, generator shed, boathouse, lighthouse and Voting Grounds in the grounds.
-* **Hubs are corridors**: every ordinary connection is a door through a shared wall.
-* **Stairs are U/D tile pairs** that carry you to the other block; **secret passages are hidden tiles (h)** that look like floor until discovered; outdoor connections are doors facing their zone with path tiles across the grass.
-* Doors, locked doors, windows, furniture (a priority list per room: 3-4 pieces fit in a 4x4 room), cameras in every room outside the blind spots.
-* A **map editor** (Layers > Edit map, GM) paints floors and walls and places furniture; rooms, doors and stairs cannot be moved; edits are validated (reachability, furniture on floor) and saved to `state/grid_map.json`.
+### The map (`maps/`, `mapgen.py`, `gridmap.py`, `static/grid_map.json`)
+**An island with a house on it, one tile to a metre, five levels.** Every level shares one 160 x 120 frame (basement -1, ground 0, first 1, second 2, roof 3), so a tile directly above another really is above it.
+* **Source files** in `murder/maps/`: one character plan per level (`<level>.txt`), a room-zone plan beside it (`<level>.zones.txt`) and `map.json` (zone codes, furniture with its width and height, secret passages, labels). `python -m murder.mapgen --force` redraws them; hand edits to the plans are kept otherwise.
+* **The island**: a coastline ringed by deep and shallow water, sand and dunes, rocks and cliffs; woods, a hedge maze, lawns and a pool deck; outbuildings (greenhouse, generator shed, lighthouse ruin, boathouse with a jetty, the Voting Grounds) joined by paths and a boardwalk.
+* **The house**: rooms sized from a 3 x 5 m bedroom (bedrooms 12-15 m², nothing indoors over 120 m²); ground floor (games room, pantry, kitchen, laundry, lounge, foyer, dining hall), first floor (eight bedrooms, landing, a gallery open to the foyer below, library, study, bathroom), second floor (master suite with balcony, music room, art studio, observatory, attic, a lower roof), roof (lookout and water tower), cellars (wine cellar, hall, boiler room, cold store).
+* **Secrets**: hidden passages (hidden tiles `h` that look like floor until discovered), among them the tunnel from the cellars to TereVi's core vault under the lighthouse.
+* **The builder** reads the plans: doors are door tiles between zones, stairs are an up tile above a down tile (or ladder above ladder), secrets come from `map.json`. **The validator** checks that rooms sit on their level, every connection exists, locks are right, every room is reachable from the front door, furniture stands on floor in its own room, secret passages lead through, and rooms are furnished (at least 45% of the floor in use, hubs excepted).
+* A **map editor** (Layers > Edit map, GM) paints any tile on any level and places or removes furniture; doors, stairs and hatches are protected; edits are validated and saved to `state/maps`.
 
 ### Scale (`scale.py`)
-`MAP_SCALE` 0.35 relates the tile to the old schematic: a whisper carries 1.5 tiles, normal speech 2.8, a shout 6; sight is 6 tiles in light and 2 in the dark; walls cost sound in the same scaled tiles; a "big room" (two separate conversations) is a space of more than 26 interior tiles (the outdoor zones). Walking is 4 tiles a minute, 12 hurrying; a stair takes a moment.
+`MAP_SCALE` 1.0: a tile is a metre. A whisper carries 2 tiles, quiet speech 3.5, normal 8, loud 14, a shout 18; sight is 18 tiles in light, 7 dim, 2 dark; a room of more than 220 m² can hold separate conversations. Walking is 40 tiles a minute, 110 at full speed. Sight crosses levels only where the floor is open (`v` tiles, such as the gallery); sound passes a floor at a cost.
 
 ### Perception (`perception.py`, dial `perception`)
 Line of sight (walls and closed doors block; windows do not; smoke of 4 or more blocks), light (lit, dim, dark; power cuts), a sound flood-fill through doors, windows, walls and stairs by loudness, cameras (die with the power), witnesses (who saw or heard, and how), the plotter's "alone" test, and who can hear whom in a large space. This is what makes plot windows, eavesdropping and witnesses real.
@@ -239,7 +240,7 @@ Room item pools, unlimited common supplies per room, recipes with ingredients an
 
 `static/index.html`, `app.js` (playback, panels), `tilemap.js` (the map), `style.css`; a Python stdlib server (`server.py`).
 
-* **Tile map** (default) and a **Schematic** mode: portrait tokens walk real routes; day, night and light overlays; fire, smoke, water, marks and items on tiles; GM view shows hidden hatches, concealed items, thoughts, plans and memories. The **Who's where** roster (default on in Schematic mode) lists each person's room, activity and last words.
+* **Tile map**: every level drawn side by side (the island on the left, the house's other levels in a column beside it); zoom presets (whole map, island, house, levels, the selected person's room) and level buttons; a search box for people, rooms and items; a minimap; a **Talking now** panel; pings where events happen and arrows at the screen edge pointing to what is off it; clicking a feed event or a roster row goes there. Portrait tokens walk real routes; day, night and light overlays; fire, smoke, water, marks and items on tiles; GM view shows hidden hatches, concealed items, thoughts, plans and memories. The **Who's where** roster (on by default) lists each person's room, activity and last words.
 * **Playback**: pause, speed 0.5x-8x, scrubber (rewind), fast-forward the day. A **Pace** box sets real time per game hour in free blocks (12 minutes per game day by default). Free blocks play out over real time: things happen at their minute and conversations are played where and when they happen, with the clock standing still while they talk.
 * **Pause settings**: which events pause the game, per class (critical, important, notable, background) and per kind, as a dialog, a small notice, or feed only; whether **conversations in free time** pause (never, when it matters, every one); whether the **segment title card** shows. Stored in the browser.
 * **Panels**: Feed, Cast (stats, needs, thoughts, plan, memories in GM view), Web (relationships), Booth (confessionals), Room, Board (evidence corkboard), Stats, Chronicle (a typed, searchable, persistent log of everything), Tuning (the dials), Director.
@@ -280,7 +281,7 @@ Engine and turn: `engine.py`, `world.py`, `cases.py`, `trial.py`, `story.py`, `d
 
 * **Real-model coverage**: the brain, the harder trial, the sealed scene and the new motives have been exercised on the mock backend and on two calm real days; a full real week with a murder and a trial on the new map has not been played yet.
 * **Brain**: off by default; plan completion was about a third on real days; retrieval is simple scoring (recency, importance, people), with no separate reflection call beyond the nightly diary.
-* **Map**: rooms are tight (8 people in a 4x4 room is crowded; 3-4 pieces of furniture each); a previously saved custom map is rejected and the generated one used. The schematic viewer uses a separate hand layout and does not show the new bedrooms in the same way as the tile map.
+* **Map**: a custom map saved before map v4 is rejected and the generated one used. The engine still moves people room to room in two-hour turns; the tile routes are reconstructed afterwards (continuous simulation is the next phase).
 * **Fire**: awake healthy people almost always escape; if you want deadlier fires, raise `fire_lethality` or slow the first reaction.
 * **Not built**: continuous per-minute decisions by the model (decisions are per block, with the engine playing the minutes between); NeoVi and TereVi walking on the map; breaching weak walls (deferred by decision); a fully AI-written pause-on-conversation summary.
 * **Next steps considered**: play several real days to a trial and tune `clue_clarity`, plot completion and chat limits; make the brain the default once a few days confirm it; add more interactables and richer reasons for conversations.

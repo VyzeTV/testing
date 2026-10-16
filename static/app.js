@@ -103,14 +103,14 @@ function frame() {
 S.pace = (() => { try { return Number(localStorage.getItem("mcPace")) || 50; } catch (e) { return 50; } })();      // real seconds per game hour in a free-time block
 S.rosterOn = (() => { try { const v = localStorage.getItem("mcRoster"); return v === null ? null : v === "1"; } catch (e) { return null; } })();
 S.said = {}; S.freeTick = null; S.curMin = 0;
-// How the island is drawn: the tile map (default) or the old schematic. The playback is the same either way; the tile map is told the turn and the minute within it.
-S.mapMode = (() => { try { return localStorage.getItem("mcMapMode") || "tiles"; } catch (e) { return "tiles"; } })();
+// The island is drawn as the tile map; the old room schematic only stands in when the tile map cannot load. The tile map is told the turn and the minute within it.
+S.mapMode = "tiles";
 function setMapMode(m) {
-  S.mapMode = m; try { localStorage.setItem("mcMapMode", m); } catch (e) { /* private mode */ }
   const tiles = m === "tiles" && window.TileMap && TileMap.ready();
+  S.mapMode = tiles ? "tiles" : "rooms";
   $("#map").style.display = tiles ? "none" : "block"; if (window.TileMap && TileMap.ready()) TileMap.show(tiles);
-  $("#mapMode").value = m;
 }
+const onTiles = () => S.mapMode === "tiles" && window.TileMap && TileMap.ready();
 function tileTo(m, ms) { if (!window.TileMap || S.mapMode !== "tiles") return; const from = S.tileAnim ? TileMap.minute() : TileMap.minute(); S.tileAnim = { start: S.clock, dur: Math.max(60, ms), from, to: m }; }
 
 // ---------- drawing ----------
@@ -474,12 +474,15 @@ function feedAdd(html, cls) {
   const d = document.createElement("div"); d.className = cls || ""; d.innerHTML = html; feed.appendChild(d);
   while (feed.children.length > 900) feed.removeChild(feed.firstChild);
   if (near) feed.parentElement.scrollTop = feed.parentElement.scrollHeight;
+  return d;
 }
 function feedTime(t) { feedAdd(`Day ${t.day} · ${t.time} · ${t.phase}`, "time"); }
 function feedBroadcast(b) { feedAdd(`<div class="n">TereVi, ${b.kind === "tease" ? "on the monitor" : esc(b.kind) + " broadcast"}</div>${esc(b.text)}`, "bc"); }
 function feedEvent(e) {
   if (e.type === "arrive") return;
-  feedAdd(esc(e.text) + (e.vis === "gm" ? " [GM]" : ""), "event" + (e.vis === "gm" ? " gm" : "") + (e.type === "punish" ? " punish" : "") + (["occasion", "tease", "experiment", "mercy", "assault", "outburst", "madness", "betrayal", "leak", "sabotage", "island", "drive", "plot", "incite", "rumor", "build", "mishap", "director", "hide", "stash", "conceal", "frisk", "withhold", "friction", "reaction", "vigil", "door", "breakin", "craft", "alliance", "betrayal", "hook", "rifle", "inspection", "condition", "faint", "treat", "carry", "rob", "frame"].includes(e.type) ? " " + e.type : ""));
+  const d = feedAdd(esc(e.text) + (e.vis === "gm" ? " [GM]" : ""), "event" + (e.vis === "gm" ? " gm" : "") + (e.type === "punish" ? " punish" : "") + (["occasion", "tease", "experiment", "mercy", "assault", "outburst", "madness", "betrayal", "leak", "sabotage", "island", "drive", "plot", "incite", "rumor", "build", "mishap", "director", "hide", "stash", "conceal", "frisk", "withhold", "friction", "reaction", "vigil", "door", "breakin", "craft", "alliance", "betrayal", "hook", "rifle", "inspection", "condition", "faint", "treat", "carry", "rob", "frame"].includes(e.type) ? " " + e.type : ""));
+  // clicking an event shows where it happened
+  if (d && (e.room || e.who)) { d.classList.add("goto"); d.title = "Show on the map"; d.onclick = () => { if (!onTiles()) return; if (e.who && S.W.characters[e.who] && e.type !== "death") TileMap.focusOn(e.who); else if (e.room) TileMap.focusRoom(e.room); }; }
 }
 function feedRecap(r) {
   const aw = (r.awards || []).map((a) => `${esc(a.title)}: <b>${esc(info(a.who).short || a.who)}</b> (${esc(a.why)})`).join("<br>");
@@ -823,7 +826,7 @@ function renderRoster() {
     return `<div class="rr ${dead ? "dead" : ""} ${S.selected === id ? "sel" : ""}" data-id="${id}" style="--c:${i.color}"><img src="portraits/${id}.png" onerror="this.style.visibility='hidden'"><div><b>${esc(i.short || i.name)}</b> <span class="rm">${esc(roomName(room))}</span></div><div class="ra">${esc(String(label).slice(0, 70))}</div>${said ? `<div class="rs">${said.act ? "" : "“"}${esc(said.text.slice(0, 90))}${said.act ? "" : "”"}</div>` : ""}</div>`;
   }).join("");
   const key = rows;
-  if (box._key !== key) { box.innerHTML = `<div class="rh">Who's where · ${String(Math.floor(((S.hour || 8) * 60 + m) / 60) % 24).padStart(2, "0")}:${String(Math.floor(((S.hour || 8) * 60 + m) % 60)).padStart(2, "0")}</div>` + rows; box._key = key; box.querySelectorAll(".rr").forEach((r) => (r.onclick = () => { S.selected = r.dataset.id; setTab("cast"); renderCast(); })); }
+  if (box._key !== key) { box.innerHTML = `<div class="rh">Who's where · ${String(Math.floor(((S.hour || 8) * 60 + m) / 60) % 24).padStart(2, "0")}:${String(Math.floor(((S.hour || 8) * 60 + m) % 60)).padStart(2, "0")}</div>` + rows; box._key = key; box.querySelectorAll(".rr").forEach((r) => (r.onclick = () => { S.selected = r.dataset.id; if (onTiles()) TileMap.focusOn(r.dataset.id); setTab("cast"); renderCast(); })); }
 }
 function setRoster(on) {
   S.rosterOn = !!on; try { localStorage.setItem("mcRoster", on ? "1" : "0"); } catch (e) { /* private mode */ }
@@ -1678,11 +1681,11 @@ async function boot() {
   await reloadWorld();
   resize(); setPositions(homeMap());
   try { await TileMap.init(); } catch (e) { S.mapMode = "rooms"; }
-  setMapMode(S.mapMode); $("#mapMode").onchange = (e) => { setMapMode(e.target.value); if (S.rosterOn === null) setRoster(e.target.value === "rooms"); };
+  setMapMode(S.mapMode);
   $("#pace").value = String(S.pace); if (!$("#pace").value) $("#pace").value = "50";
   $("#pace").onchange = (e) => { S.pace = Number(e.target.value) || 50; try { localStorage.setItem("mcPace", String(S.pace)); } catch (x) { /* private mode */ } };
   $("#btnRoster").onclick = () => setRoster(!$("#stage").classList.contains("roster-on"));
-  setRoster(S.rosterOn === null ? S.mapMode === "rooms" : S.rosterOn);
+  setRoster(S.rosterOn === null ? true : S.rosterOn);
   requestAnimationFrame(frame);
   playLoop(); poll(); updateUI();
   const st = await refreshStatus();
