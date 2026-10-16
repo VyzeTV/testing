@@ -1,0 +1,9 @@
+# your saves, run logs and scratch files stay on this PC
+state/
+runs/
+_cli_cwd/
+__pycache__/
+*.pyc
+_*.py
+_*.txt
+_*.js

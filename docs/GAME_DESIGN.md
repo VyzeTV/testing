@@ -1,0 +1,286 @@
+# Murder Channel: Game Design Document
+
+Status: describes the game as built (the fork in `E:\MC\murder-channel\app_live`, port 8766, last updated 2026-10-16).
+The older `docs/DESIGN.md` is the original proposal and roadmap for the live edition; this document is the reference for what the game is and how it works today.
+The original turn-based edition in `E:\MC\murder-channel\app` (port 8765) is kept as the stable version and is not described here.
+
+---
+
+## 1. What this is
+
+A Danganronpa-style killing game, simulated. Eight celebrities are held in a house on an island by **TereVi**, a murderous AI host who runs the "show", served by **NeoVi**, a housemaid held as a slave. Nobody leaves. If nobody dies before the weekly deadline, **everyone** dies. Anyone who kills must survive a **class trial**; a wrong verdict executes an innocent and frees the killer.
+
+You do not play a character. You are the **audience and game master**: you watch the simulation, can pause it, read what everyone privately thinks (GM view), and nudge the story with director tools (whisper, rumour, drop an item, force a twist). Characters are driven by language models (their voices, dilemmas and conversations) on top of a deterministic engine (their bodies, needs, movement, perception, physics and the rules of the house).
+
+### Design pillars
+1. **Drama emerges from events, never from seeding.** Nothing is pre-set in character data: no pre-written relationships, no scripted mysteries. Hooks, grudges, alliances and plots grow out of what people actually do.
+2. **The engine is the body, the model is the mind.** Positions, time, durations, walls, fire, injuries and probabilities are computed; speech, intentions and judgement are written by the model from what the character actually knows and remembers.
+3. **Murder must be possible, plannable, and solvable.** Plots follow a campaign (brood, prepare, stalk, strike), windows come from who can really see and hear, and every kill leaves layered, ambiguous evidence for a trial that can be wrong.
+4. **Brutal but creative, never gratuitous.** Dark tone, adult flirtation/sexualization and crude banter are dials; meanness is caused, not default.
+5. **Everything is a setting.** Pacing, lethality, quarrels, plots, snapping, clue clarity, pause behaviour and tone are dials in the Tuning panel and the pause settings.
+6. **The viewer is the game.** A live tile map of the island, a "Who's where" roster, a chronicle of everything that happens, pause dialogs for important moments, title cards for each part of the day.
+
+### Audience and constraints
+One player at home, running on a Claude Pro subscription through the `claude -p` CLI (no API credits). Typical cost of one real day: 55-100 model calls, about $1.9-3.5 of plan usage. A free **mock** backend (scripted, deterministic) exists for testing and for playing without any model.
+
+---
+
+## 2. The people
+
+### The cast
+Eight starting characters (ids `szymon, seul, vixen, noah, ayden, shintaro, chloe, cail`), each with: name, role (their celebrity), persona, speech style, `candor` (how they behave under stress), a secret, a colour and a portrait. Cast sheets live in `murder/data_cast.py`; the live cast lives in the saved state (`state["cast"]`), so newcomers can be added.
+
+Each character also carries, derived rather than authored:
+* **Mind**: 16 personality facets (anger, vengefulness, trust, gregariousness, altruism, assertiveness, courage, cruelty, impulsiveness, stress vulnerability, vanity, ambition, curiosity, orderliness, humour, romantic) and 12 values, computed once from the cast sheet text with a small fixed per-character spread.
+* **Drive**: a secret motivation (survivor, schemer, protector, avenger, nihilist, saboteur, thrill, romantic, martyr, seeker...) re-evaluated each night; it shapes plots and snaps.
+* **Relationships**: a −10..+10 affinity toward every other person, moved by every interaction.
+* **Body**: health, sanity, hunger, thirst, bladder, hygiene, conditions (see section 6), an inventory, worn clothes, a bedroom of their own.
+
+Newcomers are added only by the player (never invented), to refill the cast to eight (4 male, 4 female) before a new week can start.
+
+### TereVi (the host)
+A theatrical, murderous AI on the house monitors. She announces the day and the evening, invents the daily rule, meddles (teases, dares, secrets, motive threats), announces bodies, runs the trial and the executions, and adapts to the cast's escape attempts. Written by the stronger model.
+
+### NeoVi (the housemaid)
+Frightened, terse, secretly sympathetic. She enforces the daily rule (tasing or dragging offenders to the Cold Store), inspects bedrooms, repairs doors, restocks medicine, attends trials and last calls as a silent witness, and is made to report to TereVi each night. She has an arc (martyr, survivor or betrayer) and holds the master key.
+
+### The player's tools
+Director panel (whisper to someone, spread a rumour, drop an item, force a twist, island events), an optional **auto-director** that nudges quiet days, scenario editor and a **scenario generator** (premise, secret twist, rules, scheduled events under a difficulty budget), save slots, rewind/export, "Previously on" recap.
+
+---
+
+## 3. The arc of a season
+
+```
+Day 1  meeting and introductions (10:00) -> TereVi reveals the truth at 20:00
+Day 2+ ordinary days (section 4)
+   every week_len days (default 7): the DEADLINE.
+       nobody has died by the end of the deadline day  ->  THE RECKONING: everyone dies.
+       a death (any kind) moves the deadline to the end of the next week.
+   deadline day 20:00: LAST CALL. Someone may volunteer to die, or strike in the dark.
+a death -> a case -> body announced -> 24h of investigation -> class trial -> execution (or not)
+fewer than 4 survivors -> ENDGAME (battle, crown or whim, TereVi's mood)
+four ways out: broadcast the truth, shut TereVi down, raft (saves 3), threaten to blow up the island
+```
+
+Every death counts toward the deadline: murder, manslaughter (a killing blow nobody intended), suicide, accident (fire, a fall, a failed experiment, an infection). Only a murder with a culprit has a trial; accidents and suicides lift the deadline with a short death notice. A **killing spree** (frenzy) waives the trial for the spree killer's own victims only.
+
+**Aftermath**: a closed case opens a calm window (no drain, dread or new plots), a vigil the next morning (sanity lift), then half drain for two days. Sanity recovery after a trial comes first, by design.
+
+**Escape routes** (`routes.py`): each has a plan with steps and percentages (e.g. transmitter, power, signal position, proof, beating the jamming), advanced by **experiments**; a finale at a site (the Lighthouse, the Core Vault, the beach, the Study) can succeed or fail with consequences. TereVi hears of attempts and counters them.
+
+---
+
+## 4. The day
+
+Time runs 08:00-22:00 in two-hour blocks (a "tick" each), then a night.
+
+| Hour | Segment | Kind |
+|---|---|---|
+| 08:00 | Morning announcement | **Turn**: TereVi's rule, news, breakfast; everyone decides once |
+| 10:00 | Free time | **Free block** |
+| 12:00 | Midday gathering | Turn |
+| 14:00 | Free time | Free block |
+| 16:00 | Free time | Free block |
+| 18:00 | Evening gathering | Turn |
+| 20:00 | Free time | Free block |
+| 22:00 | Night | Bedtime, locks, sleep; up to four "night owls" may stay up for a 23:00 night turn |
+
+* A **turn** is one decision per character (model or engine), movement, actions, resolution and one conversation per group, as in the original edition.
+* A **free block** is the live part of the day (section 7): one decision to start, then 15-minute slices in which people live their lives.
+* The viewer shows a **title card** and a feed line when each segment begins (switchable in the pause settings). With the `free_time` dial off, every block is a plain turn.
+
+Special scenes replace ordinary ticks when due: presentations and the reveal on day 1, last call, the trial, the vigil, the endgame and escape finales.
+
+---
+
+## 5. How a turn runs (engine order)
+
+`DayRunner.run_tick(hour, kind)` in `engine.py`, simplified:
+
+1. **Setup**: rule notices, NeoVi's routine, island events and scheduled scenario events, discovery checks, wellness check, impulses, threats.
+2. **Decisions**: for each character, either the **engine** makes a routine decision from needs and relationships, or the **model** is asked (rule days, plots, crises, conflicts, the start of the day, a missing plan). Unconscious people skip the call.
+3. **Overrides and plots**: spree and focus overrides; plot steering (engine-driven stages).
+4. **Apply decisions**: movement (path through the room graph), then the action (take, use, craft, search, attack, hide, spy, stash...).
+5. **Passive systems**: observation of movement, traps, stealth, secrets, withheld clues, hooks (loose ends), conditions and hunger, NeoVi's agenda, clothes, alliances.
+6. **Resolution**: attacks, assaults, sabotage, impulses, deaths, hazards, case upkeep, experiments (the dice decide, the model narrates), occasions, TereVi's intervention, rule enforcement, dread and sanity drain, friction.
+7. **Free block only**: `free_time()` plays the block out in slices (section 7).
+8. **Conversations**: groups by room or by chat, one model call each; the result applies sanity, affinity, special moments, gifts, rumours, incitement and notes.
+9. **Emit**: environment steps, mind update, live plan, chronicle, snapshot for the viewer.
+
+---
+
+## 6. The inner life: mind, body and brain
+
+### Mind (`mind.py`)
+* **Needs**: social, rest, safety, purpose, privacy (0-100), driven by what happens (company, sleep, danger, getting something done, solitude).
+* **Thoughts**: every change of sanity becomes a thought with a weight that fades. **Stress** is the weighted sum, scaled by stress vulnerability and the `stress_scale` dial plus deadline pressure.
+* **Sanity** = a set point minus stress. It recovers on its own when nothing new hurts and needs are met; the old flat drain is replaced. Low sanity feeds madness (dark impulses, outbursts), slips, snapping and spree risk.
+* **Engine-made turns**: a quiet turn (nothing at stake) is decided by `routine_decision` without a model call. The model is asked when something matters (a case, an event, a hazard, a rule, a plot, a crisis, a conflict, a bond, a missing plan, a heartbeat).
+
+### Body (`conditions.py`, `nonlethal.py`)
+Afflictions (sickness, poison, panic, blindness, breathlessness, dizziness, hunger, thirst, drunkenness, exhaustion, cold) and injuries (bleeding, burns, broken bones, concussion, infection). Unconsciousness (`out`) with a cause and an **absolute** wake-up time; the unconscious are helpless, can be carried, robbed, framed and revived, and are left out of scenes. Walking speed depends on health, conditions, load and dragging someone (`move_factor`). Hunger, thirst, bladder and hygiene run in the background and are met in free time.
+
+### Modesty
+Derived from facets (shy and orderly vs gregarious, vain, romantic). Being seen in underwear costs the modest sanity and an "embarrassed" event; the unselfconscious do not mind.
+
+### The brain (`brain.py`, dial `brain`, off by default)
+* **Memory**: everything a character perceives or does becomes a timestamped, scored memory about specific people (`agent["mem"]`). Walking about is not kept. A prompt gets the most relevant memories (recency, importance, people involved, room), not the whole log. The diary and the nightly "how I am changing" line are memories. The store is trimmed nightly.
+* **Plans**: in a decision the model also writes up to three **intentions** (talk, go, work, search, avoid, wait). The free-time engine carries them out and ticks them off; the model is asked again only when the plan is used up, stale, or something big happens.
+* **Conversations**: a scene card carries what each person remembers about the other and the reason from their plan.
+
+---
+
+## 7. Free time: the live part of the day
+
+Called from `run_tick` for blocks at 10, 14, 16 and 20 (`freetime.py`).
+
+**Structure of a block (120 minutes)**: one decision per character becomes the first activity (15-90 minutes by action). Then 15-minute **slices**: the environment steps, then each free person chooses and starts an activity. The last half hour leans towards company; at minute 90+ nobody sets out anywhere new, so the conversation phase (about minute 95) finds people where they are.
+
+**Activities with real durations** (a drink 15 minutes, a bathroom visit 15, a shower 30, a meal 30, a game 45, a nap 60, an experiment 90): eat, cook, snack, drink, wash, bathroom, shower, bath, swim, pool, chess, darts, music, jukebox, art, read, sit, stroll, tend plants, laundry, radio, stargaze, mirror, nap, tinker (craft), look, explore, dress, gather, chat, stalk, flee, rescue, fight (a fire), warn.
+
+**Furniture and capacity**: activities are done *at* a particular piece of furniture (sofa, stove, chess table, armchair, bench...). Each piece has a capacity (a sofa 2, a table 4, a bed 1); nobody uses what is burnt, smashed or taken; other people's bedrooms are off limits.
+
+**What people choose** (`free_pick`): scored candidates, highest wins:
+* danger first (fire, smoke, flood in the room they are in), then dressing when half-dressed;
+* bodily needs (hunger, thirst, bladder, hygiene, rest);
+* personal tastes (each person has stable preferences per activity; nobody repeats the same activity three times running; the shy avoid crowded rooms);
+* **intentions**: what they asked for in their decision, their plan (if the brain is on), a loose end (someone went through their things), looking for a weapon, rooms they have not visited today, work on a way out;
+* company: who they want to talk to and why (see chats).
+
+**Chats**: when somebody wants to talk to a specific person, they walk over and the two sit or stand together for 30 minutes at a seat (sofa, bench, armchair, table or the other person's spot). Reasons: a stated purpose, company, closeness, a quarrel, something one knows about the other (a secret), a loose end, a spark, a plan item. Chats that matter (a plot, a feud, a secret, a hook, a spark, a purpose) are flagged. At most 2 chats per block (3 with the brain on); nobody talks twice in a block; no chats in the bathroom or in a bedroom that is neither person's. The conversation is written when the block ends, but is played **at the minute and place it happened**.
+
+**Plots, minute by minute**: a stalking or striking plotter follows the target room to room and strikes the moment the two are alone, in a blind spot, in the dark, or the target is asleep. Each missed chance makes them less patient. The **Director** (`director_nudge`) may steer a long-waiting plot's *target* towards a quiet corner (the bathroom, their bedroom); it never makes the kill.
+
+**Snapping** (`snap_rate`): someone with almost no sanity left, or pushed past their limit beside someone they hate, may attack with no plan. A kill is recorded as unplanned in the case. (One case at a time: while a case is open it becomes an assault.)
+
+---
+
+## 8. Murder, evidence and the trial
+
+### Plots (`plotting.py`)
+A plot is a campaign with stages **brooding, preparing, stalking, striking** driven by the engine; the model may also write a plot step. Plots can be abandoned (calm, fondness) or hardened by the deadline.
+
+**Motives** (the strongest decides): hatred, vengeance, urge, deadline, jealousy, blackmail, revenge for the wrongly condemned, retaliation (what was done to you while helpless), protection, exposure, silencing, ambition, greed (the keys), **fear** (somebody hurt you), **betrayal**, **humiliation** (a vain person seen undressed), **envy**, the **prize** (a single winner). A plot against someone who is already plotting against you is ten times less likely. There is **no cap** on plots at once; three or more can tip the house into a killing spree (`plot_pileup`).
+
+### Attack resolution (`cases.py`, `mayhem.py`)
+Weapon, poison or bare hands; the target must be there (an attacker may follow a target who slipped away); victims can counter-kill, protectors can step in (a "mercy" moment), the killer can hit the wrong person at low sanity, accomplices (lookout, alibi, cleanup, weapon) can help but are never tried. Exactly **one culprit** per trial; multiple killers only in a spree.
+
+### Discovery
+A body is discovered when three living people have physically found it, or forced by TereVi after 12 hours. Sooner: a **wellness check** at breakfast, lunch and supper (someone who is missed is knocked for; NeoVi opens a locked door). When the body is announced, **NeoVi unbolts the scene and TereVi's tape seals it** until the trial: nobody can lock or barricade it again.
+
+### Evidence (`cases.py`, `forensics.py`)
+Layered, solvable clues: the scene, the weapon and its provenance, a dropped trace, bruises, the camera archive (Foyer) and the bedroom door-lock log (the locked Study) which narrow the field without naming anyone, forensic clues (marks, blood, drag trails, burns), stained clothes (the killer's garment), framing flaws, planted evidence, and **red herrings**: other people's real quarrels, hatreds and threats against the victim. A garment's label may be fully readable, show only an initial, or be cut out; TereVi's single free clue never names the killer outright. The dial **`clue_clarity`** (default 0.8) shifts all of this.
+
+### The class trial (`trial.py`)
+At the Voting Grounds, up to five segments of: **open debate**, **hot seat** (when suspicion falls on someone), **clash** (two people with contradicting ideas), **brainstorm** (a baffling matter); closing arguments; a vote; a tally. The culprit lies and deflects and never confesses. A wrong vote executes an innocent and frees the killer. Evidence on the table is only what was actually found.
+
+---
+
+## 9. The world
+
+### The map (`gridmap.py`, `static/grid_map.json`)
+**One section, no floors to switch between.** 74 x 67 tiles; every room is **4x4 tiles** (5x5 counting a shared wall).
+* Blocks of cells on one plane: upper floors and roof (top left), first floor with the landing corridor and the **eight bedrooms** (violet, orange, grey, white added to blue, green, yellow, red), ground floor, cellars; a garden, pool and beach outdoors; the greenhouse, generator shed, boathouse, lighthouse and Voting Grounds in the grounds.
+* **Hubs are corridors**: every ordinary connection is a door through a shared wall.
+* **Stairs are U/D tile pairs** that carry you to the other block; **secret passages are hidden tiles (h)** that look like floor until discovered; outdoor connections are doors facing their zone with path tiles across the grass.
+* Doors, locked doors, windows, furniture (a priority list per room: 3-4 pieces fit in a 4x4 room), cameras in every room outside the blind spots.
+* A **map editor** (Layers > Edit map, GM) paints floors and walls and places furniture; rooms, doors and stairs cannot be moved; edits are validated (reachability, furniture on floor) and saved to `state/grid_map.json`.
+
+### Scale (`scale.py`)
+`MAP_SCALE` 0.35 relates the tile to the old schematic: a whisper carries 1.5 tiles, normal speech 2.8, a shout 6; sight is 6 tiles in light and 2 in the dark; walls cost sound in the same scaled tiles; a "big room" (two separate conversations) is a space of more than 26 interior tiles (the outdoor zones). Walking is 4 tiles a minute, 12 hurrying; a stair takes a moment.
+
+### Perception (`perception.py`, dial `perception`)
+Line of sight (walls and closed doors block; windows do not; smoke of 4 or more blocks), light (lit, dim, dark; power cuts), a sound flood-fill through doors, windows, walls and stairs by loudness, cameras (die with the power), witnesses (who saw or heard, and how), the plotter's "alone" test, and who can hear whom in a large space. This is what makes plot windows, eavesdropping and witnesses real.
+
+### Environment (`environment.py`, `envsys.py`, dial `environment`)
+Sparse fields on the tiles in five-minute steps: **fire** (spreads by flammability, burns furniture, doors and items, leaves soot and scorched floor), **water** (extinguishes, flows, bursts from pipes, shorts the fuse box), **smoke** (through doors, blocks sight, chokes), **light**, **noise**, breakage (doors and furniture take damage), blood and **marks** that become clues. Hazards: grease fires, lightning, burst pipes, failed experiments, scheduled scenario events. Accidental fires are rare; intentional ones are not.
+**Fire consequences** (dial `fire_lethality`): at every five-minute step each person in a burning or smoky room may wake, run, or stay; those who stay take heat and smoke damage, may be burned, blinded, panic, or collapse; the unconscious cannot flee and can die; the brave rescue the collapsed, fight small fires with extinguishers or water, and wake sleepers. Awake healthy people usually get out; sleepers, the hurt and the unconscious often do not.
+
+### Doors, locks and stealth (`doors.py`, `stealth.py`, `secrets.py`)
+Per-room locks, keys (spare keys, skeleton keys, master key), picking, breaking, barricading (with furniture or even a body), noise that wakes sleepers, a door-lock log, sneaking, hiding, spying and eavesdropping, stashing and retrieving items, hiding bodies, concealed carry and frisking, withheld clues and knowledge that crack under pressure.
+
+### Items, crafting and clothes (`data_items.py`, `craft.py`, `clothing.py`, `itemuse.py`)
+Room item pools, unlimited common supplies per room, recipes with ingredients and tools (a crafted item is traceable), light and optics, handcuffs, tape, snares. Everyone owns their own clothes, a wardrobe and a swimsuit; underwear is a state; killers stain their clothes and change out of them; disguises and masks alter who is recognised.
+
+### Hooks, ties and alliances (`hooks.py`, `ties.py`, `alliances.py`)
+**Hooks** are loose ends that grow from real events (someone rifled your things, a lock was picked, an item vanished, a hiding place was found); they have a culprit, evidence and a victim who may suspect the wrong person. **Ties** record who wronged, helped or loved whom. **Alliances** form between trusting people and can be broken.
+
+---
+
+## 10. Rules, events and scenarios
+
+* **Daily rule**: TereVi's model invents a fresh rule each day from the current drama (or the player types one, or none, or a coded preset). An AI referee classifies it (zone, obligation, state, behaviour), judges each turn with a grace turn, and NeoVi punishes clear violations (taser: heavy health and sanity loss; or detention in the Cold Store).
+* **Island events**: storm, fog, a cat, a package, blackouts, fires and floods; they last a number of **hours** (stored in absolute time).
+* **Scenarios** (`scenario.py`, `scengen.py`): premise, a secret twist TereVi reveals on a day, house rules, seeded items and a shorter first deadline, plus **scheduled events that really fire** (blackout, fire, flood, storm). `scengen.generate(seed, difficulty)` composes them from weighted parts under a budget. Scenarios never seed relationships or edit the cast.
+
+---
+
+## 11. Where the model is used and where it is not
+
+| Done by the **engine** (deterministic or dice) | Done by the **model** |
+|---|---|
+| Time, positions, pathing, furniture, durations | Decisions on non-routine turns (action, intent, a plan) |
+| Needs, stress, sanity, conditions, hunger | Conversations (speech, small gestures, affinity changes, special moments) |
+| Perception, witnesses, windows, noise, light | TereVi's and NeoVi's speech and meddling |
+| Fire, water, smoke, breakage | The daily rule and the referee's reading |
+| Plot stages, strikes, snaps, spree, attack odds | Experiment narration (the dice decide the outcome) |
+| Clues, evidence, discovery, locks, sealing | Trial debate and votes |
+| Routine turns and free-time activities | The nightly reflection (diary, drive, arc) |
+| Memory store and retrieval; plan execution | Recaps, awards, newcomer development |
+
+**Backends** (`llm.py`): `cli` (default: `claude -p`, Haiku 5.5 for characters, Sonnet 5.5 for TereVi, `--effort low`), `api` (needs credits), `mock` (scripted, free; the test backend). Calls run in parallel threads; a call cap and "lean prompts" setting exist. An `ANTHROPIC_API_KEY` in the environment is stripped from every CLI call so the subscription is used.
+
+**Cost per real day** (one measured per setup): 56-94 calls, $1.9-3.4. Biggest levers: the `engine_decisions` and `brain` dials (fewer decision calls), the confessional booth (off saves calls), lean prompts and the call cap.
+
+---
+
+## 12. The viewer
+
+`static/index.html`, `app.js` (playback, panels), `tilemap.js` (the map), `style.css`; a Python stdlib server (`server.py`).
+
+* **Tile map** (default) and a **Schematic** mode: portrait tokens walk real routes; day, night and light overlays; fire, smoke, water, marks and items on tiles; GM view shows hidden hatches, concealed items, thoughts, plans and memories. The **Who's where** roster (default on in Schematic mode) lists each person's room, activity and last words.
+* **Playback**: pause, speed 0.5x-8x, scrubber (rewind), fast-forward the day. A **Pace** box sets real time per game hour in free blocks (12 minutes per game day by default). Free blocks play out over real time: things happen at their minute and conversations are played where and when they happen, with the clock standing still while they talk.
+* **Pause settings**: which events pause the game, per class (critical, important, notable, background) and per kind, as a dialog, a small notice, or feed only; whether **conversations in free time** pause (never, when it matters, every one); whether the **segment title card** shows. Stored in the browser.
+* **Panels**: Feed, Cast (stats, needs, thoughts, plan, memories in GM view), Web (relationships), Booth (confessionals), Room, Board (evidence corkboard), Stats, Chronicle (a typed, searchable, persistent log of everything), Tuning (the dials), Director.
+* **Phone and remote**: `start_remote.bat` (`python server.py --host`) listens on the network behind a password (HMAC cookie, lockout after repeated failures; the PC itself is never asked), with touch controls and a phone layout; used over Tailscale, never port-forwarded. The PC must stay on.
+* Optional **sound** (stings, a dread drone) and browser **voices** (a different voice per character).
+
+---
+
+## 13. Tuning dials (Tuning panel; saved in `state/tuning.json`, read live)
+
+| Group | Dials |
+|---|---|
+| Drama | quarrels, clue clarity, murder plots starting, alliances, betrayals, noticing something is wrong, NeoVi's daily inspection, Director opportunities, snapping |
+| Pacing | escape attempts per day |
+| Sanity | everyday drain, deadline dread, calm window after a death, remembrance lift |
+| Night | cost of staying up, most people up at night, locking doors |
+| Body | afflictions, injuries, fainting and knockouts, hunger and thirst |
+| World | sight and hearing, fire/water/smoke/breakage, needs/thoughts/stress, stress strength, engine-made routine turns, pursuit/witnesses/interrogation, memory and plans (brain), fire and smoke danger, free-time blocks |
+| Tone | embarrassment, flirtation, banter and crude jokes |
+
+Each layer that has an on/off dial returns to the older behaviour at 0.
+
+---
+
+## 14. Data, saves and tools
+
+* **Saves**: `state/current.json` (the live world, committed when a day finishes), `state/day_NN_start.json` (the start of each day, for "go back to that day's start"), save slots, `runs/day_NN/ticks.jsonl` + `meta.json` (every tick as played, for replay and analysis), `state/tuning.json`, `state/grid_map.json` (a custom map), `rules_seen.jsonl`. Set `MC_DATA_DIR` to keep tests and experiments away from your save.
+* **Chronicle**: every event becomes a typed entry (id, day, hour, minute, type, who, room, visibility, class, text, who is named, who saw it); `/api/chronicle` and the Chronicle tab are views over it. Importance classes (critical, important, notable, background) drive the pause dialogs.
+* **Tests** (`tests/`): `smoke.py` (about 760 checks, mock backend), `free_day.py` and `brain_compare.py` (mock days with statistics), `week_metrics.py` (mock weeks), and real-AI checks (`real_day.py`, `real_free_day.py`, `real_brain_day.py`, `real_stage_day.py`, `real_scenario_day.py`) that use a scratch data folder.
+* **Run**: `start.bat` (local, `http://localhost:8766`) or `start_remote.bat` (network, password). Start a day from the dialog: backend (Claude subscription, API, mock), pace of the day, murders on/off, TereVi's mischief, season length, chaos level, lean prompts, call cap.
+
+### Code map (`murder/`)
+Engine and turn: `engine.py`, `world.py`, `cases.py`, `trial.py`, `story.py`, `drama.py`, `chaos.py`, `mayhem.py`, `night.py`, `aftermath.py`, `reaction.py`, `pace.py`. Characters: `mind.py`, `brain.py`, `conditions.py`, `nonlethal.py`, `clothing.py`, `plotting.py`, `crime.py`, `hooks.py`, `ties.py`, `alliances.py`. World: `gridmap.py`, `gridnav.py`, `perception.py`, `environment.py`, `envsys.py`, `doors.py`, `stealth.py`, `secrets.py`, `craft.py`, `itemuse.py`, `scale.py`. Free time: `freetime.py`, `livetimeline.py`. Rules and scenarios: `rules.py`, `refcheck.py`, `scenario.py`, `scengen.py`. Infrastructure: `llm.py`, `session.py`, `settings.py`, `telemetry.py`, `chronicle.py`, `export.py`, `director.py`, `tone.py`. Data: `data_cast.py`, `data_world.py`, `data_items.py`. Everything is mixed into one `DayRunner`.
+
+---
+
+## 15. Known limits and what comes next
+
+* **Real-model coverage**: the brain, the harder trial, the sealed scene and the new motives have been exercised on the mock backend and on two calm real days; a full real week with a murder and a trial on the new map has not been played yet.
+* **Brain**: off by default; plan completion was about a third on real days; retrieval is simple scoring (recency, importance, people), with no separate reflection call beyond the nightly diary.
+* **Map**: rooms are tight (8 people in a 4x4 room is crowded; 3-4 pieces of furniture each); a previously saved custom map is rejected and the generated one used. The schematic viewer uses a separate hand layout and does not show the new bedrooms in the same way as the tile map.
+* **Fire**: awake healthy people almost always escape; if you want deadlier fires, raise `fire_lethality` or slow the first reaction.
+* **Not built**: continuous per-minute decisions by the model (decisions are per block, with the engine playing the minutes between); NeoVi and TereVi walking on the map; breaching weak walls (deferred by decision); a fully AI-written pause-on-conversation summary.
+* **Next steps considered**: play several real days to a trial and tune `clue_clarity`, plot completion and chat limits; make the brain the default once a few days confirm it; add more interactables and richer reasons for conversations.

@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Murder Channel</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="logo">MURDER CHANNEL</div>
+  <div class="clock" id="clock">No session<small></small></div>
+  <span class="chip" id="modeChip" style="display:none"></span>
+  <span class="chip" id="deadlineChip" style="display:none"></span>
+  <span class="chip case" id="caseChip" style="display:none"></span>
+  <span class="chip rule" id="ruleChip" style="display:none"></span>
+  <span class="chip occ" id="occChip" style="display:none"></span>
+  <span class="chip esc" id="escChip" style="display:none" title="GM view: how close the cast is to a way out"></span>
+  <span class="chip tension" id="tensionChip" style="display:none" title="How close the island is to boiling over"></span>
+  <span class="chip scen" id="scenChip" style="display:none" title="The scenario for this season"></span>
+  <span class="chip plot" id="plotChip" style="display:none" title="Someone is plotting"></span>
+  <div class="spacer"></div>
+  <span class="chip" id="usageChip" title="Model calls and tokens used by this live day" style="display:none"></span>
+  <label class="toggle" title="Synthesized stings and a dread drone"><input type="checkbox" id="sound"> Sound</label>
+  <label class="toggle" title="Read the dialogue aloud with the browser's own voices, a different one for each character"><input type="checkbox" id="voices"> Voices</label>
+  <label class="toggle"><input type="checkbox" id="gm"> GM view</label>
+  <label class="toggle" title="When the island goes quiet, the director nudges the story: a TereVi dare, a rumour, an unsigned note or an island event"><input type="checkbox" id="autodir"> Auto-director</label>
+  <button id="btnTuning" title="Tune how quarrelsome, tense, sleepless and bawdy the show is">Tuning</button>
+  <button id="btnDirector" title="Whisper to someone, spread a rumor, drop an item, force a twist">Director</button>
+  <button id="btnPause" disabled>Pause</button>
+  <select id="mapMode" title="How the island is drawn: the tile map (walking, fire, smoke, light) or the old schematic"><option value="tiles">Tile map</option><option value="rooms">Schematic</option></select>
+  <select id="speed" title="Playback speed">
+    <option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option><option value="4">4x</option><option value="8">8x</option>
+  </select>
+  <select id="pace" title="How long a game hour lasts while a free-time block plays out (real time)"><option value="90">Slow (21 min/day)</option><option value="50" selected>Normal (12 min/day)</option><option value="25">Fast (6 min/day)</option><option value="10">Very fast (2 min/day)</option></select>
+  <button id="btnRoster" title="Who is where and what they are doing, minute by minute">Who's where</button>
+  <button id="btnFF" disabled title="Skip the rest of this day">Fast-forward day</button>
+  <button id="btnStop" class="danger" style="display:none">Stop</button>
+  <button id="btnNew" class="primary">Start a day</button>
+</header>
+<div class="scrubber">
+  <span id="scrubLabel" class="chip">Turn 0/0</span>
+  <input type="range" id="scrub" min="0" max="0" value="0" disabled>
+</div>
+<main>
+  <div id="stage">
+    <canvas id="map"></canvas>
+    <div id="banner"><img id="bannerImg" src=""><div><div class="who" id="bannerWho"></div><div class="txt" id="bannerTxt"></div></div></div>
+    <div id="scene"></div>
+    <div id="booth"></div>
+    <div id="wait"></div>
+    <div id="tip"></div>
+    <div id="tally"></div>
+    <div id="roster"></div>
+    <div id="segcard"></div>
+    <div id="overlay"><div class="card" id="overlayCard"></div></div>
+  </div>
+  <aside id="side">
+    <div class="tabs">
+      <button data-tab="feed" class="on">Feed</button>
+      <button data-tab="cast">Cast</button>
+      <button data-tab="web">Web</button>
+      <button data-tab="booth">Booth</button>
+      <button data-tab="room">Room</button>
+      <button data-tab="board">Board</button>
+      <button data-tab="stats">Stats</button>
+      <button data-tab="chron">Chronicle</button>
+    </div>
+    <div class="tabpane on" id="tab-feed">
+      <div class="filters">
+        <label><input type="checkbox" id="fTalk" checked> Dialogue</label>
+        <label><input type="checkbox" id="fEvents" checked> Events</label>
+        <label><input type="checkbox" id="fGm"> GM info</label>
+      </div>
+      <div id="feed" class="hide-gm"></div>
+    </div>
+    <div class="tabpane" id="tab-cast"><div id="caseBoard"></div><div id="plotPanel"></div><div id="hostPanel" class="detail"></div><div id="castList"></div><div id="castDetail" class="detail"></div></div>
+    <div class="tabpane" id="tab-booth"><div class="hdr2" style="margin-top:0">Confessional booth</div><div id="boothList"><i style="color:var(--muted)">Nothing recorded yet.</i></div></div>
+    <div class="tabpane" id="tab-web"><div class="hdr2" style="margin-top:0">Relationship web</div><div id="webWrap"><i style="color:var(--muted)">Start a day to see the web.</i></div>
+      <div class="row" style="color:var(--muted);font-size:12px;margin-top:6px">Green = warm, red = hostile; thicker = stronger. ♥ romance, ⚔ feud, 🤝 pact. Ring colour = sanity. Click someone to open them.</div></div>
+    <div class="tabpane" id="tab-room"><div id="roomInfo" class="detail">Click a room on the map.</div></div>
+    <div class="tabpane" id="tab-board"><div class="hdr2" style="margin-top:0">Evidence board</div><div id="boardWrap"></div></div>
+    <div class="tabpane" id="tab-chron"><div class="hdr2" style="margin-top:0">Chronicle</div>
+      <div class="chfilters"><select id="chDay"></select><select id="chWho"></select><select id="chCls"><option value="">Everything</option><option value="critical">Critical only</option><option value="important">Important and up</option><option value="notable" selected>Notable and up</option></select><input id="chQ" type="search" placeholder="Search text"></div>
+      <div id="chronWrap"></div></div>
+    <div class="tabpane" id="tab-stats"><div class="hdr2" style="margin-top:0">Cast statistics</div><div id="statsWrap"></div></div>
+  </aside>
+</main>
+
+<div class="modal" id="modal">
+  <div class="box">
+    <h2>Start a day</h2>
+    <p class="s" id="modalSub">Choose how to watch the island.</p>
+    <div class="vac" id="vacBox" style="display:none"></div>
+    <div class="field">
+      <label class="t">What to watch</label>
+      <div class="opts" id="modeOpts">
+        <div class="opt" data-mode="live"><b>Play live</b><span id="liveHint">Simulate the next day now.</span></div>
+        <div class="opt" data-mode="replay"><b>Replay</b><span id="replayHint">Watch a recorded day again.</span></div>
+      </div>
+    </div>
+    <div class="field" id="replayField" style="display:none">
+      <label class="t">Recorded day</label>
+      <select id="replayDay"></select>
+    </div>
+    <div class="field" id="backendField">
+      <label class="t">AI backend</label>
+      <select id="backend"></select>
+      <div class="warn" id="backendWarn"></div>
+    </div>
+    <div class="field" id="stepField">
+      <label class="t">Pace of the day</label>
+      <select id="step">
+        <option value="2">Every 2 hours (7 turns, lighter on usage)</option>
+        <option value="1">Every hour (14 turns, more detail)</option>
+      </select>
+    </div>
+    <div class="field" id="murderField">
+      <label class="t">Murders</label>
+      <select id="murders">
+        <option value="1">Allowed: characters may decide to kill</option>
+        <option value="0">Peaceful: nobody can attack</option>
+      </select>
+    </div>
+    <div class="field" id="dramaField">
+      <label class="t">TereVi's mischief and the confessional booth</label>
+      <div class="grid2">
+        <select id="mischief">
+          <option value="occasional">TereVi meddles occasionally</option>
+          <option value="frequent">TereVi meddles often</option>
+          <option value="off">TereVi stays quiet</option>
+        </select>
+        <select id="confessionals">
+          <option value="1">Confessional booth on</option>
+          <option value="0">Confessional booth off (saves AI calls)</option>
+        </select>
+      </div>
+    </div>
+    <div class="field" id="lengthField">
+      <label class="t">Season length (days until each deadline)</label>
+      <select id="weekLen">
+        <option value="0">Keep the current setting</option>
+        <option value="4">Short: a deadline every 4 days (fast, brutal)</option>
+        <option value="5">Quick: every 5 days</option>
+        <option value="7">Standard: every 7 days</option>
+        <option value="10">Long: every 10 days (slow burn)</option>
+      </select>
+      <div class="warn">Applies from now on. After a death the next deadline is one full period later. A custom scenario's first deadline still wins.</div>
+    </div>
+    <div class="field" id="chaosField">
+      <label class="t">Chaos level (surprises, madness, island events)</label>
+      <select id="chaos">
+        <option value="normal">Normal: surprises now and then</option>
+        <option value="wild">Wild: expect the unexpected</option>
+        <option value="calm">Calm: a steadier story</option>
+      </select>
+    </div>
+    <div class="field" id="budgetField">
+      <label class="t">Prompt size and daily call cap</label>
+      <div class="grid2">
+        <select id="lean"><option value="0">Full prompts (richest)</option><option value="1">Lean prompts (fewer tokens)</option></select>
+        <input type="number" id="callCap" min="0" max="2000" step="10" value="0" placeholder="Call cap (0 = none)">
+      </div>
+      <div class="warn">With a cap, the day turns lean and calm at 75% of it, and past the cap characters just idle instead of failing. A normal day is roughly 100 to 130 calls.</div>
+    </div>
+    <div class="field" id="variationField">
+      <label class="t">Personality drift: <span id="variationVal">off</span></label>
+      <input type="range" id="variation" min="0" max="100" step="5" value="0" style="width:100%">
+      <div class="warn">At the start of each day the cast is varied a little (a new habit, fear or buried piece of backstory). 0 = off; higher = bigger changes. One extra AI call per day.</div>
+    </div>
+    <div class="field" id="ruleField">
+      <label class="t">Rule of the day (enforced by NeoVi)</label>
+      <select id="rule"></select>
+      <textarea id="ruleText" rows="2" style="display:none"></textarea>
+      <div class="warn" id="ruleWarn"></div>
+    </div>
+    <div class="field" id="motiveField">
+      <label class="t">Extra announcement or motive from TereVi (optional, announced only, not enforced)</label>
+      <input type="text" id="motive" maxlength="300" placeholder="e.g. One secret will be leaked to the world unless someone dies by Friday">
+    </div>
+    <div class="vac" id="overBox" style="display:none"></div>
+    <div class="field" id="toolsField">
+      <label class="t">Tools</label>
+      <div class="grid2">
+        <button id="btnRewind" class="danger" title="Undo the last recorded day">Rewind the last day...</button>
+        <a id="btnExport" class="btnlink" href="/api/export" download>Export the story (.md)</a>
+      </div>
+      <div style="margin-top:6px"><button id="btnScenario" type="button">Scenario and house rules...</button></div>
+      <div class="warn" id="seasonInfo"></div>
+      <div id="resumeBox"></div>
+      <label class="t" style="margin-top:10px">Saves</label>
+      <div class="grid2"><input type="text" id="slotName" maxlength="40" placeholder="Name this save"><button id="slotSave" type="button">Save now</button></div>
+      <div class="grid2" style="margin-top:6px"><select id="slotSel"></select><span><button id="slotLoad" type="button">Load</button> <button id="slotDel" type="button" class="danger">Delete</button></span></div>
+      <div class="grid2" style="margin-top:6px"><select id="dayStartSel"></select><button id="dayStartGo" type="button" class="danger">Go back to that day's start</button></div>
+    </div>
+    <div class="err" id="modalErr"></div>
+    <div class="actions">
+      <button id="btnNewGame" class="danger" title="Erase all recorded days and start over">New game...</button>
+      <span><button id="btnCancel">Cancel</button> <button id="btnGo" class="primary">Start</button></span>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="nmodal">
+  <div class="box">
+    <h2>Add a newcomer</h2>
+    <p class="s" id="nSub">The new participant arrives on the island at the next morning broadcast.</p>
+    <div class="grid2">
+      <div class="field"><label class="t">Name</label><input type="text" id="nName" placeholder="Full name"></div>
+      <div class="field"><label class="t">Gender</label><select id="nGender"></select></div>
+      <div class="field"><label class="t">Role / title</label><input type="text" id="nRole" placeholder="e.g. Street Chef"></div>
+      <div class="field"><label class="t">Age</label><input type="number" id="nAge" value="26" min="16" max="90"></div>
+      <div class="field"><label class="t">Country</label><input type="text" id="nOrigin" placeholder="e.g. Brazil"></div>
+      <div class="field"><label class="t">Starting items (comma separated)</label><input type="text" id="nItems" placeholder="camera, lucky coin, notebook"></div>
+    </div>
+    <div class="field"><label class="t">Personality and backstory</label><textarea id="nPersona" rows="3" placeholder="Who they are, what made them famous, how they act"></textarea></div>
+    <div class="field"><label class="t">Secret (optional)</label><textarea id="nSecret" rows="2" placeholder="Something they hide"></textarea></div>
+    <div class="grid2">
+      <div class="field"><label class="t">Likes</label><input type="text" id="nLikes"></div>
+      <div class="field"><label class="t">Dislikes</label><input type="text" id="nDislikes"></div>
+    </div>
+    <div class="field"><label class="t">How they speak (optional)</label><input type="text" id="nSpeech" placeholder="e.g. warm, sarcastic, uses cooking metaphors"></div>
+    <div class="field"><label class="t">Goals (optional)</label><input type="text" id="nGoals"></div>
+    <div class="field"><label class="t">Portrait image (optional)</label><input type="file" id="nPortrait" accept="image/*"></div>
+    <div class="field aibox">
+      <label class="t"><input type="checkbox" id="nAi"> Let the AI develop the rest (backstory, secret, motivation, speech, goals...)</label>
+      <div class="grid2"><select id="nBackend"></select><button id="nDevelop" type="button">Preview what the AI writes</button></div>
+      <div class="warn">Anything you type is kept exactly as written; the AI only fills the blanks, and never changes who you chose. With the box ticked, blanks are filled when you add them.</div>
+    </div>
+    <div class="err" id="nErr"></div>
+    <div class="actions"><span></span><span><button id="nCancel">Cancel</button> <button id="nGo" class="primary">Add to the cast</button></span></div>
+  </div>
+</div>
+<div class="modal" id="smodal">
+  <div class="box" style="width:660px">
+    <h2>Scenario and house rules</h2>
+    <p class="s">Shape the season: a premise everyone lives under, a secret twist TereVi springs on a chosen day, standing rules NeoVi enforces every day, and seeded relationships, secrets and items. It is saved with your game and kept when you start a new one.</p>
+    <div class="grid2">
+      <div class="field"><label class="t">Template</label><select id="scTpl"></select></div>
+      <div class="field"><label class="t">&nbsp;</label><button id="scLoadTpl" type="button">Load template into the form</button></div>
+    </div>
+    <div class="field"><label class="t">Generate a season (a seeded mix of premise, twist, house rules, scheduled events and gear, paid for from a difficulty budget; fills the form below, nothing is saved until you press Save)</label>
+      <div class="grid2"><div><input type="number" id="scGenDiff" min="1" max="10" value="5" style="width:70px" title="Difficulty 1-10"> <input type="text" id="scGenSeed" placeholder="seed (blank = random)" style="width:150px"> <label><input type="checkbox" id="scGenSec"> secrets</label></div><div><button id="scGen" type="button">Generate</button></div></div>
+      <div id="scGenInfo" style="font-size:12px;opacity:.8;margin-top:4px"></div></div>
+    <div class="field"><label class="t">Title</label><input type="text" id="scTitle" maxlength="60"></div>
+    <div class="field"><label class="t">Premise (everyone knows it once the show is revealed; TereVi plays with it)</label><textarea id="scPremise" rows="3" maxlength="800"></textarea></div>
+    <div class="grid2">
+      <div class="field"><label class="t">Secret twist (TereVi announces it)</label><input type="text" id="scTwist" maxlength="500"></div>
+      <div class="field"><label class="t">...on day</label><input type="number" id="scTwistDay" min="2" max="60" value="4"></div>
+    </div>
+    <div class="field"><label class="t">First deadline: the end of Day N (blank = Day 7)</label><input type="number" id="scDeadline" min="3" max="21"></div>
+    <div class="field"><label class="t">House rules (one per line; enforced every day on top of the daily rule, after the reveal)</label><textarea id="scRules" rows="3"></textarea></div>
+    <div class="field"><label class="t">Relationships</label><div id="scRels"></div><button id="scAddRel" type="button">+ Add relationship</button></div>
+    <div class="field"><label class="t">Extra secrets</label><div id="scSecrets"></div><button id="scAddSec" type="button">+ Add secret</button></div>
+    <div class="field"><label class="t">Starting items</label><div id="scItems"></div><button id="scAddItem" type="button">+ Add item</button></div>
+    <div class="err" id="scErr"></div>
+    <div class="actions"><span><button id="scClear" type="button" class="danger">Clear scenario</button></span><span><button id="scCancel" type="button">Cancel</button> <button id="scSave" type="button" class="primary">Save scenario</button></span></div>
+  </div>
+</div>
+<div class="modal" id="dmodal">
+  <div class="box">
+    <h2>Director</h2>
+    <p class="s">Nudge the story. Everything lands on the next turn and the characters still make their own choices.</p>
+    <div class="field"><label class="t">Action</label>
+      <select id="dType">
+        <option value="whisper">Whisper: an unsigned note slipped to one person</option>
+        <option value="rumor">Rumor: spread gossip about someone</option>
+        <option value="item">Item: drop an object in a room</option>
+        <option value="announce">Announce: TereVi says something on air</option>
+        <option value="twist">Twist: push TereVi to escalate</option>
+        <option value="event">Event: force an island event</option>
+      </select></div>
+    <div class="field" id="dToF"><label class="t" id="dToL">To</label><select id="dTo"></select></div>
+    <div class="field" id="dAboutF"><label class="t">About</label><select id="dAbout"></select></div>
+    <div class="field" id="dRoomF"><label class="t">Room</label><select id="dRoom"></select></div>
+    <div class="field" id="dEvF"><label class="t">Event</label><select id="dEv"><option value="storm">Storm</option><option value="fire">Kitchen fire</option><option value="power">Power cut</option><option value="fog">Fog and whispers</option><option value="cat">Stray cat</option><option value="package">Mystery package</option></select></div>
+    <div class="field" id="dTextF"><label class="t" id="dTextL">Text</label><textarea id="dText" rows="2" maxlength="300"></textarea></div>
+    <div class="err" id="dErr"></div>
+    <div class="actions"><span></span><span><button id="dClose">Close</button> <button id="dSend" class="primary">Send</button></span></div>
+  </div>
+</div>
+<div class="modal" id="tmodal">
+  <div class="box">
+    <h2>Tuning</h2>
+    <p class="s">The dials behind the show. Changes are saved and apply from the next turn, even in a live day. "Defaults" restores how it was.</p>
+    <div id="tuneBody"></div>
+    <div class="err" id="tErr"></div>
+    <div class="actions"><button id="tDefaults">Defaults</button><span><button id="tClose">Close</button> <button id="tSave" class="primary">Save</button></span></div>
+  </div>
+</div>
+<script src="tilemap.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
