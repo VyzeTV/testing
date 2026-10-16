@@ -4875,6 +4875,25 @@ check("someone standing on the gallery nearby overhears the confession", cf_ and
 all_cf_ = [c for t in wk_ticks for c in t.get("confessionals") or []]
 check("every confessional in a mock week is short (at most three lines of at most eighteen words)", all_cf_ and all(1 <= len(c.get("lines") or [c["text"]]) <= 3 and all(len(l.split()) <= 18 for l in (c.get("lines") or [c["text"]])) for c in all_cf_), str(len(all_cf_)))
 
+# ---- deadline day: every hour closer to 22:00 costs more sanity
+w, r, _ = fresh(181)
+check("deadline-day hourly loss escalates toward 22:00", [r.deadline_hour_loss(h) for h in (8, 12, 13, 17, 18, 21)] == [1, 1, 2, 2, 3, 3])
+w.state["deadline_day"] = r.day
+for c in w.agents:
+    w.agents[c]["sanity"] = 90
+dl_ = list(w.agents)[0]
+t8_ = r.new_tick(8); r.tick_dread(t8_, 8); s8_ = 90 - w.agents[dl_]["sanity"]
+t18_ = r.new_tick(18); r.tick_dread(t18_, 18); s18_ = 90 - s8_ - w.agents[dl_]["sanity"]
+r.tick_dread(r.new_tick(18), 18)
+check("on deadline day a morning turn costs less sanity than an evening one", 0 < s8_ < s18_, f"{s8_} {s18_}")
+check("each deadline-day hour is charged only once", 90 - w.agents[dl_]["sanity"] == s8_ + s18_)
+w.agents[dl_]["sanity"] = 8
+s_ = 8; r.tick_dread(r.new_tick(14), 14)
+check("people already near breaking go numb and lose less", s_ - w.agents[dl_]["sanity"] <= 2, str(s_ - w.agents[dl_]["sanity"]))
+w.state["deadline_day"] = r.day + 3
+s_ = w.agents[dl_]["sanity"]; r.tick_dread(r.new_tick(20), 20)
+check("no hourly deadline loss when the deadline is days away", w.agents[dl_]["sanity"] == s_)
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

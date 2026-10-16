@@ -206,6 +206,8 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
     def emit(self, tick):
         tick["idx"] = self.idx
         self.idx += 1
+        if not self.s.get("case") and self.days_left() <= 0 and isinstance(tick.get("hour"), (int, float)):
+            self.deadline_hours(tick, tick["hour"])         # special scenes (vigil, last call...) count against the deadline too
         for cid_, a_ in self.world.agents.items():
             a_["outfit"] = self.outfit_label(cid_)
             a_["conds_view"] = self.cond_snapshot(cid_)
@@ -1483,14 +1485,43 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                               "text": f"The deadline looms (dread {dread}/5): everyone loses {dread} sanity."})
 
     def tick_dread(self, tick, hour):
-        """Nerves keep fraying through the day when the deadline is today (or tomorrow, in the evening)."""
+        """Nerves keep fraying through the day when the deadline is tomorrow (in the evening), and on deadline day every hour costs more the nearer 22:00 gets."""
         if self.s.get("case"):
             return
         left = self.days_left()
-        drip = 1 if left <= 0 else (1 if left == 1 and hour >= 18 else 0)
-        if drip:
+        if left == 1 and hour >= 18:
             for cid in list(self.world.agents):
-                self.stat(tick, cid, "sanity", -drip, "deadline nerves")
+                self.stat(tick, cid, "sanity", -1, "deadline nerves")
+        elif left <= 0:
+            self.deadline_hours(tick, hour)
+
+    def deadline_hour_loss(self, h):
+        """Sanity lost in hour h of deadline day: 1 a hour in the morning, 2 in the afternoon, 3 in the last hours before 22:00."""
+        return 1 + max(0, min(int(h), DAY_END - 1) - DAY_START) // 5
+
+    def deadline_hours(self, tick, hour):
+        """Charge every not-yet-charged hour of deadline day this turn covers (each hour once, whatever kind of turn it was)."""
+        s = self.s
+        seen = s.get("_dl_hours")
+        if not seen or seen.get("day") != self.day:
+            seen = s["_dl_hours"] = {"day": self.day, "hours": []}
+        span = [h for h in range(int(hour), min(int(hour) + 2, DAY_END)) if h >= DAY_START and h not in seen["hours"]]
+        if not span:
+            return
+        seen["hours"].extend(span)
+        mult = self.tune("drain_mult")
+        base = sum(self.deadline_hour_loss(h) for h in span)
+        for cid in list(self.world.agents):
+            a = self.world.agents[cid]
+            if a.get("out"):
+                continue
+            x = base * mult * (1.0 if a["sanity"] >= 25 else 0.5 if a["sanity"] >= 10 else 0.25)  # past a point, people go numb
+            n = int(x) + (1 if self.rng.random() < x - int(x) else 0)
+            if n:
+                self.stat(tick, cid, "sanity", -n, "the deadline is hours away")
+        hrs = DAY_END - (span[-1] + 1)
+        self.log_event(tick, {"type": "stat", "who": "terevi", "room": "foyer", "vis": "gm",
+                              "text": f"Deadline day: {hrs} hour{'s' if hrs != 1 else ''} left until 22:00. Nerves fray ({base} sanity an hour-block, before numbness)."})
 
     # ---------- the daily rule (roulette) ----------
     def setup_rule(self):
