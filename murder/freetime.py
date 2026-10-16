@@ -68,6 +68,7 @@ ACTS = {
     "dress":    ("getting dressed", 15, [], [], "gets dressed"),
     "gather":   ("with the others", 30, [], [], "joins the others"),
     "chat":     ("talking", 30, [], [], "starts talking"),
+    "company":  ("keeping someone company", 30, [], [], "goes along"),
     "stalk":    ("keeping an eye on someone", 15, [], [], "keeps watch"),
     "flee":     ("getting away from danger", 15, [], [], "gets away from the danger"),
     "rescue":   ("dragging someone out of danger", 15, [], [], "goes in after someone"),
@@ -202,9 +203,10 @@ class FreeTimeMixin:
                     a["worked"] = self.day
             busy[cid] = dur
             self._seg(tick, cid, 0, dur, a["room"], act, label, "main")
-        tl = Timeline(self)
+        tl = self._tl = Timeline(self)
         tl.every(SLICE, lambda m: self.free_slice(tick, hour, int(m), busy), until=TICK_MIN - SLICE)
         tl.run()
+        self._tl = None
         self._free_busy = None
         # close the books: everybody's last segment runs to the end of the block
         for cid, segs in tick["free"].items():
@@ -233,16 +235,10 @@ class FreeTimeMixin:
             groups[room] = [o for o in groups[room] if o not in chatters]
             if len([o for o in groups[room] if o in w.agents]) < 2:
                 del groups[room]
-        meta = self.__dict__.setdefault("_talk_meta", {})
-        meta.clear()
-        for ch in chats:
-            members = [c for c in ch["members"] if c in w.agents and not w.agents[c].get("out")]
-            if len(members) < 2:
-                continue
-            groups[ch["gid"]] = members
-            meta[ch["gid"]] = {"m": ch["m"], "at": ch.get("at"), "why": ch.get("why", ""), "members": members, "matters": ch.get("matters", [])}
+        self.__dict__.setdefault("_talk_meta", {}).clear()
+        for ch in chats:                                    # the chats themselves already ran live during the block (convo.py)
             ini = ch["members"][0]
-            if ini in members:
+            if ini in w.agents:
                 intents[ini] = (ch.get("why") or "talk") + ("; " + intents[ini] if intents.get(ini) else "")
         return groups, modes
 
@@ -739,6 +735,7 @@ class FreeTimeMixin:
         a = w.agents[cid]
         label, dur, _rooms, _kinds, verb = ACTS[act]
         walked = a["room"] != room
+        start_room, m_go = a["room"], m
         arrived = self._walk(tick, cid, room, m)
         if not arrived:
             self._seg(tick, cid, m, m + SLICE, a["room"], "walk", f"heading for {w.room_name(room)}")
@@ -753,6 +750,8 @@ class FreeTimeMixin:
             label = "exploring the " + w.room_name(room)
         end = m + dur
         self._seg(tick, cid, m, end, a["room"], act, label, "free", at)
+        if walked and act not in ("bathroom", "shower", "bath", "nap", "dress", "flee", "rescue", "stalk"):
+            self.companion_for(tick, cid, start_room, m_go, end)         # a close friend may come along
         self._effect(tick, cid, act, m, at)
         self.plan_done_by_act(cid, act, a["room"])
         return end
@@ -786,6 +785,8 @@ class FreeTimeMixin:
             ch[other] = ch.get(other, 0) + 1
         text = f"{self.nm(cid)} and {self.nm(partner)} sit down to talk." if seated else f"{self.nm(cid)} goes over to {self.nm(partner)} for a word."
         self._fev(tick, cid, m, text, "free", "viewer", witnesses=[o for o in w.occupants(room) if o in w.agents and o not in (cid, partner)])
+        if getattr(self, "_tl", None) is not None:
+            self.start_convo(tick, [cid, partner], room, m, self._tl, why=why, matters=matters, at=seat, kind="chat", dur=dur)
         return m + dur
 
     def _effect(self, tick, cid, act, m, at=None):

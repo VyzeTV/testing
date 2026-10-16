@@ -4681,6 +4681,149 @@ ltk_ = lr_.new_tick(12)
 lr_.apply_decision(ltk_, lc_, lr_.clean_decision({"action": "stay", "target_room": "garden", "activity": "Getting out"}), {}, [])
 check("somebody locked into a ground-floor room climbs out through the window instead", lw_.agents[lc_]["room"] != "kitchen" and any("window" in e["text"] for e in ltk_["events"]), str([e["text"] for e in ltk_["events"]]))
 
+# ---- live conversations (rebuild phase 3)
+from murder import convo as _cv, voice as _vc, social as _so  # noqa: E402
+
+
+class _Fixed:
+    """An rng whose random() is fixed (other calls fall through to a real one)."""
+    def __init__(self, v, base):
+        self.v, self.b = v, base
+    def random(self):
+        return self.v
+    def __getattr__(self, k):
+        return getattr(self.b, k)
+
+
+cw2_, cr2_, _ = fresh(1950)
+cw2_.state["revealed"] = True
+ca2_, cb2_, cc2_ = sorted(cw2_.agents)[:3]
+for c_ in (ca2_, cb2_, cc2_):
+    cw2_.agents[c_]["room"] = "lounge"
+cw2_.agents[ca2_]["aff"][cb2_] = 5
+cw2_.agents[cb2_]["aff"][ca2_] = 5
+cw2_.agents[cb2_]["sanity"] = 40
+ctk2_ = cr2_.new_tick(14)
+cr2_.clock_start()
+cr2_.sim_turn(ctk2_)
+cr2_.sim_sync(ctk2_, 0)
+conv2_ = {"id": "t", "room": "lounge", "members": [ca2_, cb2_], "used": {}, "hour": 14}
+check("someone who cares about a person who is low is willing to comfort them", any(mv == "comfort" for _, mv, _a in cr2_.move_options(conv2_, ca2_, cb2_)))
+base_rng_ = cr2_.rng
+cr2_.rng = _Fixed(0.0, base_rng_)
+san0_ = cw2_.agents[cb2_]["sanity"]
+bts_ = cr2_.resolve_move(ctk2_, conv2_, ca2_, cb2_, "comfort")
+check("comfort that lands lifts the other person's spirits and warms them to the comforter (the engine decides, before any words)", bts_[0]["outcome"] == "ok" and cw2_.agents[cb2_]["sanity"] > san0_ and cw2_.agents[cb2_]["aff"][ca2_] > 5)
+cr2_.rng = _Fixed(0.999, base_rng_)
+san1_ = cw2_.agents[ca2_]["sanity"]
+bts2_ = cr2_.resolve_move(ctk2_, {"id": "t2", "room": "lounge", "members": [ca2_, cb2_, cc2_], "used": {}, "hour": 14}, ca2_, cb2_, "mock")
+check("a mocking that falls flat costs the mocker and turns the room against them", bts2_[0]["outcome"] != "ok" and cw2_.agents[ca2_]["sanity"] < san1_)
+cr2_.rng = base_rng_
+check("every move has a reply from its target", bts_[1]["who"] == cb2_ and bts_[1]["move"] in _so.REPLIES)
+lines_, fixed_ = _vc.check_lines(cr2_, bts_ + bts2_, {"lines": [{"beat": 0, "speaker": cb2_, "text": "wrong speaker"}]}, cr2_.rng)
+check("the voice gives every beat one line from that beat's own speaker (a wrong or missing line is replaced by the template voice)", len(lines_) == 4 and all(l["speaker"] == b["who"] for l, b in zip(lines_, bts_ + bts2_)) and fixed_ == 4)
+# testimony: the truth from the innocent, a lie from the culprit
+tw_, tr_, _ = fresh(1960)
+tk_t_ = tr_.new_tick(12)
+ti_, tc_ = sorted(tw_.agents)[:2]
+tw_.state["where_log"] = {ti_: [[tw_.state["day"], 10, "library"]], tc_: [[tw_.state["day"], 10, "kitchen"], [tw_.state["day"], 8, "lounge"]]}
+tw_.state["case"] = {"killer": tc_, "victim": sorted(tw_.agents)[2], "room": "kitchen", "day": tw_.state["day"], "hour": 10, "announced": True}
+tr_.day = tw_.state["day"]
+tm_i_, tm_c_ = tr_.testimony_for(ti_), tr_.testimony_for(tc_)
+check("asked where they were, an innocent tells the truth about the room they were in", "Library" in tm_i_["claim"] and not tm_i_["lie"])
+check("the culprit lies about it", tm_c_["lie"] and "Kitchen" not in tm_c_["claim"].split(",")[0])
+tw_.state["case"] = None
+# a live conversation ends when its members part, and is cut short by a fight
+lw_, lr_, _ = fresh(1970)
+lw_.state["revealed"] = True
+la_, lb_, lc3_ = sorted(lw_.agents)[:3]
+for c_ in (la_, lb_, lc3_):
+    lw_.agents[c_]["room"] = "lounge"
+ltk3_ = lr_.new_tick(14)
+lr_.clock_start()
+lr_.sim_turn(ltk3_)
+lr_.convo_reset()
+lr_.sim_sync(ltk3_, 0)
+tl4_ = _TL(lr_)
+cv_ = lr_.start_convo(ltk3_, [la_, lb_], "lounge", 10, tl4_, why="test", kind="chat", dur=40)
+lw_.agents[lb_]["room"] = "lookout"
+tl4_.at(14, lambda: lr_.sim().go_room(lb_, "lookout", 14))
+tl4_.run()
+check("a conversation ends when its members part (one of them walked off out of earshot)", cv_["state"] == "ended" and cv_["ended"][1] == "parted" and any(x[1] == lb_ for x in cv_["left"]), str(cv_.get("ended")))
+lw_.agents[lb_]["room"] = "lounge"
+lr_.sim().go_room(lb_, "lounge", 30)
+tl5_ = _TL(lr_)
+cv2_ = lr_.start_convo(ltk3_, [la_, lb_], "lounge", 40, tl5_, why="test", kind="chat", dur=40)
+ltk3_["events"].append({"type": "attack", "who": lc3_, "room": "lounge", "m": 43.0, "vis": "public", "text": "A fight breaks out."})
+tl5_.run()
+check("and a fight in the room cuts it short", cv2_["state"] == "ended" and cv2_["ended"][1] == "interrupted", str(cv2_.get("ended")))
+# a friend nearby joins
+jw_, jr_, _ = fresh(1980)
+jw_.state["revealed"] = True
+ja_, jb_, jc_ = sorted(jw_.agents)[:3]
+for c_ in (ja_, jb_, jc_):
+    jw_.agents[c_]["room"] = "lounge"
+jw_.agents[jc_]["aff"][ja_] = 8
+jtk_ = jr_.new_tick(14)
+jr_.clock_start()
+jr_.sim_turn(jtk_)
+jr_.convo_reset()
+jr_.sim_sync(jtk_, 0)
+_ja_t = jr_.sim().cur[ja_]
+jr_.sim().walk(jc_, jr_.nav().stand_near(_ja_t[0], _ja_t[1], _ja_t[2], set(jr_.sim().cur.values()), "lounge"), 1)
+jr_.rng = _Fixed(0.0, jr_.rng)
+tl6_ = _TL(jr_)
+cv3_ = jr_.start_convo(jtk_, [ja_, jb_], "lounge", 10, tl6_, why="test", kind="chat", dur=12)
+tl6_.run()
+check("a friend within earshot walks over and joins in", any(x[1] == jc_ for x in cv3_["joined"]) and jc_ in cv3_["members"] + [x[1] for x in cv3_["left"]])
+# every overheard line was heard by someone perception allows, from where they actually stood
+from murder.perception import Perception as _Pc  # noqa: E402
+pc2_ = _Pc(nav_)
+LOUDER_ = _cv.LOUDER
+bad_heard_ = []
+n_heard_ = 0
+for t in wk_ticks:
+    L = t["live"]
+    for g in t["talk"]:
+        if not g.get("live"):
+            continue
+        for ln in g["lines"]:
+            if not ln.get("heard"):
+                continue
+            src_ = _simm.pos_on(L["tracks"].get(ln["speaker"]), ln["m"])
+            ld_ = _cv.LOUD_OF.get({"whisper": "whisper"}.get(ln.get("move"), "normal"), "normal")
+            for c_, lvl_ in ln["heard"].items():
+                n_heard_ += 1
+                dst_ = _simm.pos_on(L["tracks"].get(c_), ln["m"])
+                ok_ = src_ and dst_ and (pc2_.hears(src_, dst_, "shout") if lvl_ != "saw" else pc2_.sees(src_, dst_, "lit"))
+                if not ok_:
+                    bad_heard_.append((t["day"], t["hour"], ln["speaker"], c_, lvl_))
+check("every overheard line had a listener whom perception allows (and conversations are overheard at all)", n_heard_ > 0 and not bad_heard_, f"{len(bad_heard_)} of {n_heard_}: {bad_heard_[:3]}")
+live_g_ = [g for t in wk_ticks for g in t["talk"] if g.get("live")]
+check("ordinary conversations are live: each records how it ended, who joined and who left", live_g_ and all(g.get("ended") and "joined" in g and "left" in g for g in live_g_), str(len(live_g_)))
+check("and their lines unfold over minutes rather than all at once", any(max(l["m"] for l in g["lines"]) - min(l["m"] for l in g["lines"]) >= 5 for g in live_g_))
+# walking together
+gw_, gr_, _ = fresh(1990)
+gw_.state["revealed"] = True
+ga_, gb_ = sorted(gw_.agents)[:2]
+for c_ in (ga_, gb_):
+    gw_.agents[c_]["room"] = "lounge"
+gw_.agents[ga_]["aff"][gb_] = 7
+gw_.agents[gb_]["aff"][ga_] = 7
+gtk_ = gr_.new_tick(14)
+gtk_["free"] = {}
+gr_.clock_start()
+gr_.sim_turn(gtk_)
+gr_.sim_sync(gtk_, 0)
+gr_._free_busy = {ga_: 0, gb_: 0}
+gr_.rng = _Fixed(0.0, gr_.rng)
+gw_.agents[ga_]["room"] = "kitchen"
+gr_.sim_go(gtk_, ga_, 20)
+pal_ = gr_.companion_for(gtk_, ga_, "lounge", 20, 50)
+gr_.clock_stop()
+check("a close friend who is at a loose end goes along when somebody sets off, and they walk there together", pal_ == gb_ and gw_.agents[gb_]["room"] == "kitchen"
+      and abs(gr_.sim().end_t(gb_) - gr_.sim().end_t(ga_)) < 1.5, f"{pal_} {gw_.agents[gb_]['room']}")
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

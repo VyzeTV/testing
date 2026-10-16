@@ -23,7 +23,7 @@ from murder.engine import DayRunner          # noqa: E402
 from murder.llm import LLM                   # noqa: E402
 from murder.world import World, new_state    # noqa: E402
 
-KINDS = ("decide", "converse", "react", "summarize", "host_json", "reflect", "adjudicate", "confess", "neovi_plan", "judge", "vote", "broadcast")
+KINDS = ("decide", "converse", "voice", "react", "summarize", "host_json", "reflect", "adjudicate", "confess", "neovi_plan", "judge", "vote", "broadcast")
 AIMLESS = {"look", "stay", "walk", "explore"}
 SEEDS = (11, 22, 33)
 DAYS = 7

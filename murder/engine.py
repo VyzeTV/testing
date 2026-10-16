@@ -46,6 +46,8 @@ from .chronicle import ChronicleMixin
 from .sim import SimMixin
 from .clock import ClockMixin, Timeline
 from .falls import FallMixin
+from .social import SocialMixin
+from .convo import ConvoMixin
 from .perception import PerceptionMixin
 from .envsys import EnvironmentMixin
 from .mind import MindMixin
@@ -131,7 +133,7 @@ class Stop(Exception):
     pass
 
 
-class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
+class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
     def __init__(self, world, llm, on_tick, gate=None, should_stop=None, step=2, workers=6, seed=None,
                  murders=True, motive="", rule_mode="roulette", rule_text="", confessionals=True, mischief="occasional", chaos="normal",
                  variation=0, gm_pull=None, lean=False, call_cap=0, autodir=False, autodir_get=None, tuning_get=None):
@@ -226,6 +228,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         try:
             tick["speeds"] = {c: v for c, v in ((cid, round(self.move_factor(cid), 2)) for cid in self.world.agents) if v < 0.95}
             tick["live"] = self.sim_finish(tick)
+            self.log_whereabouts(tick)
             self.clock_stop()
         except Exception as e:  # positions must never break the game
             self.clock_stop()
@@ -740,6 +743,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         tick = self.new_tick(hour)
         self.clock_start()
         self.sim_turn(tick)
+        self.convo_reset()
         tick["segment_msg"] = self.segment_msg(hour, kind)
         s["_hour"] = hour
         if self.degrade_note:
@@ -880,6 +884,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             self.terevi_intervention(tick, hour, self.force_tease)
         self.force_tease = None
         self.enforce_rule(tick, hour)
+        self.sim_sync(tick, self._m)                            # whoever those systems moved walks there now
         self.clock_to(60)
         self.tick_dread(tick, hour)
         self.baseline_drain(tick, hour)
@@ -918,10 +923,25 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                 groups[room] = occ
         self._talk_meta = {}
         self.clock_to(92 if kind == "free" else 56)
+        self.sim_sync(tick, self._m)
         if kind == "free":
             groups, modes = self.free_chat_groups(tick, groups, modes, intents)
-        if groups:
-            self.run_conversations(tick, groups, intents, hour, modes=modes)
+        # ordinary conversations are live (the engine resolves every move as it happens); staged ones (an occasion, TereVi on the monitor) are still written whole
+        staged = {g: occ for g, occ in groups.items() if self.staged_talk(g, occ, modes)}
+        live = [(g, occ) for g, occ in groups.items() if g not in staged]
+        if live:
+            tl = Timeline(self)
+            m_talk = self._m
+            for gi, (g, occ) in enumerate(live):
+                humans = [o for o in occ if o in w.agents]
+                want = [h for h in humans if decisions.get(h, {}).get("talk_to")]
+                order = want + [h for h in humans if h not in want]
+                self.start_convo(tick, order, g.split("#")[0], m_talk + 2 * gi, tl, why=intents.get(order[0], "") if order else "", kind="gather",
+                                 dur=max(10.0, (120 if kind == "free" else 60) - (m_talk - (92 if kind == "free" else 56))))
+            tl.run()
+        if staged:
+            self.run_conversations(tick, staged, intents, hour, modes=modes)
+        self.voice_convos(tick, hour)
         self.sim_talk(tick)
         self.clock_to(min(118.0, max([s_["m"] + 1.0 for s_ in self._sim_said] or [self._m])))
         self.reaction_pass(tick, hour)
@@ -1096,6 +1116,10 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             return True
         exits = [x for x in w.adjacent(cid, room) if x["kind"] != "secret"]
         return bool(exits) and not any(x["ok"] for x in exits)
+
+    def staged_talk(self, gid, occ, modes):
+        """Conversations still written whole by the model: occasions and anything TereVi takes part in from the monitor."""
+        return (modes or {}).get(gid) not in (None, "chat") or "terevi" in occ
 
     def arrive_and_act(self, tick, cid, d, intents, attacks, start):
         a = self.world.agents.get(cid)
@@ -1301,93 +1325,8 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                             w.remember(cid, f"{hhmm(hour)} {who} said: \"{ln['text'][:110]}\"")
             self.day_notable.append(f"In the {w.room_name(room)}: {self.nm(lines[0]['speaker'])} said \"{lines[0]['text'][:90]}\"")
             fx = res.get("effects") or {}
-            self.last_effects[room] = fx
-            why = fx.get("why") or {}
-            changed = set()
-            for key, lim in (("sanity", 4), ("hp", 3)):
-                for cid, dl in (fx.get(key) or {}).items():
-                    if cid in w.agents and cid in group:
-                        try:
-                            d_ = max(-lim, min(lim, int(dl)))
-                        except Exception:
-                            continue
-                        if key == "sanity" and d_ > 0:
-                            continue          # sanity only returns through special moments
-                        if d_:
-                            self.stat(tick, cid, key, d_, str(why.get(cid, "")) if isinstance(why, dict) else "")
-                            changed.add((cid, key))
-            sanity_fx = fx.get("sanity") or {}
-            pairs = set()
-            for af in (fx.get("affinity") or [])[:14]:
-                try:
-                    a, b, dl = af["from"], af["to"], max(-3, min(3, int(af["delta"])))
-                except Exception:
-                    continue
-                if a in group and b in group and a != b and dl:
-                    self.adjust_any_aff(a, b, dl)
-                    pairs.add((a, b))
-                    if dl <= -2:
-                        self.day_notable.append(f"{self.nm(a)}'s feelings toward {self.nm(b)} soured.")
-                    # The interaction itself moves both people's mood unless the scene already set it.
-                    mood = dl if dl < 0 else 0        # warmth alone no longer restores sanity
-                    for who in (a, b):
-                        if (who, "sanity") not in changed:
-                            self.stat(tick, who, "sanity", mood, f"{self.nm(a)} and {self.nm(b)}: {dl:+d}")
-                            changed.add((who, "sanity"))
-            # Anyone who spoke to each other should drift at least a little: warmer by default, colder if it hurt.
-            for k in range(1, len(lines)):
-                x, y = lines[k - 1]["speaker"], lines[k]["speaker"]
-                if x == y or x not in w.agents or y not in w.agents or (y, x) in pairs:
-                    continue
-                hurt = any(isinstance(sanity_fx.get(z), (int, float)) and sanity_fx.get(z) < 0 for z in (x, y))
-                w.adjust_aff(y, x, -1 if hurt else 1)
-                pairs.add((y, x))
-            for sp_ in (fx.get("special") or [])[:3]:
-                try:
-                    kind_, who_ = sp_["kind"], sp_["who"]
-                except Exception:
-                    continue
-                if kind_ in SPECIAL_SANITY and isinstance(who_, list):
-                    try:
-                        depth = max(1, min(3, int(sp_.get("depth", 1))))
-                    except Exception:
-                        depth = 1
-                    for cid in who_[:6]:
-                        if cid in w.agents and cid in group:
-                            others = [o for o in who_ if o != cid and o in w.agents]
-                            close = (sum(w.agents[cid]["aff"].get(o, 0) for o in others) / len(others)) if others else 0
-                            mult = 1.0 + (0.5 if close >= 5 else 0) + (0.5 if close >= 8 else 0)
-                            if kind_ in ("comfort", "confession", "romance", "vigil"):
-                                mult *= 1 + 0.25 * (depth - 1)
-                            self.special_boost(tick, cid, SPECIAL_SANITY[kind_] * mult, str(sp_.get("why") or kind_)[:40], kind_)
-                            if kind_ in ("comfort", "confession", "romance", "gift", "teamwork") and others:
-                                why_ = str(sp_.get("why") or kind_)[:50]
-                                for o_ in others[:2]:
-                                    self.add_tie(cid, o_, "close", f"{kind_} with {self.nm(o_)} ({why_}) on day {self.day}", 1 if depth >= 2 else 0)
-            for rv in (fx.get("reveals") or [])[:2]:
-                if isinstance(rv, dict) and isinstance(rv.get("to"), list):
-                    self.reveal_secret(tick, rv.get("by"), rv.get("about"), [c for c in rv["to"] if c in group], "lets slip")
-            self.apply_bonds(tick, fx.get("bonds"), group)
-            self.apply_rumors(tick, fx.get("rumors"), group, hour)
-            self.apply_incite(tick, fx.get("incite"), group, hour)
-            self.apply_testimonies(tick, fx.get("testimonies"), group, hour)
-            self.apply_accomplice(tick, fx.get("accomplice"), group, hour)
-            self.apply_forced_moves(tick, fx.get("moves"), group)
-            for gv in (fx.get("gives") or [])[:3]:
-                if isinstance(gv, dict) and gv.get("from") == "neovi":
-                    self.apply_neovi_gives(tick, gv, room, group)
-                    continue
-                try:
-                    q, err = w.give(gv["from"], gv["to"], gv["item"], gv.get("qty", 1))
-                except Exception:
-                    q = None
-                if q:
-                    self.log_event(tick, {"type": "give", "who": gv["from"], "room": room, "vis": "public",
-                                          "text": f"{self.nm(gv['from'])} gives {q} x {w.item_name(gv['item'])} to {self.nm(gv['to'])}."},
-                                   witnesses=group, actor=gv["from"])
-            for cid, note in (fx.get("notes") or {}).items():
-                if cid in w.agents and isinstance(note, str):
-                    w.remember(cid, f"{hhmm(hour)} (private) {note[:120]}")
+            self.apply_talk_fx(tick, room, group, fx, hour)
+            self.talk_drift(group, lines, fx)
             if "neovi" in group:
                 self.neovi_log.append(f"In the {w.room_name(room)}: " + " / ".join(
                     (f"*{self.nm(l['speaker'])} {l['text'][:60]}*" if l["kind"] == "act" else f"{self.nm(l['speaker'])}: {l['text'][:60]}") for l in lines)[:300])
@@ -1395,6 +1334,101 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             for cid_ in group:
                 if cid_ in w.agents:
                     self.fix_memories(cid_, group, 0.4)
+
+    def apply_talk_fx(self, tick, room, group, fx, hour, lines=None):
+        """What a conversation changed: health, sanity, affinity, special moments, secrets, bonds, rumours, incitement, testimonies, accomplices, forced moves, gifts, notes.
+        Social moves (social.py) send their outcomes here as they happen; staged scenes still send the model's effects."""
+        w = self.world
+        fx = fx or {}
+        self.last_effects[room] = fx
+        why = fx.get("why") or {}
+        changed = set()
+        for key, lim in (("sanity", 4), ("hp", 3)):
+            for cid, dl in (fx.get(key) or {}).items():
+                if cid in w.agents and cid in group:
+                    try:
+                        d_ = max(-lim, min(lim, int(dl)))
+                    except Exception:
+                        continue
+                    if key == "sanity" and d_ > 0:
+                        continue          # sanity only returns through special moments
+                    if d_:
+                        self.stat(tick, cid, key, d_, str(why.get(cid, "")) if isinstance(why, dict) else "")
+                        changed.add((cid, key))
+        for af in (fx.get("affinity") or [])[:14]:
+            try:
+                a, b, dl = af["from"], af["to"], max(-3, min(3, int(af["delta"])))
+            except Exception:
+                continue
+            if a in group and b in group and a != b and dl:
+                self.adjust_any_aff(a, b, dl)
+                if dl <= -2:
+                    self.day_notable.append(f"{self.nm(a)}'s feelings toward {self.nm(b)} soured.")
+                # The interaction itself moves both people's mood unless the scene already set it.
+                mood = dl if dl < 0 else 0        # warmth alone no longer restores sanity
+                for who in (a, b):
+                    if (who, "sanity") not in changed:
+                        self.stat(tick, who, "sanity", mood, f"{self.nm(a)} and {self.nm(b)}: {dl:+d}")
+                        changed.add((who, "sanity"))
+        for sp_ in (fx.get("special") or [])[:3]:
+            try:
+                kind_, who_ = sp_["kind"], sp_["who"]
+            except Exception:
+                continue
+            if kind_ in SPECIAL_SANITY and isinstance(who_, list):
+                try:
+                    depth = max(1, min(3, int(sp_.get("depth", 1))))
+                except Exception:
+                    depth = 1
+                for cid in who_[:6]:
+                    if cid in w.agents and cid in group:
+                        others = [o for o in who_ if o != cid and o in w.agents]
+                        close = (sum(w.agents[cid]["aff"].get(o, 0) for o in others) / len(others)) if others else 0
+                        mult = 1.0 + (0.5 if close >= 5 else 0) + (0.5 if close >= 8 else 0)
+                        if kind_ in ("comfort", "confession", "romance", "vigil"):
+                            mult *= 1 + 0.25 * (depth - 1)
+                        self.special_boost(tick, cid, SPECIAL_SANITY[kind_] * mult, str(sp_.get("why") or kind_)[:40], kind_)
+                        if kind_ in ("comfort", "confession", "romance", "gift", "teamwork") and others:
+                            why_ = str(sp_.get("why") or kind_)[:50]
+                            for o_ in others[:2]:
+                                self.add_tie(cid, o_, "close", f"{kind_} with {self.nm(o_)} ({why_}) on day {self.day}", 1 if depth >= 2 else 0)
+        for rv in (fx.get("reveals") or [])[:2]:
+            if isinstance(rv, dict) and isinstance(rv.get("to"), list):
+                self.reveal_secret(tick, rv.get("by"), rv.get("about"), [c for c in rv["to"] if c in group], "lets slip")
+        self.apply_bonds(tick, fx.get("bonds"), group)
+        self.apply_rumors(tick, fx.get("rumors"), group, hour)
+        self.apply_incite(tick, fx.get("incite"), group, hour)
+        self.apply_testimonies(tick, fx.get("testimonies"), group, hour)
+        self.apply_accomplice(tick, fx.get("accomplice"), group, hour)
+        self.apply_forced_moves(tick, fx.get("moves"), group)
+        for gv in (fx.get("gives") or [])[:3]:
+            if isinstance(gv, dict) and gv.get("from") == "neovi":
+                self.apply_neovi_gives(tick, gv, room, group)
+                continue
+            try:
+                q, err = w.give(gv["from"], gv["to"], gv["item"], gv.get("qty", 1))
+            except Exception:
+                q = None
+            if q:
+                self.log_event(tick, {"type": "give", "who": gv["from"], "room": room, "vis": "public",
+                                      "text": f"{self.nm(gv['from'])} gives {q} x {w.item_name(gv['item'])} to {self.nm(gv['to'])}."},
+                               witnesses=group, actor=gv["from"])
+        for cid, note in (fx.get("notes") or {}).items():
+            if cid in w.agents and isinstance(note, str):
+                w.remember(cid, f"{hhmm(hour)} (private) {note[:120]}")
+
+    def talk_drift(self, group, lines, fx):
+        """Anyone who spoke to each other drifts at least a little: warmer by default, colder if it hurt (staged scenes, whose effects come from the model)."""
+        w = self.world
+        sanity_fx = (fx or {}).get("sanity") or {}
+        pairs = {(af.get("from"), af.get("to")) for af in ((fx or {}).get("affinity") or []) if isinstance(af, dict)}
+        for k in range(1, len(lines)):
+            x, y = lines[k - 1]["speaker"], lines[k]["speaker"]
+            if x == y or x not in w.agents or y not in w.agents or (y, x) in pairs:
+                continue
+            hurt = any(isinstance(sanity_fx.get(z), (int, float)) and sanity_fx.get(z) < 0 for z in (x, y))
+            w.adjust_aff(y, x, -1 if hurt else 1)
+            pairs.add((y, x))
 
     # ---------- stats ----------
     def stat(self, tick, cid, key, delta, why="", lethal=None):

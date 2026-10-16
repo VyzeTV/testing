@@ -343,6 +343,14 @@ class SimMixin:
             if room not in nav.rooms:
                 continue
             lines = g.get("lines") or []
+            if g.get("live"):
+                # a live conversation (convo.py): its members were really there, and every line already has its minute and the room it was said in
+                for ln in lines:
+                    said.append({"m": round(min(dur - 0.5, float(ln.get("m", 0))), 1), "who": ln.get("speaker"), "k": ln.get("kind", "say"), "text": (ln.get("text") or "")[:170],
+                                 "room": ln.get("room") or room, "g": gi})
+                groups.append({"g": gi, "m": round(float(g.get("m", 0)), 1), "room": room, "chat": bool(g.get("chat")), "at": g.get("at"), "why": g.get("why", ""),
+                               "matters": g.get("matters") or [], "members": g.get("members") or [], "live": True})
+                continue
             members = []
             for ln in lines:
                 sp = ln.get("speaker")
@@ -419,7 +427,7 @@ class SimMixin:
             if room not in nav.rooms:
                 continue
             if sm.room_of(cid) != room:
-                m0 = max(sm.end_t(cid), sm.hold.get(cid, 0.0))
+                m0 = max(sm.end_t(cid), sm.hold.get(cid, 0.0), self.minute() or 0.0)
                 if m0 <= 0.0:
                     m0 = float(self._stagger(cid, tick))      # nobody moved them yet this turn: they set off in the first quarter hour
                 path = ((tick.get("moves") or {}).get(cid) or {}).get("path") or []

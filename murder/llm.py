@@ -181,6 +181,12 @@ class LLM:
             return self._mock_converse(ctx, user)
         return self._json(self.participant_model, system, user, 700)
 
+    def voice(self, system, user, ctx):
+        """Lines for a conversation the engine has already resolved: {"lines": [{"beat", "speaker", "kind", "text"}]}. The mock leaves every beat to the template voice."""
+        if self.mock:
+            return {"lines": []}
+        return self._json(self.participant_model, system, user, 120 + 45 * int(ctx.get("beats", 8)))
+
     def summarize(self, system, user, ctx):
         if self.mock:
             return " ".join(ctx.get("events", [])[:3]) or "A quiet day."
