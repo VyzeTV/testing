@@ -33,6 +33,7 @@
   </select>
   <select id="pace" title="How long a game hour lasts on screen (real time); conversations slow it down so every line can be read"><option value="90">Slow (21 min/day)</option><option value="50" selected>Normal (12 min/day)</option><option value="25">Fast (6 min/day)</option><option value="10">Very fast (2 min/day)</option></select>
   <button id="btnRoster" title="Who is where and what they are doing, minute by minute">Who's where</button>
+  <button id="btnSkipNight" style="display:none" title="GM: skip the quiet stretch of the night (stops at the first block where anything happens)">Skip quiet night</button>
   <button id="btnFF" disabled title="Skip the rest of this day">Fast-forward day</button>
   <button id="btnStop" class="danger" style="display:none">Stop</button>
   <button id="btnNew" class="primary">Start a day</button>
@@ -268,9 +269,12 @@
         <option value="announce">Announce: TereVi says something on air</option>
         <option value="twist">Twist: push TereVi to escalate</option>
         <option value="event">Event: force an island event</option>
+        <option value="schedule">Schedule: cancel or move a meal, or summon everyone</option>
       </select></div>
     <div class="field" id="dToF"><label class="t" id="dToL">To</label><select id="dTo"></select></div>
     <div class="field" id="dAboutF"><label class="t">About</label><select id="dAbout"></select></div>
+    <div class="field" id="dSchedF"><label class="t">Change</label><select id="dSOp"><option value="cancel">Cancel</option><option value="move">Move</option><option value="add">Add a summons</option></select>
+      <select id="dSId"><option value="breakfast">Breakfast</option><option value="lunch">Lunch</option><option value="dinner">Dinner</option></select> <input id="dSAt" type="time" value="15:30" min="08:00" max="21:30"></div>
     <div class="field" id="dRoomF"><label class="t">Room</label><select id="dRoom"></select></div>
     <div class="field" id="dEvF"><label class="t">Event</label><select id="dEv"><option value="storm">Storm</option><option value="fire">Kitchen fire</option><option value="power">Power cut</option><option value="fog">Fog and whispers</option><option value="cat">Stray cat</option><option value="package">Mystery package</option></select></div>
     <div class="field" id="dTextF"><label class="t" id="dTextL">Text</label><textarea id="dText" rows="2" maxlength="300"></textarea></div>

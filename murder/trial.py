@@ -328,6 +328,7 @@ class TrialMixin:
         for line in self.blackout_alibis(case):
             if line not in case["file"]:
                 case["file"].append(line)
+        self.fetch_stragglers(tick, ids, TRIAL_ROOM, "the class trial")
         for cid in ids:
             a = w.agents[cid]
             if a.get("out"):

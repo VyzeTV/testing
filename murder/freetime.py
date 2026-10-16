@@ -207,6 +207,12 @@ class FreeTimeMixin:
                     a["worked"] = self.day
             busy[cid] = dur
             self._seg(tick, cid, 0, dur, a["room"], act, label, "main")
+        meal_ = self.__dict__.get("_meal")                     # a meal or summons in this block keeps the people at it until it ends
+        if meal_:
+            for cid in meal_["came"]:
+                if cid in busy and cid in w.agents:
+                    busy[cid] = max(busy[cid], meal_["end_m"])
+                    self._seg(tick, cid, int(meal_["m"]), int(meal_["end_m"]), meal_["room"], "eat" if meal_.get("kind") == "meal" else "gather", meal_["label"].lower(), "main")
         tl = self._tl = Timeline(self)
         tl.every(SLICE, lambda m: self.free_slice(tick, hour, int(m), busy), until=TICK_MIN - SLICE)
         tl.run()

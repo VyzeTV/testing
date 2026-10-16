@@ -73,18 +73,28 @@ Every death counts toward the deadline: murder, manslaughter (a killing blow nob
 
 ## 4. The day
 
-Time runs 08:00-22:00 in two-hour blocks (a "tick" each), then a night.
+Time runs 08:00-22:00 in two-hour blocks (a "tick" each), then a night played in two-hour blocks until 07:00.
 
 | Hour | Segment | Kind |
 |---|---|---|
-| 08:00 | Morning announcement | **Turn**: TereVi's rule, news, breakfast; everyone decides once |
+| 08:00 | Morning announcement | **Turn**: TereVi's rule and news; everyone decides once. **Breakfast** 08:30-09:30 |
 | 10:00 | Free time | **Free block** |
-| 12:00 | Midday gathering | Turn |
+| 12:00 | Midday gathering | Turn. **Lunch** 12:30-13:30 |
 | 14:00 | Free time | Free block |
 | 16:00 | Free time | Free block |
-| 18:00 | Evening gathering | Turn |
-| 20:00 | Free time | Free block |
-| 22:00 | Night | Bedtime, locks, sleep; up to four "night owls" may stay up for a 23:00 night turn |
+| 18:00 | Evening gathering | Turn. **Dinner** 18:30-19:30 |
+| 20:00 | Free time | Free block (evening announcement) |
+| 22:00 | Bedtime | Curfew, locks, everyone to bed except whoever stays up; the deadline reckoning |
+| 23:00, 01:00, 03:00, 05:00 | Night | **Night blocks** (internally hours 23, 25, 27, 29, so time only goes forward) |
+| 07:00 | Dawn | How everyone slept, the diaries; the day ends |
+
+**The schedule** (`schedule.py`). The day has fixed draws: wake-up, the three meals in the Dining Hall, the evening announcement and curfew. The daily rule (Mandatory Mealtimes makes lunch and dinner compulsory) and the GM (Director panel: cancel, move, or add a summons to any room) can change them; a change to a time already past applies tomorrow. At a meal's minute everyone weighs coming (hunger, thirst, loneliness, sociability, friends and enemies at the table, stress, a plot on the go) and those who come walk to the table and eat. The meal's conversation always happens. A **calm meal** (no accusation, threat, confrontation, put-down, fight, punishment, outburst, body or fire) lifts everyone at it: a little sanity (a "meal" special moment, bigger with friends there), company, +1 affinity between people who talked, less stress, and the day's news passes around the table (`s["news"]`: what someone witnessed reaches those who had not heard). A **tense meal** gives nothing. Skipping is a quiet cost: no company and no news, and three missed meals in a row get noticed by the others. A summons works like a meal without food and is mandatory.
+
+**Mandatory scenes** (the presentations, the reveal, the last call, the trial, the vigil, a summons): whoever will not make it on their own (asleep, hiding, too far, locked away, dragging their feet) is fetched by NeoVi, and the feed says so.
+
+**The night** (`night.py`). Sleep is a task in a bed. At 22:00 everyone goes to bed except whoever stays up: anyone who asked to ("night": true), plotters on the move, seekers on a case, the badly shaken, the stressed, the hungry and thirsty. There is no cap and no flat health cost. At each block sleepers may wake for a reason: a noise or a commotion next door, smoke, a full bladder, hunger, thirst, a bad dream, insomnia, a plan that will not wait. Whoever is awake lives the block with the free-time machinery, limited to quiet things (eat, drink, the bathroom, read, sit, look around, explore, the telescope, the radio, tinkering, a whispered chat, stalking) and sooner or later goes back to bed (the "sleep" act; nobody sleeps on a full bladder or an empty stomach). The ones who asked to stay up get their own decision in the first block. Sleeping bodies slow down. At dawn sleep is counted: a full night mends a little health; less than five hours leaves someone **exhausted** and tired all day. A block where the whole house sleeps is **quiet** (`tick["quiet"]`).
+
+**Deadline day.** Every hour of the deadline day costs sanity, more the nearer 22:00 gets: 1 an hour in the morning, 2 in the afternoon, 3 in the last hours, each hour charged once whatever kind of turn covers it (special scenes too), scaled by the everyday-drain dial and damped for people already near breaking. The evening before the deadline already frays nerves.
 
 * A **turn** is one decision per character (model or engine), movement, actions, resolution and one conversation per group, as in the original edition.
 * A **free block** is the live part of the day (section 7): one decision to start, then 15-minute slices in which people live their lives.
@@ -267,7 +277,7 @@ Room item pools, unlimited common supplies per room, recipes with ingredients an
 | Drama | quarrels, clue clarity, murder plots starting, alliances, betrayals, noticing something is wrong, NeoVi's daily inspection, Director opportunities, snapping |
 | Pacing | escape attempts per day |
 | Sanity | everyday drain, deadline dread, calm window after a death, remembrance lift |
-| Night | cost of staying up, most people up at night, locking doors |
+| Night | locking doors |
 | Body | afflictions, injuries, fainting and knockouts, hunger and thirst |
 | World | sight and hearing, fire/water/smoke/breakage, needs/thoughts/stress, stress strength, engine-made routine turns, pursuit/witnesses/interrogation, memory and plans (brain), fire and smoke danger, free-time blocks |
 | Tone | embarrassment, flirtation, banter and crude jokes |
@@ -293,7 +303,7 @@ Engine and turn: `engine.py`, `world.py`, `cases.py`, `trial.py`, `story.py`, `d
 * **Real-model coverage**: the brain, the harder trial, the sealed scene and the new motives have been exercised on the mock backend and on two calm real days; a full real week with a murder and a trial on the new map has not been played yet.
 * **Brain**: off by default; plan completion was about a third on real days; retrieval is simple scoring (recency, importance, people), with no separate reflection call beyond the nightly diary.
 * **Map**: a custom map saved before map v4 is rejected and the generated one used.
-* **Time**: decisions are still made at the start of each two-hour turn (and every quarter hour in free time); the turn then plays out minute by minute. Conversations are written whole when the turn's gathering comes, so a chunk streamed to the viewer is a whole turn; live conversations (joinable, interruptible, overheard) are the next phase. Turn-level systems (dread, drains, friction) still run once per turn rather than hourly. Special turns (trial, presentations, finales, night) carry minutes only for what the position simulation stages.
+* **Time**: decisions are still made at the start of each two-hour turn (and every quarter hour in free time); the turn then plays out minute by minute. Conversations are written whole when the turn's gathering comes, so a chunk streamed to the viewer is a whole turn; live conversations (joinable, interruptible, overheard) are the next phase. Turn-level systems (drains, friction) still run once per turn rather than hourly; deadline-day dread is charged per hour. Special turns (trial, presentations, finales, night) carry minutes only for what the position simulation stages.
 * **Talk**: staged scenes (occasions, TereVi on the monitor, trial, reveal, finales, last call, vigil) are still written whole by the model, whose effects are applied as before; everything else is resolved move by move by the engine. What people overhear goes into their memories as text; belief bases with confidence (phase 5) will make it something they reason with. People join a conversation when they can hear it, are in the same room, can see it from a distance with a reason to come over, or have been wanting a word with one of its members; in free time somebody at a loose end may also choose to go and join friends who are talking nearby. About one conversation in six gains a joiner in mock weeks.
 * **Fire**: awake healthy people almost always escape; if you want deadlier fires, raise `fire_lethality` or slow the first reaction.
 * **Not built**: continuous per-minute decisions by the model (decisions are per block, with the engine playing the minutes between); NeoVi and TereVi walking on the map; breaching weak walls (deferred by decision); a fully AI-written pause-on-conversation summary.

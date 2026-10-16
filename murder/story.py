@@ -419,6 +419,8 @@ class StoryMixin:
                         w.remember(to, f"{_hh(hour)} You find an unsigned note: \"{text}\"")
                         self.moment(to, f"found a mysterious note: {text[:80]}")
                         self.log_event(tick, {"type": "system", "who": to, "room": w.agents[to]["room"], "vis": "gm", "text": f"Director whispers to {self.nm(to)}: {text}"})
+                elif t == "schedule":
+                    self.gm_schedule(tick, it, hour)
                 elif t == "announce":
                     text = str(it["text"]).strip()[:400]
                     if text:
@@ -498,6 +500,7 @@ class StoryMixin:
         room = "dining_hall"
         text = self.make_broadcast("intro_meeting", {})
         tick["broadcasts"].append({"speaker": "terevi", "kind": "welcome", "text": text})
+        self.fetch_stragglers(tick, ids, room, "the introductions")
         for cid in ids:
             a = w.agents[cid]
             start = a["room"]
@@ -527,6 +530,7 @@ class StoryMixin:
         text = self.make_broadcast("reveal", {})
         self.reveal_text = text
         tick["broadcasts"].append({"speaker": "terevi", "kind": "reveal", "text": text})
+        self.fetch_stragglers(tick, ids, room, "TereVi's announcement")
         for cid in ids:
             a = w.agents[cid]
             start = a["room"]
@@ -563,6 +567,7 @@ class StoryMixin:
         room = "dining_hall"
         text = self.make_broadcast("lastcall", {})
         tick["broadcasts"].append({"speaker": "terevi", "kind": "deadline", "text": text})
+        self.fetch_stragglers(tick, ids, room, "the last call")
         for cid in ids:
             a = w.agents[cid]
             start = a["room"]

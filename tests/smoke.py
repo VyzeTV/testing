@@ -4985,6 +4985,61 @@ meals_wk_ = [t["meal"] for t in wk_ticks if t.get("meal")]
 check("a mock week serves meals, some calm and some not", len(meals_wk_) >= 8 and {m["id"] for m in meals_wk_} == {"breakfast", "lunch", "dinner"} and any(m["calm"] for m in meals_wk_),
       f"{len(meals_wk_)} meals, {sum(1 for m in meals_wk_ if m['calm'])} calm")
 
+# ---- the schedule: the GM moves and adds draws, NeoVi fetches stragglers
+w, r, _ = fresh(186)
+tk_ = r.new_tick(10)
+r.gm_schedule(tk_, {"op": "move", "id": "dinner", "at": 17 * 60}, 10)
+r.gm_schedule(tk_, {"op": "add", "at": 15 * 60, "room": "lounge", "text": "A word from TereVi"}, 10)
+r.gm_schedule(tk_, {"op": "cancel", "id": "breakfast"}, 10)
+ids_ = [d["id"] for d in r.day_schedule()]
+check("the GM can move a meal, add a summons and cancel a draw (a change to a time already past applies tomorrow)", r.meal_in_turn(16)[0]["id"] == "dinner" and r.meal_in_turn(14)[0]["kind"] == "summons"
+      and "breakfast" in ids_, str(ids_))
+check("a bad schedule change is refused", r.gm_schedule(tk_, {"op": "move", "id": "lunch", "at": 3 * 60}, 10) is None and r.gm_schedule(tk_, {"op": "explode"}, 10) is None)
+w, r, _ = fresh(187)
+ids = sorted(w.agents)
+w.agents[ids[0]]["room"] = "lookout"
+w.agents[ids[1]]["hiding"] = True
+w.agents[ids[2]]["asleep"] = True
+for c in ids[3:]:
+    w.agents[c]["room"] = "foyer"
+tk_ = r.new_tick(14)
+got_ = r.fetch_stragglers(tk_, ids, "voting_grounds", "the class trial")
+check("NeoVi fetches whoever will not make a mandatory scene on their own (far away, hiding, asleep), and nobody else", {ids[0], ids[1], ids[2]} == set(got_) and not w.agents[ids[2]].get("asleep")
+      and any(e["type"] == "fetch" for e in tk_["events"]), str(got_))
+w, r, _ = fresh(188)
+r.s["schedule_mods"] = [{"op": "add", "day": r.day, "draw": {"id": "gm1", "kind": "summons", "at": 12 * 60 + 30, "end": 13 * 60 + 30, "label": "A summons", "room": "lounge"}},
+                        {"op": "cancel", "id": "lunch", "day": r.day}]
+r.clock_start(); tk_ = r.new_tick(12); r.sim_turn(tk_); r.convo_reset()
+m_ = r.meal_call(tk_, 12, r.meal_in_turn(12)[0], 30.0)
+r.clock_stop()
+check("a summons brings everyone who can come", m_ and set(m_["came"]) == {c for c in w.agents if not w.agents[c].get("out") and not r.restrained(c)} and all(w.agents[c]["room"] == "lounge" for c in m_["came"]))
+night_wk_ = [t for t in wk_ticks if t.get("phase") == "night" and t["hour"] in (23, 25, 27, 29)]
+check("a mock week plays its nights in blocks, some quiet and some with people up", night_wk_ and any(t.get("quiet") for t in night_wk_) and any(t.get("awake") for t in night_wk_),
+      f"{len(night_wk_)} blocks, {sum(1 for t in night_wk_ if t.get('quiet'))} quiet")
+kinds_wk_ = {t.get("type") for t in wk_ticks} | {"meal" for t in wk_ticks if t.get("meal")}
+check("a mock week serves meals", "meal" in kinds_wk_, str(sorted(k for k in kinds_wk_ if k)))
+
+# ---- phase 4 gate: across a few mock weeks the day's schedule and its mandatory scenes all fire
+gate_kinds_ = set()
+import murder.llm as llm_  # noqa: E402
+mmp_ = llm_.LLM.mock_murder_prob
+for seed_, murders_ in ((41, True), (61, False)):                       # a murder brings a trial and a vigil; a week with none reaches the deadline: the last call
+    llm_.LLM.mock_murder_prob = 0.08 if murders_ else 0.0
+    wk_ = World(new_state(3))
+    tg_ = []
+    for d in range(3, 11):
+        wk_.state["day"] = d
+        DayRunner(wk_, LLM(backend="mock"), tg_.append, step=2, murders=murders_, rule_mode="roulette", seed=seed_ + d).run()
+        if not wk_.agents or wk_.state.get("over"):
+            break
+    for t in tg_:
+        gate_kinds_ |= {t.get("type")} | ({"meal"} if t.get("meal") else set()) | ({"vigil"} if any(e.get("type") == "vigil" for e in t["events"]) else set())
+        gate_kinds_ |= {"quiet_night"} if t.get("quiet") else set()
+        gate_kinds_ |= {"night_awake"} if t.get("phase") == "night" and t.get("awake") else set()
+llm_.LLM.mock_murder_prob = mmp_
+check("phase 4 gate: mock weeks fire meals, a trial, a vigil and a last call, and play quiet and wakeful nights",
+      {"meal", "trial", "vigil", "lastcall", "quiet_night", "night_awake"} <= gate_kinds_, str(sorted(k for k in gate_kinds_ if k)))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

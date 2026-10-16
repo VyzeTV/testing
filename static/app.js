@@ -1073,9 +1073,42 @@ async function playLoop() {
     const tok = S.token;
     S.playIdx = next;
     if (S.ff) { applyInstant(next); S.cursor = next; updateUI(); continue; }
+    if (!S.ticks[next].quiet) S.skipQuiet = false;                  // the GM skip never runs past a block where something happens
+    else if (await quietSkip(S.ticks[next], tok)) { if (tok === S.token) { applyInstant(next); S.cursor = next; updateUI(); } continue; }
     await playTick(next, tok);
     if (tok === S.token) { S.cursor = next; updateUI(); }
   }
+}
+// A night block where the whole house is asleep: skip it (the viewer's setting, the choice made for this night, or the GM's skip button) or watch it.
+async function quietSkip(t, tok) {
+  if (S.skipQuiet) return true;
+  const mode = window.TileMap ? TileMap.quietNight() : "auto";
+  if (mode === "watch") return false;
+  if (S.quietChoice && S.quietChoice.day === t.day) return S.quietChoice.skip;
+  if (mode === "ask") {
+    const skip = await new Promise((res) => {
+      TileMap.modal(`<div class="kind">Day ${t.day} ${t.time}</div><h2>The house sleeps</h2><div class="sub">Nobody is awake. Skip the quiet stretches of tonight? (Anything that happens still plays.)</div>
+        <div class="btns"><button class="pri" id="qnSkip">Skip quiet stretches</button><button id="qnWatch">Watch the night</button></div>
+        <div class="sub" style="margin-top:6px"><label><input type="checkbox" id="qnKeep"> Remember my choice (change it in the pause settings)</label></div>`);
+      const was = S.paused; S.paused = true;
+      const done = (v) => { if ($("#qnKeep").checked) TileMap.setQuietNight(v ? "auto" : "watch"); TileMap.closeModal(); S.paused = was; res(v); };
+      $("#qnSkip").onclick = () => done(true);
+      $("#qnWatch").onclick = () => done(false);
+    });
+    S.quietChoice = { day: t.day, skip };
+    if (!skip) return false;
+  }
+  await houseSleeps(t, tok);
+  return true;
+}
+async function houseSleeps(t, tok) {
+  const hh = String(t.hour % 24).padStart(2, "0") + ":00";
+  feedAdd(`<b>The house sleeps</b> \u00b7 ${hh}`, "segment");
+  const el = $("#segcard");
+  el.innerHTML = `<div class="st">The house sleeps</div><div class="ss">Day ${t.day} \u00b7 ${hh} \u00b7 nobody is awake</div>`;
+  el.className = "turn"; el.style.display = "block";
+  await waitClock(900);
+  if (tok === S.token) el.style.display = "none";
 }
 function onDayEnd() {
   if (S.endShown) return;
@@ -1169,6 +1202,8 @@ function updateUI() {
   $("#btnPause").disabled = !S.session; $("#btnPause").textContent = S.paused ? "Resume" : "Pause";
   const canFF = S.session && !(S.done && S.cursor >= n - 1);
   $("#btnFF").disabled = !canFF;
+  const quietNow = [S.playIdx, S.cursor + 1].some((i) => S.ticks[i] && S.ticks[i].quiet);
+  $("#btnSkipNight").style.display = S.session && $("#gm").checked && quietNow && !S.skipQuiet ? "" : "none";
   $("#btnStop").style.display = S.session && S.mode === "live" && !S.done && !S.error ? "" : "none";
   const u = $("#usageChip");
   if (S.usage && S.mode === "live") { u.style.display = ""; u.textContent = `${S.usage.calls} AI calls · ${Math.round((S.usage.input + S.usage.output) / 1000)}k tokens`; }
@@ -1489,6 +1524,12 @@ $("#voices").onchange = (e) => {
 };
 $("#sound").onchange = (e) => { S.sound = e.target.checked; if (S.sound) { sndInit(); if (Snd.ctx && Snd.ctx.resume) Snd.ctx.resume(); } setDrone(); };
 $("#speed").onchange = (e) => (S.speed = parseFloat(e.target.value));
+$("#btnSkipNight").onclick = () => {
+  S.skipQuiet = true;                                               // skips quiet night blocks until the first one where something happens
+  const cur = S.ticks[S.playIdx];
+  if (cur && cur.quiet && S.playIdx > S.cursor) jumpTo(S.playIdx);
+  updateUI();
+};
 $("#btnFF").onclick = async () => {
   S.ff = true; S.waiters.forEach((w) => w.res());
   if (S.mode === "live") await fetch("/api/ff", { method: "POST", body: "{}" });
@@ -1747,12 +1788,14 @@ $("#nGo").onclick = async () => {
 function dirSync() {
   const t = $("#dType").value;
   const show = (id, v) => ($("#" + id).style.display = v ? "" : "none");
-  show("dToF", t === "whisper" || t === "rumor"); show("dAboutF", t === "rumor"); show("dRoomF", t === "item"); show("dEvF", t === "event");
-  show("dTextF", t !== "event");
+  show("dToF", t === "whisper" || t === "rumor"); show("dAboutF", t === "rumor"); show("dRoomF", t === "item" || (t === "schedule" && $("#dSOp").value !== "cancel")); show("dEvF", t === "event");
+  show("dSchedF", t === "schedule"); show("dSId", t === "schedule" && $("#dSOp").value !== "add"); show("dSAt", t === "schedule" && $("#dSOp").value !== "cancel");
+  show("dTextF", t !== "event" && !(t === "schedule" && $("#dSOp").value !== "add"));
   $("#dToL").textContent = t === "rumor" ? "Who hears it" : "To";
-  $("#dTextL").textContent = t === "item" ? "Item name" : t === "rumor" ? "The rumor" : t === "whisper" ? "The note" : t === "announce" ? "What TereVi says" : "Hint for TereVi (optional)";
+  $("#dTextL").textContent = t === "schedule" ? "What it is for (optional)" : t === "item" ? "Item name" : t === "rumor" ? "The rumor" : t === "whisper" ? "The note" : t === "announce" ? "What TereVi says" : "Hint for TereVi (optional)";
 }
 $("#dType").onchange = dirSync;
+$("#dSOp").onchange = dirSync;
 $("#btnDirector").onclick = () => {
   const alive_ = Object.keys(S.W.characters).filter((id) => (S.W.characters[id].status || "alive") === "alive" && !(S.state && S.state.agents[id] && !alive(S.state.agents[id])));
   const opts = alive_.map((id) => `<option value="${id}">${esc(info(id).name)}</option>`).join("");
@@ -1769,6 +1812,7 @@ $("#dSend").onclick = async () => {
   else if (t === "rumor") { body.about = $("#dAbout").value; body.claim = text; body.to = $("#dTo").value; }
   else if (t === "item") { body.room = $("#dRoom").value; body.name = text; }
   else if (t === "event") body.id = $("#dEv").value;
+  else if (t === "schedule") { const [hh, mm] = ($("#dSAt").value || "15:30").split(":").map(Number); body.op = $("#dSOp").value; body.id = $("#dSId").value; body.at = hh * 60 + mm; body.room = $("#dRoom").value; body.text = text; }
   else body.text = text;
   if ((t === "whisper" || t === "rumor" || t === "item" || t === "announce") && !text) { $("#dErr").textContent = "Write something first."; return; }
   const r = await (await fetch("/api/gm", { method: "POST", body: JSON.stringify(body) })).json();

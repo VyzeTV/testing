@@ -630,14 +630,16 @@ function floorBeside(plane, x, y) { for (const [dx, dy] of [[1, 0], [-1, 0], [0,
   // ---------------------------------------------------------------- pause settings and dialogs for important events
   const CLASSES = [["critical", "Critical", "Deaths, bodies, cases, trials, verdicts, announcements about the deadline"], ["important", "Important", "Plot strikes, breakdowns, knockouts, punishments, fires and the like"], ["notable", "Notable", "Quarrels, alliances, betrayals, treatment, experiments"], ["background", "Background", "Walking, meals, routine"]];
   const RESPONSES = [["dialog", "Pause with a dialog"], ["toast", "Small notice, keep going"], ["log", "Feed only"]];
-  const DEFAULTS = { classes: { critical: "dialog", important: "dialog", notable: "toast", background: "log" }, kinds: {}, pauseTalk: "matters", segMsg: true };
+  const DEFAULTS = { classes: { critical: "dialog", important: "dialog", notable: "toast", background: "log" }, kinds: {}, pauseTalk: "matters", segMsg: true, quietNight: "ask" };
   const KIND_LABEL = { death: "Someone has died", body: "A body has been found", discover: "A discovery", attack: "An attack", verdict: "A verdict", broadcast: "TereVi is speaking", plot: "A plot is moving", madness: "A mind has broken", faint: "Someone has collapsed",
     punish: "NeoVi is punishing someone", frame: "Someone is being framed", carry: "Someone is being dragged away", rob: "Someone is being robbed", assault: "A fight", sabotage: "Sabotage", outburst: "An outburst", island: "Something has happened on the island",
     system_notable: "Something important has happened", inspection: "NeoVi is inspecting a room", condition: "Someone is hurt or ill", friction: "A quarrel", hook: "Something is wrong", alliance: "An alliance", betrayal: "A betrayal", treat: "Someone is being treated",
     fire: "A fire", flood: "A flood", wreck: "Something has been wrecked", interrogation: "An interrogation", snap: "Someone has snapped", embarrassed: "Someone is mortified" };
   let SET = null;
   const segMsgOn = () => { if (!SET) loadSettings(); return SET.segMsg !== false; };
-  function loadSettings() { let s = null; try { s = JSON.parse(localStorage.getItem("mcLiveSettings") || "null"); } catch (e) { s = null; } SET = { classes: { ...DEFAULTS.classes, ...((s || {}).classes || {}) }, kinds: { ...((s || {}).kinds || {}) }, pauseTalk: (s || {}).pauseTalk || DEFAULTS.pauseTalk, segMsg: (s || {}).segMsg !== false }; }
+  const quietNight = () => { if (!SET) loadSettings(); return SET.quietNight || "ask"; };
+  const setQuietNight = (v) => { if (!SET) loadSettings(); SET.quietNight = v; saveSettings(); };
+  function loadSettings() { let s = null; try { s = JSON.parse(localStorage.getItem("mcLiveSettings") || "null"); } catch (e) { s = null; } SET = { classes: { ...DEFAULTS.classes, ...((s || {}).classes || {}) }, kinds: { ...((s || {}).kinds || {}) }, pauseTalk: (s || {}).pauseTalk || DEFAULTS.pauseTalk, segMsg: (s || {}).segMsg !== false, quietNight: (s || {}).quietNight || DEFAULTS.quietNight }; }
   function saveSettings() { try { localStorage.setItem("mcLiveSettings", JSON.stringify(SET)); } catch (e) { /* private mode */ } }
   const response = (e) => SET.kinds[e.type] || SET.classes[e.cls] || "log";
   function toast(text, cls) {
@@ -702,12 +704,13 @@ function floorBeside(plane, x, y) { for (const [dx, dy] of [[1, 0], [-1, 0], [0,
     modal(`<h2>Pause settings</h2><div class="sub">What happens when an event of each class occurs on the map. A kind can override its class.</div>
       <table><tr><td><b>Class</b></td><td></td><td><b>When it happens</b></td></tr>${CLASSES.map(([k, n, d]) => `<tr><td>${n}</td><td class="sub">${d}</td><td>${sel("tmcl_" + k, SET.classes[k])}</td></tr>`).join("")}</table>
       <table style="margin-top:6px"><tr><td>Conversations in free time</td><td><select id="tmTalk"><option value="off" ${SET.pauseTalk === "off" ? "selected" : ""}>Never pause</option><option value="matters" ${(SET.pauseTalk || "matters") === "matters" ? "selected" : ""}>Pause when it matters (a plot, a feud, a secret, a loose end, a spark)</option><option value="all" ${SET.pauseTalk === "all" ? "selected" : ""}>Pause at every conversation</option></select></td></tr></table>
+      <table style="margin-top:6px"><tr><td>Quiet night blocks (the whole house asleep)</td><td><select id="tmQuiet"><option value="ask" ${(SET.quietNight || "ask") === "ask" ? "selected" : ""}>Ask each night</option><option value="auto" ${SET.quietNight === "auto" ? "selected" : ""}>Skip them automatically</option><option value="watch" ${SET.quietNight === "watch" ? "selected" : ""}>Always watch</option></select></td></tr></table>
       <table style="margin-top:6px"><tr><td>Title card when a new part of the day starts</td><td><label><input type="checkbox" id="tmSeg" ${SET.segMsg !== false ? "checked" : ""}> show it</label></td></tr></table>
       <details style="margin-top:8px"><summary>Per kind of event (${kinds.length})</summary><table>${kinds.map((k) => `<tr><td>${esc(k)}</td><td>${sel("tmkd_" + k, SET.kinds[k] || "", true)}</td></tr>`).join("")}</table></details>
       <div class="btns"><button class="pri" id="tmSave">Save</button><button id="tmReset">Reset to defaults</button><button id="tmCancel">Cancel</button></div>`);
     q("#tmCancel").onclick = closeModal;
     q("#tmReset").onclick = () => { SET = JSON.parse(JSON.stringify(DEFAULTS)); saveSettings(); closeModal(); };
-    q("#tmSave").onclick = () => { SET.pauseTalk = q("#tmTalk").value; SET.segMsg = q("#tmSeg").checked; for (const [k] of CLASSES) SET.classes[k] = q("#tmcl_" + k).value; SET.kinds = {}; for (const k of kinds) { const v = q("#tmkd_" + k).value; if (v) SET.kinds[k] = v; } saveSettings(); closeModal(); };
+    q("#tmSave").onclick = () => { SET.pauseTalk = q("#tmTalk").value; SET.segMsg = q("#tmSeg").checked; SET.quietNight = q("#tmQuiet").value; for (const [k] of CLASSES) SET.classes[k] = q("#tmcl_" + k).value; SET.kinds = {}; for (const k of kinds) { const v = q("#tmkd_" + k).value; if (v) SET.kinds[k] = v; } saveSettings(); closeModal(); };
   }
 
   // ---------------------------------------------------------------- the toolbar and panels the map brings with it
@@ -841,6 +844,10 @@ function floorBeside(plane, x, y) { for (const [dx, dy] of [[1, 0], [-1, 0], [0,
     dialogFor,
     chatDialog,
     segMsgOn,
+    quietNight,
+    setQuietNight,
+    modal,
+    closeModal,
     openSettings,
     draw: frame,
     follow(id) { T.follow = id; },

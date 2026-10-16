@@ -21,6 +21,7 @@ NEWS_TYPES = {"attack", "assault", "body", "fire", "punish", "outburst", "madnes
 from .data_world import ROOMS
 
 SKIP_NOTICED = 3                      # meals in a row before the others remark on it
+FETCH_COST = 28                       # further than this from a mandatory scene and NeoVi comes to get you
 
 
 class ScheduleMixin:
@@ -49,13 +50,65 @@ class ScheduleMixin:
     def schedule_view(self):
         return [{"id": d["id"], "label": d["label"], "kind": d["kind"], "at": d["at"], "end": d.get("end"), "room": d.get("room")} for d in self.day_schedule()]
 
+    def gm_schedule(self, tick, it, hour):
+        """The GM (or the director) cancels, moves or adds a draw. A change to a time already past applies tomorrow."""
+        op = it.get("op")
+        try:
+            at = int(it.get("at")) if it.get("at") not in (None, "") else None
+        except (TypeError, ValueError):
+            at = None
+        if op not in ("cancel", "move", "add") or (op != "cancel" and (at is None or not 8 * 60 <= at <= 21 * 60 + 30)):
+            return None
+        room = it.get("room") if it.get("room") in ROOMS else None
+        ref = at if at is not None else next((d["at"] for d in self.day_schedule() if d["id"] == it.get("id")), 0)
+        day = self.day if ref > hour * 60 else self.day + 1
+        mod = {"op": op, "day": day}
+        if op == "add":
+            n = len(self.s.get("schedule_mods") or []) + 1
+            mod["draw"] = {"id": f"gm{n}", "kind": "summons", "at": at, "end": at + 60, "label": (str(it.get("text") or "").strip()[:40] or "A summons"), "room": room or "dining_hall"}
+        else:
+            mod["id"] = str(it.get("id") or "")
+            if op == "move":
+                mod["at"], mod["room"] = at, room
+        self.s.setdefault("schedule_mods", []).append(mod)
+        del self.s["schedule_mods"][:-20]
+        what = {"cancel": f"cancels {mod.get('id')}", "move": f"moves {mod.get('id')} to {at // 60:02d}:{at % 60:02d}" if at is not None else "",
+                "add": f"calls everyone to the {self.world.room_name(mod['draw']['room'])} at {at // 60:02d}:{at % 60:02d}" if op == "add" else ""}[op]
+        self.log_event(tick, {"type": "system", "who": "terevi", "room": "foyer", "vis": "gm", "text": f"Director: TereVi {what} (day {day})."})
+        return mod
+
     def meal_in_turn(self, hour):
-        """The meal that starts during the turn beginning at `hour`, with its start minute inside the turn, or (None, None)."""
+        """The meal (or summons) that starts during the turn beginning at `hour`, with its start minute inside the turn, or (None, None)."""
         span = 60 * max(1, self.step)
         for d in self.day_schedule():
-            if d["kind"] == "meal" and hour * 60 <= d["at"] < hour * 60 + span:
+            if d["kind"] in ("meal", "summons") and hour * 60 <= d["at"] < hour * 60 + span:
                 return d, float(min(d["at"] - hour * 60, 60))
         return None, None
+
+    # ------------------------------------------------------------------ mandatory scenes
+    def fetch_stragglers(self, tick, ids, room, label):
+        """A mandatory scene (the trial, a vigil, the last call...): whoever will not make it on their own (asleep, hiding, locked away, too far, dragging their feet)
+        is fetched by NeoVi. Returns who was fetched."""
+        w = self.world
+        got = []
+        for cid in ids:
+            a = w.agents.get(cid)
+            if not a or a["room"] == room:
+                continue
+            steps = w.path(cid, a["room"], room)
+            cost = sum(c for _, _, c in steps) if steps else 0
+            why = ("asleep" if a.get("asleep") else "hiding" if a.get("hiding") else "cannot get there" if steps is None else "too far" if cost > FETCH_COST
+                   else "dragging their feet" if a["sanity"] < 25 or (self.s.get("meal_skips") or {}).get(cid, 0) >= SKIP_NOTICED else None)
+            if not why:
+                continue
+            got.append(cid)
+            a.pop("asleep", None)
+            self.log_event(tick, {"type": "fetch", "who": "neovi", "room": a["room"], "vis": "viewer", "why": why,
+                                  "text": f"NeoVi fetches {self.nm(cid)} from the {w.room_name(a['room'])} for {label}."})
+            w.remember(cid, f"NeoVi came to fetch you for {label}.")
+        if got:
+            tick["fetched"] = got
+        return got
 
     # ------------------------------------------------------------------ the news ledger
     def note_news(self, evt, witnesses, actor):
@@ -114,7 +167,9 @@ class ScheduleMixin:
             return None
         at_table = [c for c in can if w.agents[c]["room"] == room]
         rule = self.s.get("rule") or {}
-        must = rule.get("id") == "mealtime" and draw["id"] in ("lunch", "dinner")      # the daily rule makes the table mandatory
+        must = (rule.get("id") == "mealtime" and draw["id"] in ("lunch", "dinner")) or draw["kind"] == "summons"     # the daily rule (or a summons) makes it mandatory
+        if must:
+            self.fetch_stragglers(tick, can, room, draw["label"].lower())
         come = []
         for cid in can:
             if must or self.rng.random() < self.meal_pull(cid, at_table + come):
@@ -134,13 +189,15 @@ class ScheduleMixin:
                     sm.walk(cid, dest, m, deadline=min(sm.dur - 5.0, m + 25.0), speed=self.move_factor(cid))
             came.append(cid)
         skipped = [c for c in can if c not in came]
-        self.meal_for(tick, came)
+        if draw["kind"] == "meal":
+            self.meal_for(tick, came)
         meal = {"id": draw["id"], "label": draw["label"], "room": room, "m": m, "end_m": m + (draw.get("end", draw["at"] + 60) - draw["at"]),
-                "came": came, "skipped": skipped, "hour": hour}
+                "came": came, "skipped": skipped, "hour": hour, "kind": draw["kind"]}
         self.__dict__["_meal"] = meal
         names = ", ".join(self.nm(c) for c in came) or "nobody"
         self.log_event(tick, {"type": "meal", "who": "terevi", "room": room, "vis": "viewer",
-                              "text": f"{draw['label']} is served in the {w.room_name(room)}. At the table: {names}."})
+                              "text": (f"{draw['label']} is served in the {w.room_name(room)}. At the table: {names}." if draw["kind"] == "meal"
+                                       else f"TereVi summons everyone to the {w.room_name(room)} ({draw['label']}). There: {names}.")})
         return meal
 
     # ------------------------------------------------------------------ after the meal

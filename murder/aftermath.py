@@ -101,6 +101,7 @@ class AftermathMixin:
         ids = [c for c in w.agents if not w.agents[c].get("out")]
         dead = [v for v in aft["victims"] if v in w.cast]
         names = ", ".join(self.nm(v) for v in dead) or "the dead"
+        self.fetch_stragglers(tick, ids, ROOM, "the remembrance")
         self.clear_hiding()
         for cid in ids:
             a = w.agents[cid]

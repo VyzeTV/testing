@@ -163,12 +163,12 @@ class Game:
         return out
 
     # ---------- the director (game master) ----------
-    GM_TYPES = ("rumor", "item", "whisper", "announce", "twist", "event")
+    GM_TYPES = ("rumor", "item", "whisper", "announce", "twist", "event", "schedule")
 
     def gm_action(self, act):
         if act.get("type") not in self.GM_TYPES:
             raise ValueError("Unknown director action.")
-        act = {k: v for k, v in act.items() if k in ("type", "about", "claim", "to", "tone", "lie", "room", "name", "text", "id")}
+        act = {k: v for k, v in act.items() if k in ("type", "about", "claim", "to", "tone", "lie", "room", "name", "text", "id", "op", "at")}
         with self.cv:
             s = self.session
             if s and s["mode"] == "live" and not s["done"] and not s["aborted"] and not s["error"]:
