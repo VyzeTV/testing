@@ -1,120 +1,84 @@
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                            ##=#######=##########=######                                                                        
-                                                            #ccc#ccc#ccc#ccc#ww#ccc#ccc#                                                                        
-                                                            #ccc#ccc#ccc#ccc#ww#ccc#ccc#                                                                        
-                                                            =ccc#ccc#ccc#ccc#ww#ccc#ccc=                                                                        
-                                                            #ccc#ccc#ccc#ccc#wh#ccc#ccc#                                                                        
-                                                            #ccc#ccc#ccc#ccc#ww#ccc#ccc#                                                                        
-                                                            ##+###+###+###+##+###+###+##                                                                        
-                                                            #wwwwwwwwwwwwwwwwwwwwwwUUUU#                                                                        
-                                                            #wwwwwwwwwwwwwwwwwwwwwwwwww#                                                                        
-                                                            ####+####wwwwwww##+####L####                                                                        
-                                                            #ccccccc#wwwwwww#ccc#cccccc#                                                                        
-                                                            =ccccccc#Dvvvvvw#ccc#cccccc=                                                                        
-                                                            #hcccccc#wvvvvvw#ccc#cccccc#                                                                        
-                                                            #ccccccc#wvvvvvw#ccc#cccccc#                                                                        
-                                                            #########wvvvvvw############                                                                        
-                                                                #ccc#wvvvvvw#kkkk#                                                                              
-                                                                #ccc+wvvvvvw+kkkk#                                                                              
-                                                                #ccc#wvvvvvw#kkkk#                                                                              
-                                                                #ccc#wwwwwww#kkkk#                                                                              
-                                                                ##################                                                                              
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
-                                                                                                                                                                
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                      ##=#######=##########=######                                      
+                                      #ccc#ccc#ccc#ccc#ww#ccc#ccc#                                      
+                                      #ccc#ccc#ccc#ccc#ww#ccc#ccc#                                      
+                                      =ccc#ccc#ccc#ccc#ww#ccc#ccc=                                      
+                                      #ccc#ccc#ccc#ccc#wh#ccc#ccc#                                      
+                                      #ccc#ccc#ccc#ccc#ww#ccc#ccc#                                      
+                                      ##+###+###+###+##+###+###+##                                      
+                                      #wwwwwwwwwwwwwwwwwwwwwwUUUU#                                      
+                                      #wwwwwwwwwwwwwwwwwwwwwwwwww#                                      
+                                      ####+####wwwwwww##+####L####                                      
+                                      #ccccccc#wwwwwww#ccc#cccccc#                                      
+                                      =ccccccc#Dvvvvvw#ccc#cccccc=                                      
+                                      #hcccccc#wvvvvvw#ccc#cccccc#                                      
+                                      #ccccccc#wvvvvvw#ccc#cccccc#                                      
+                                      #########wvvvvvw############                                      
+                                          #ccc#wvvvvvw#kkkk#                                            
+                                          #ccc+wvvvvvw+kkkk#                                            
+                                          #ccc#wvvvvvw#kkkk#                                            
+                                          #ccc#wwwwwww#kkkk#                                            
+                                          ##################                                            
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        
+                                                                                                        

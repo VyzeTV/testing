@@ -4147,7 +4147,7 @@ check("a chat becomes a conversation tagged with the minute it started, its plac
 if ch_talk_:
     gg_ = tkr_["live"]["groups"]
     check("the live plan knows each chat's start, so the viewer can play it where and when it happens", any(g["chat"] for g in gg_) and all(isinstance(g["m"], (int, float)) for g in gg_))
-    check("nobody talks twice in one block (a chat replaces the gathering for those in it)", len([s_ for g in tkr_["talk"] for s_ in {l["speaker"] for l in g["lines"]} if s_ in {c for ch in tkr_["free_chats"] for c in ch["members"]}]) <= 2 * len(tkr_["free_chats"]) + 2)
+    check("a chat replaces the gathering for those in it (only somebody who walks over and joins talks in a second conversation)", len([s_ for g in tkr_["talk"] for s_ in {l["speaker"] for l in g["lines"]} if s_ in {c for ch in tkr_["free_chats"] for c in ch["members"]} and s_ not in {j[1] for j in g.get("joined") or []}]) <= 2 * len(tkr_["free_chats"]) + 2)
 _pc = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "static", "tilemap.js"), encoding="utf8").read()
 check("the pause settings include conversations in free time (never, when it matters, every one)", "chatDialog" in _pc and "pauseTalk" in _pc and 'value="matters"' in _pc)
 
@@ -4516,13 +4516,13 @@ above_k_ = next(t for t in n4_.room_tiles["linen_store"] + n4_.room_tiles["red_r
 if above_k_ is None:
     above_k_ = ("first", k4_[1], k4_[2])
 check("a shout in the kitchen is heard through the ceiling, a whisper is not", pc4_.hears(k4_, above_k_, "shout") and not pc4_.hears(k4_, above_k_, "whisper"), str(above_k_))
-tree_ = next((x, y) for y in range(10, 44) for x in range(92, 120) if n4_.char("ground", x, y) == "T" and n4_.char("ground", x - 1, y) not in "T#" and n4_.char("ground", x + 1, y) not in "T#")
+tree_ = next((x, y) for y in range(8, 24) for x in range(64, 80) if n4_.char("ground", x, y) == "T" and n4_.char("ground", x - 1, y) not in "T#" and n4_.char("ground", x + 1, y) not in "T#")
 check("trees block sight and cannot be walked through", not pc4_.los(("ground", tree_[0] - 1, tree_[1]), ("ground", tree_[0] + 1, tree_[1])) and not n4_.walkable("ground", *tree_))
 wc_ = n4_.spots("wine_cellar")[0]
 lh_ = n4_.spots("lighthouse")[0]
 via_ = n4_.route(wc_, lh_, frozenset({"SP-2"}))
 check("the smugglers' tunnel is a real passage under the island, used only by those who know it",
-      via_ is not None and sum(1 for t in via_ if t[0] == "basement" and n4_.room_at(*t) is None) > 60 and all(t[0] != "basement" or n4_.room_at(*t) in (None, "wine_cellar") for t in via_[:-3]))
+      via_ is not None and sum(1 for t in via_ if t[0] == "basement" and n4_.room_at(*t) is None) > 40 and all(t[0] != "basement" or n4_.room_at(*t) in (None, "wine_cellar") for t in via_[:-3]))
 check("the core vault sits under the lighthouse", n4_.rooms["core_vault"]["plane"] == "basement" and any((t[1], t[2]) in {(q[1], q[2]) for q in n4_.room_tiles["lighthouse"]} for t in n4_.room_tiles["core_vault"]))
 
 # ---- a seeded run is reproducible: the same seed gives the same day, whatever order the parallel model calls finish in

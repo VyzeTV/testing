@@ -146,7 +146,15 @@ class ConvoMixin:
             if cid in conv["members"] or a.get("out") or a.get("asleep") or self.in_convo(cid) or cid not in sm.tracks:
                 continue
             here = sm.pos_at(cid, m)
-            if not here or not (perc.hears(anchor, here, "normal") or sm.nav.room_at(*here) == sm.nav.room_at(*anchor)):
+            if not here:
+                continue
+            want = a.get("want_talk") or {}
+            wants = want.get("day") == self.day and any(x in conv["members"] for x in want.get("who", []))
+            near = perc.hears(anchor, here, "normal") or sm.nav.room_at(*here) == sm.nav.room_at(*anchor)
+            # from further off: they can see the group (and have a reason), or they have been wanting a word with one of them and are not far
+            light = self.light_of(conv["room"]) if conv["room"] in ROOMS else "lit"
+            far_ok = perc.sees(here, anchor, light) or (wants and here[0] == anchor[0] and abs(here[1] - anchor[1]) + abs(here[2] - anchor[2]) <= 40)
+            if not (near or far_ok):
                 continue
             if busy is not None and busy.get(cid, 0) > m:
                 segs = (tick.get("free") or {}).get(cid) or []
@@ -165,7 +173,21 @@ class ConvoMixin:
                 p += 0.1
             if grudge <= -4 and self._fc(cid, "anger") >= 60:
                 p += 0.15
+            if wants:
+                p += 0.5
+            if a.get("join_conv") == conv["id"]:
+                p += 0.8                                           # they came over on purpose
+            if not near:
+                p *= 0.7                                           # walking over is a bigger step than turning round
             if p and self.rng.random() < p:
+                if a["room"] != conv["room"]:
+                    start = a["room"]
+                    mv = w.move(cid, conv["room"], max(6, int(20 * self.move_factor(cid))))
+                    if a["room"] != conv["room"]:
+                        continue                                    # a locked door, or too far: they do not get there
+                    pm = tick["moves"].setdefault(cid, {"from": start, "path": [start], "to": a["room"]})
+                    pm["path"] = list(pm.get("path") or [start]) + mv["path"][1:]
+                    pm["to"] = a["room"]
                 conv["members"].append(cid)
                 conv["joined"].append([round(m, 1), cid])
                 sm.go_room(cid, conv["room"], m, at=anchor, salt=6, force=True, speed=self.move_factor(cid))

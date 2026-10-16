@@ -13,11 +13,11 @@ import math
 import os
 import sys
 
-W, H = 160, 120
+W, H = 104, 84
 HERE = os.path.dirname(os.path.abspath(__file__))
 MAPS = os.path.join(HERE, "maps")
 PLANES = [("basement", -1), ("ground", 0), ("first", 1), ("second", 2), ("roof", 3)]
-HX, HY = 60, 46                    # the house's north-west corner on the island
+HX, HY = 38, 28                    # the house's north-west corner on the island
 CODES = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 OUTDOOR = (None, "garden", "beach", "pool", "sea")
 
@@ -69,10 +69,13 @@ def marks(lv, items, ox=HX, oy=HY):
 
 
 # ---------------------------------------------------------------------------------------------- the island (ground level)
+CX, CY, RX, RY = 52, 42, 46, 37      # the island's centre and radii (a compact island: everything is a short walk from the house)
+
+
 def island(g):
     for y in range(H):
         for x in range(W):
-            dx, dy = (x - 80) / 68, (y - 60) / 50
+            dx, dy = (x - CX) / RX, (y - CY) / RY
             th, r = math.atan2(dy, dx), math.hypot(dx, dy)
             R = (1 + 0.07 * math.sin(3 * th + 0.6) + 0.05 * math.sin(5 * th + 2.1) + 0.03 * math.sin(11 * th + 0.3)
                  + 0.18 * math.exp(-((_adiff(th, -0.75) / 0.28) ** 2)) + 0.06 * math.exp(-((_adiff(th, 0.9) / 0.5) ** 2)))
@@ -209,12 +212,12 @@ def draw():
     L = {pid: Level(pid) for pid, _ in PLANES}
     g, b, f1, f2, rf = L["ground"], L["basement"], L["first"], L["second"], L["roof"]
     island(g)
-    woods(g, 92, 10, 120, 42, 0.42, 1)
-    woods(g, 14, 14, 46, 34, 0.34, 2)
-    woods(g, 100, 70, 122, 84, 0.30, 3)
+    woods(g, 64, 8, 78, 22, 0.42, 1)
+    woods(g, 10, 12, 30, 24, 0.34, 2)
+    woods(g, 68, 50, 80, 58, 0.30, 3)
 
     # ---- the hedge maze (south-west of the house): lawn, a grid of hedges with gaps, flower beds where they cross
-    MX0, MY0, MX1, MY1 = 22, 68, 52, 92
+    MX0, MY0, MX1, MY1 = 12, 48, 32, 63
     for y in range(MY0, MY1 + 1):
         for x in range(MX0, MX1 + 1):
             if g.get(x, y) not in ",T b":
@@ -229,46 +232,46 @@ def draw():
             if not border and gx and gy:
                 t = "f"
             g.put(x, y, t)
-    for x, y in ((37, 68), (38, 68), (52, 80), (52, 81)):          # the two ways in
+    for x, y in ((22, 48), (23, 48), (32, 55), (32, 56)):          # the two ways in
         g.put(x, y, "g")
     # ---- lawns around the house and the pool deck (west of the house, outside the games room)
     for y in range(HY - 3, HY + 23):
         for x in range(HX - 3, HX + 31):
             if g.get(x, y) in ",Tb":
                 g.put(x, y, "g")
-    for y in range(44, 59):
-        for x in range(42, 60):
-            water = 45 <= x <= 55 and 47 <= y <= 55
+    for y in range(28, 42):
+        for x in range(20, 38):
+            water = 23 <= x <= 33 and 31 <= y <= 39
             g.put(x, y, "~" if water else ":", "pool")
 
-    # ---- outbuildings
-    building(g, "greenhouse", 30, 50, 35, 57, "k")
-    building(g, "generator_shed", 52, 34, 56, 39, "m")
-    building(g, "lighthouse", 123, 25, 129, 31, "r")
-    building(g, "voting_grounds", 133, 47, 141, 55, "r")
-    building(g, "boathouse", 72, 94, 78, 101, "w")
-    for y in range(102, 104):                                     # sand in front of the boathouse doors
-        for x in range(72, 79):
+    # ---- outbuildings, close around the house
+    building(g, "greenhouse", 11, 31, 16, 38, "k")
+    building(g, "generator_shed", 29, 18, 33, 23, "m")
+    building(g, "lighthouse", 79, 16, 85, 22, "r")
+    building(g, "voting_grounds", 92, 41, 100, 49, "r")
+    building(g, "boathouse", 51, 63, 57, 70, "w")
+    for y in range(71, 73):                                       # sand in front of the boathouse doors
+        for x in range(51, 58):
             if g.get(x, y) in ",ga":
                 g.put(x, y, "s", "beach")
 
     # ---- paths, the boardwalk over the dunes, the jetty
     paths = [
-        [(HX + 12, HY + 20), (HX + 12, HY + 30), (75, 88), (75, 93)],          # front door to the boathouse
-        [(73, 82), (95, 85), (110, 86)],                                     # to the beach
-        [(HX + 28, HY + 6), (92, 50), (100, 40), (110, 32), (122, 28)],       # laundry door through the woods to the lighthouse
-        [(128, 32), (130, 38), (131, 43)],                                   # lighthouse to the cliff steps
-        [(133, 45), (136, 46)],
-        [(41, 44), (41, 40), (54, 41), (54, 40)],                            # pool deck to the shed
-        [(41, 44), (36, 49), (36, 53)],                                      # to the greenhouse
-        [(41, 59), (40, 66), (37, 67)],                                      # to the maze
+        [(HX + 12, HY + 20), (HX + 12, HY + 26), (54, 56), (54, 62)],          # front door to the boathouse
+        [(54, 57), (64, 60), (72, 62)],                                      # to the beach
+        [(HX + 28, HY + 6), (70, 30), (76, 24), (79, 19)],                    # laundry door through the woods to the lighthouse
+        [(84, 23), (86, 28), (87, 31)],                                      # lighthouse to the cliff steps
+        [(86, 32), (87, 36)],
+        [(19, 27), (19, 24), (31, 24)],                                      # pool deck to the shed
+        [(19, 30), (17, 34)],                                                # to the greenhouse
+        [(21, 42), (21, 46), (22, 47)],                                      # to the maze
     ]
     for p in paths:
         line(g, p, "p")
-    line(g, [(110, 86), (118, 90), (124, 92)], "B", 2, over="ndsg,")
-    line(g, [(83, 100), (83, 114)], "j", 2, over="sna~,g")
-    for y in range(100, 115):
-        for x in range(83, 85):
+    line(g, [(72, 62), (78, 65), (82, 66)], "B", 2, over="ndsg,")
+    line(g, [(60, 70), (60, 82)], "j", 2, over="sna~,g")
+    for y in range(68, 83):
+        for x in range(60, 62):
             if g.get(x, y) == "j":
                 g.z[y][x] = "beach"
 
@@ -311,15 +314,15 @@ def draw():
     f("basement", "boiler", 20, 11, 2, 2, "boiler_room"); f("basement", "fuseBox", 21, 10, 1, 1, "boiler_room"); f("basement", "workbench", 17, 13, 2, 1, "boiler_room")
     f("basement", "freezer", 8, 11, 2, 1, "cold_store"); f("basement", "shelf", 8, 14, 1, 1, "cold_store")
     # the tunnel: a dark stone passage, one metre wide, under the island to the headland
-    tunnel = [(HX + 8, HY + 5), (HX + 8, 40), (100, 36), (134, 36), (134, 34), (131, 34)]
+    tunnel = [(HX + 8, HY + 5), (HX + 8, 25), (86, 25), (86, 21), (84, 21)]
     line(b, tunnel, "r", 1, over=" ")
-    b.put(HX + 8, HY + 5, "h")                                   # its mouth behind the grate, and its far end under the headland
-    b.put(131, 34, "h")
+    b.put(HX + 8, HY + 5, "h")                                   # its mouth behind the grate, and its far end under the lighthouse
+    b.put(84, 21, "h")
     # TereVi's core vault, under the lighthouse
-    building(b, "core_vault", 118, 21, 129, 30, "m")
-    marks(b, [(125, 29, "h")], 0, 0)
-    for args in (("terminal", 121, 22, 2, 1), ("terminal", 125, 22, 2, 1), ("terminal", 119, 24, 1, 2), ("terminal", 128, 24, 1, 2), ("generator", 123, 25, 2, 2),
-                 ("locker", 119, 29, 1, 1), ("locker", 121, 29, 1, 1), ("locker", 127, 29, 1, 1), ("locker", 128, 29, 1, 1)):
+    building(b, "core_vault", 73, 12, 83, 22, "m")
+    marks(b, [(81, 20, "h")], 0, 0)
+    for args in (("terminal", 76, 13, 2, 1), ("terminal", 79, 13, 2, 1), ("terminal", 74, 15, 1, 2), ("terminal", 82, 15, 1, 2), ("generator", 77, 16, 2, 2),
+                 ("locker", 74, 21, 1, 1), ("locker", 75, 21, 1, 1), ("locker", 82, 21, 1, 1), ("locker", 82, 19, 1, 1)):
         f("basement", *args, "core_vault", False)
 
     # ---- first floor: the landing (a corridor and the gallery over the foyer) reaches every room
@@ -394,35 +397,35 @@ def draw():
     f("roof", "barrel", 14, 3, 2, 2, "water_tower"); f("roof", "barrel", 17, 3, 1, 1, "water_tower"); f("roof", "bench", 12, 7, 2, 1, "water_tower")
 
     # ---- outbuildings' furniture, doors and hatches (island coordinates)
-    marks(g, [(35, 53, "+"), (54, 39, "+"), (123, 28, "+"), (133, 51, "+"), (75, 101, "L"), (125, 29, "h"), (127, 27, "h")], 0, 0)
-    for args in (("plantBed", 31, 51, 2, 1, "greenhouse"), ("plantBed", 33, 51, 2, 1, "greenhouse"), ("plantBed", 31, 56, 2, 1, "greenhouse"), ("bench", 33, 54, 1, 1, "greenhouse"),
-                 ("generator", 54, 36, 1, 1, "generator_shed"), ("workbench", 53, 38, 1, 1, "generator_shed"), ("barrel", 53, 35, 1, 1, "generator_shed"),
-                 ("lamp", 126, 26, 1, 1, "lighthouse"), ("crate", 124, 30, 1, 1, "lighthouse"),
-                 ("monitor", 137, 48, 1, 1, "voting_grounds"),
-                 ("boat", 74, 96, 2, 3, "boathouse"), ("workbench", 73, 95, 1, 1, "boathouse"), ("crate", 77, 95, 1, 1, "boathouse")):
+    marks(g, [(16, 34, "+"), (31, 23, "+"), (79, 19, "+"), (96, 41, "+"), (54, 70, "L"), (81, 20, "h"), (84, 21, "h")], 0, 0)
+    for args in (("plantBed", 12, 32, 2, 1, "greenhouse"), ("plantBed", 14, 32, 2, 1, "greenhouse"), ("plantBed", 12, 37, 2, 1, "greenhouse"), ("bench", 14, 35, 1, 1, "greenhouse"),
+                 ("generator", 31, 20, 1, 1, "generator_shed"), ("workbench", 30, 22, 1, 1, "generator_shed"), ("barrel", 30, 19, 1, 1, "generator_shed"),
+                 ("lamp", 82, 17, 1, 1, "lighthouse"), ("crate", 80, 21, 1, 1, "lighthouse"),
+                 ("monitor", 96, 48, 1, 1, "voting_grounds"),
+                 ("boat", 53, 65, 2, 3, "boathouse"), ("workbench", 52, 64, 1, 1, "boathouse"), ("crate", 56, 64, 1, 1, "boathouse")):
         f("ground", args[0], args[1], args[2], args[3], args[4], args[5], False)
     for i in range(8):                                             # eight podiums in a ring at the Voting Grounds
         a = 2 * math.pi * i / 8
-        f("ground", "podium", round(137.5 + 2.4 * math.cos(a)), round(51 + 2.4 * math.sin(a)), 1, 1, "voting_grounds", False)
-    for x, y in ((44, 45), (47, 57), (52, 57), (57, 46)):
+        f("ground", "podium", round(96.5 + 2.4 * math.cos(a)), round(45 + 2.4 * math.sin(a)), 1, 1, "voting_grounds", False)
+    for x, y in ((22, 29), (25, 41), (30, 41), (35, 30)):
         f("ground", "deckChair", x, y, 1, 1, "pool", False)
-    f("ground", "bench", 58, 52, 1, 1, "pool", False)
-    for x, y, k in ((64, 70, "bench"), (86, 44, "bench"), (37, 63, "bench"), (66, 40, "hammock"), (99, 44, "bench")):
+    f("ground", "bench", 36, 36, 1, 1, "pool", False)
+    for x, y, k in ((46, 52, "bench"), (68, 28, "bench"), (20, 45, "bench"), (44, 22, "hammock"), (74, 34, "bench")):
         f("ground", k, x, y, 1, 1, "garden", False)
-    for x, y, k in ((112, 95, "driftwood"), (126, 84, "driftwood"), (98, 106, "driftwood"), (116, 98, "firepit"), (114, 100, "deckChair"), (118, 100, "deckChair")):
+    for x, y, k in ((76, 66, "driftwood"), (84, 60, "driftwood"), (66, 72, "driftwood"), (80, 68, "firepit"), (78, 70, "deckChair"), (82, 70, "deckChair")):
         x, y = snap(g, x, y, "beach", "sn")
         f("ground", k, x, y, 1, 1, "beach", False)
 
     secrets = [
         {"id": "SP-1", "ends": [["ground", HX + 14, HY + 5], ["basement", HX + 14, HY + 5]], "note": "a sliding wall in the pantry onto a stair down"},
         {"id": "SP-2", "ends": [["basement", HX + 10, HY + 5], ["basement", HX + 8, HY + 5]], "note": "the rusted grate behind the crates into the smugglers' tunnel"},
-        {"id": "SP-2", "ends": [["basement", 131, 34], ["ground", 127, 27]], "note": "the tunnel's far end, a ladder up into the lighthouse"},
+        {"id": "SP-2", "ends": [["basement", 84, 21], ["ground", 84, 21]], "note": "the tunnel's far end, a ladder up into the lighthouse"},
         {"id": "SP-3", "ends": [["first", HX + 1, HY + 12], ["second", HX + 1, HY + 12]], "note": "the bookcase door onto a hidden stair to the attic"},
         {"id": "SP-4", "ends": [["ground", HX + 18, HY + 4], ["first", HX + 18, HY + 4]], "note": "the dumbwaiter shaft from the kitchen to the linen store"},
-        {"id": "SP-5", "ends": [["ground", 125, 29], ["basement", 125, 29]], "note": "the floor hatch in the lighthouse onto the steps down to the vault"},
+        {"id": "SP-5", "ends": [["ground", 81, 20], ["basement", 81, 20]], "note": "the floor hatch in the lighthouse onto the steps down to the vault"},
     ]
-    labels = {"garden": [70, 36], "beach": [118, 96], "pool": [50, 60]}
-    open_clearings(g, (70, 36))
+    labels = {"garden": [48, 20], "beach": [78, 64], "pool": [28, 43]}
+    open_clearings(g, (48, 20))
     return L, secrets, labels
 
 

@@ -80,7 +80,7 @@ CAP = {"sofa": 2, "bench": 2, "table": 4, "poolTable": 2, "chessTable": 2, "fire
 SEATS = ["sofa", "armchair", "bench", "deckChair", "firepit", "fireplace", "table", "chair", "hammock"]       # where a conversation likes to happen
 IDLE_ACTS = {"look", "explore", "stroll", "gather", "stay", "sit", "walk", "jukebox", "mirror"}               # an activity somebody can be talked out of
 PRIVATE_ROOMS = {"blue_room", "green_room", "yellow_room", "red_room", "violet_room", "orange_room", "grey_room", "white_room", "master_suite"}
-MAX_CHATS = 2
+MAX_CHATS = 3
 MAIN_DUR = {"experiment": 90, "craft": 45, "rest": 60, "search": 30, "spy": 45, "treat": 30, "frisk": 30, "stash": 30, "retrieve": 30, "build": 45, "hide": 45, "lock": 15,
             "unlock": 15, "barricade": 30, "give": 15, "take": 15, "use": 15, "drop": 15, "wear": 15, "stay": 15, "attack": 15, "knock": 15, "pick": 30, "break": 30}
 
@@ -469,7 +469,14 @@ class FreeTimeMixin:
         # what they planned
         if self.brain_on():
             self.plan_options(tick, cid, hour, m, reach, add)
-        # company
+        # company: a conversation going on nearby with people they like
+        for cv in self.convos():
+            if cv["state"] != "talking" or cid in cv["members"] or len(cv["members"]) >= 5 or (cv["room"] not in reach and cv["room"] != here):
+                continue
+            fond = max((a["aff"].get(o, 0) for o in cv["members"]), default=0)
+            if fond >= 2 and m < cv["end"] - 6:
+                add(0.6 + fond / 6 + (100 - mi["social"]) / 70 + (gr - 50) / 120, "gather", room=cv["room"], why=f"joining {', '.join(self.nm(o) for o in cv['members'][:2])}")
+                a["join_conv"] = cv["id"]
         self.chat_options(tick, cid, hour, m, reach, add)
         if m >= FINALE or (100 - mi["social"]) > 55:
             company = {}
