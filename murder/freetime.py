@@ -17,6 +17,7 @@ DayRunner (engine.py).
 from .data_world import ROOMS, RECIPES
 from .world import clamp
 from .gridnav import _h
+from .clock import Timeline
 
 SLICE = 15
 TICK_MIN = 120
@@ -148,6 +149,29 @@ class FreeTimeMixin:
             self._slice_m = None
 
     # ------------------------------------------------------------------ the block
+    def free_slice(self, tick, hour, m, busy):
+        """Every quarter of an hour of free time: the environment catches up, bodies tick, and whoever is free decides what to do next (a decision point)."""
+        w = self.world
+        self.env_advance(tick, m - SLICE, m)
+        order = list(w.agents)
+        self.rng.shuffle(order)
+        for cid in order:
+            a = w.agents.get(cid)
+            if not a:
+                continue
+            self.body_tick(cid, SLICE)
+            if a.get("out") or a.get("asleep") or self.restrained(cid):
+                continue
+            self.modesty_check(tick, cid, m)
+            if self.snap_check(tick, cid, hour, m):
+                busy[cid] = m + SLICE
+                continue
+            if self.plot_slice(tick, cid, hour, m, busy):
+                continue
+            if busy.get(cid, 0) > m:
+                continue
+            busy[cid] = self.free_pick(tick, cid, hour, m)
+
     def free_time(self, tick, hour, decisions):
         """Play the block out in slices. Called from run_tick after the main decisions have been applied and resolved."""
         w, s = self.world, self.s
@@ -178,26 +202,9 @@ class FreeTimeMixin:
                     a["worked"] = self.day
             busy[cid] = dur
             self._seg(tick, cid, 0, dur, a["room"], act, label, "main")
-        for m in range(SLICE, TICK_MIN, SLICE):
-            self.env_advance(tick, m - SLICE, m)
-            order = list(w.agents)
-            self.rng.shuffle(order)
-            for cid in order:
-                a = w.agents.get(cid)
-                if not a:
-                    continue
-                self.body_tick(cid, SLICE)
-                if a.get("out") or a.get("asleep") or self.restrained(cid):
-                    continue
-                self.modesty_check(tick, cid, m)
-                if self.snap_check(tick, cid, hour, m):
-                    busy[cid] = m + SLICE
-                    continue
-                if self.plot_slice(tick, cid, hour, m, busy):
-                    continue
-                if busy.get(cid, 0) > m:
-                    continue
-                busy[cid] = self.free_pick(tick, cid, hour, m)
+        tl = Timeline(self)
+        tl.every(SLICE, lambda m: self.free_slice(tick, hour, int(m), busy), until=TICK_MIN - SLICE)
+        tl.run()
         self._free_busy = None
         # close the books: everybody's last segment runs to the end of the block
         for cid, segs in tick["free"].items():

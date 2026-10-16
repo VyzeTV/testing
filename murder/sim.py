@@ -246,8 +246,8 @@ class SimMixin:
 
     def sim_now(self):
         """The minute within the current turn the engine is at."""
-        m = getattr(self, "_slice_m", None)
-        return float(m) if m is not None else float(self.__dict__.get("_sim_m") or 0.0)
+        m = self.minute()
+        return m if m is not None else float(self.__dict__.get("_sim_m") or 0.0)
 
     def sim_pos(self, cid):
         """Where `cid` stands right now in the current turn, or None outside a turn."""
@@ -255,6 +255,36 @@ class SimMixin:
         if sm is None or sm.tick_id is None or cid not in sm.tracks:
             return None
         return sm.pos_at(cid, self.sim_now())
+
+    def sim_go(self, tick, cid, m0):
+        """Walk `cid` to the room the engine has just put them in, setting off at minute m0. Returns the minute they arrive."""
+        sm = self.sim_turn(tick)
+        a = self.world.agents.get(cid)
+        if not a or cid not in sm.tracks or a["room"] not in sm.nav.rooms or sm.room_of(cid) == a["room"]:
+            return float(m0)
+        path = ((tick.get("moves") or {}).get(cid) or {}).get("path") or []
+        sm.avoid = self.env_avoid()
+        t = sm.go_room(cid, a["room"], m0, deadline=min(sm.dur - 1.0, float(m0) + 40.0), hidden=sm.nav.hidden_links_between(path), speed=self.move_factor(cid))
+        return round(float(t), 2)
+
+    def first_in(self, cid, room):
+        """The first minute of the current turn, up to now, at which `cid` stood in `room` (None if they have not been there, or outside a turn)."""
+        sm = self.__dict__.get("_sim")
+        now = self.minute()
+        if sm is None or sm.tick_id is None or cid not in sm.tracks or now is None:
+            return None
+        tr, nav = sm.tracks[cid], sm.nav
+        for i, p in enumerate(tr):
+            if p[0] > now:
+                break
+            if nav.room_at(p[1], p[2], p[3]) == room:
+                return float(p[0])
+        return None
+
+    def present(self, cid, room):
+        """Is `cid` in `room` at the engine's current minute? (Somebody the engine has sent there may still be on the way.) Without positions, the room is all there is."""
+        p = self.sim_pos(cid)
+        return p is None or self.nav().room_at(*p) == room
 
     def _stagger(self, cid, tick):
         return 1 + _h(cid, tick["day"], int(tick["hour"]), "go") % 14

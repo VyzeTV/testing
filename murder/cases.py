@@ -678,7 +678,10 @@ class CaseMixin:
         if not case or case["announced"] or not case.get("room") or case.get("poison_pending"):
             return
         self.wellness_check(tick, hour)
-        for cid in list(w.agents):
+        # whoever walks in first finds it first, at the minute they walk in
+        finders = [c for c in w.agents if w.agents[c]["room"] == case["room"]]
+        when = {c: self.first_in(c, case["room"]) for c in finders}
+        for cid in sorted(finders, key=lambda c: (when[c] if when[c] is not None else 1e9, finders.index(c))):
             if case.get("hidden") and not case["hidden"].get("found"):
                 break
             if cid == case["killer"] or cid in case["discovered_by"] or w.agents[cid].get("asleep") or w.agents[cid].get("out"):
@@ -686,7 +689,7 @@ class CaseMixin:
             if w.agents[cid]["room"] == case["room"]:
                 case["discovered_by"].append(cid)
                 others = [o for o in w.occupants(case["room"]) if o != cid]
-                self.log_event(tick, {"type": "body", "who": cid, "room": case["room"], "vis": "public",
+                self.log_event(tick, {"type": "body", "who": cid, "room": case["room"], "vis": "public", **({"m": round(when[cid], 1)} if when[cid] is not None and self.minute() is not None else {}),
                                       "text": f"{self.nm(cid)} finds {self.nm(case['victim'])} in the {w.room_name(case['room'])}: {self.nm(case['victim'])} {self.body_desc(case)}."},
                                witnesses=others, actor=cid)
                 tick["scene_body"] = {"victim": case["victim"], "by": cid, "room": case["room"], "desc": f"{self.nm(case['victim'])} {self.body_desc(case)}."}

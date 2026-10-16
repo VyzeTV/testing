@@ -44,6 +44,7 @@ from .itemuse import ItemUseMixin
 from .conditions import ConditionMixin
 from .chronicle import ChronicleMixin
 from .sim import SimMixin
+from .clock import ClockMixin, Timeline
 from .perception import PerceptionMixin
 from .envsys import EnvironmentMixin
 from .mind import MindMixin
@@ -129,7 +130,7 @@ class Stop(Exception):
     pass
 
 
-class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, SimMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
+class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
     def __init__(self, world, llm, on_tick, gate=None, should_stop=None, step=2, workers=6, seed=None,
                  murders=True, motive="", rule_mode="roulette", rule_text="", confessionals=True, mischief="occasional", chaos="normal",
                  variation=0, gm_pull=None, lean=False, call_cap=0, autodir=False, autodir_get=None, tuning_get=None):
@@ -224,7 +225,9 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         try:
             tick["speeds"] = {c: v for c, v in ((cid, round(self.move_factor(cid), 2)) for cid in self.world.agents) if v < 0.95}
             tick["live"] = self.sim_finish(tick)
+            self.clock_stop()
         except Exception as e:  # positions must never break the game
+            self.clock_stop()
             tick["live_error"] = f"{type(e).__name__}: {e}"[:160]
             sm = self.__dict__.get("_sim")
             if sm is not None:
@@ -252,8 +255,9 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         return self.day * 24 + (hour if hour is not None else self.s.get("_hour", 12))
 
     def log_event(self, tick, evt, witnesses=None, actor=None):
-        if getattr(self, "_slice_m", None) is not None and "m" not in evt:
-            evt["m"] = self._slice_m                                  # free-time slice: when in the block this happened
+        m = self.minute()
+        if m is not None and "m" not in evt:
+            evt["m"] = round(m, 1)                                    # when in the turn this happened
         tick["events"].append(evt)
         if witnesses and actor and evt.get("vis") == "public":
             witnesses = self.event_witnesses(actor, evt.get("room"), evt.get("type"), witnesses)
@@ -733,6 +737,8 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         w, s = self.world, self.s
         ids = list(w.agents.keys())
         tick = self.new_tick(hour)
+        self.clock_start()
+        self.sim_turn(tick)
         tick["segment_msg"] = self.segment_msg(hour, kind)
         s["_hour"] = hour
         if self.degrade_note:
@@ -812,9 +818,17 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         attacks.extend(self.spree_override(tick, decisions))
         self.focus_override(decisions)
         self.plot_tick(tick, hour, decisions)
+        # everybody sets off at their own minute; what they came to do happens when they get there, in the order they arrive
+        arrivals = []
         for cid in self.apply_order(rest):
-            self.apply_decision(tick, cid, decisions[cid], intents, attacks)
-        self.sim_sync(tick, 0, stagger=True)
+            self.apply_decision(tick, cid, decisions[cid], intents, attacks, defer=arrivals)
+        self._arrived = {cid: m for m, cid, _, _ in arrivals}
+        tl = Timeline(self)
+        for m, cid, d, start in arrivals:
+            tl.at(m, self.arrive_and_act, tick, cid, d, intents, attacks, start)
+        tl.run()
+        self.sim_sync(tick, self._m)
+        self.clock_to(15)
         self.stale_notices(decisions)
         if hour >= 20:
             self.auto_sleep(hour)
@@ -835,7 +849,11 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         tick["events"].extend(s.pop("_pending_events", []))
 
         if attacks:
-            self.resolve_attacks(tick, attacks, hour)
+            tl = Timeline(self)
+            for cid, d in attacks:
+                tl.at(self.meet_minute(cid, d.get("target")), self.strike, tick, cid, d, hour)
+            tl.run()
+        self.clock_to(20)
         assaults, sabs, self.assaults, self.sabotages = self.assaults, self.sabotages, [], []
         self.resolve_assaults(tick, assaults, hour)
         self.resolve_sabotages(tick, sabs, hour)
@@ -843,7 +861,9 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         self.resolve_end_lives(tick, hour)
         if kind == "free" and not s.get("over"):
             self.free_time(tick, hour, decisions)
-        self._sim_m = 92.0 if kind == "free" else 56.0           # the rest of the turn happens once people have got where they were going
+            self.clock_to(90)
+        else:
+            self.clock_to(40)
         self.hazard_check(tick, hour)
         self.check_discovery(tick, hour)
         self.investigation_upkeep(tick, hour)
@@ -858,6 +878,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             self.terevi_intervention(tick, hour, self.force_tease)
         self.force_tease = None
         self.enforce_rule(tick, hour)
+        self.clock_to(60)
         self.tick_dread(tick, hour)
         self.baseline_drain(tick, hour)
         self.pressure_drain(tick, hour)
@@ -894,11 +915,13 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             if self.rng.random() < p:
                 groups[room] = occ
         self._talk_meta = {}
+        self.clock_to(92 if kind == "free" else 56)
         if kind == "free":
             groups, modes = self.free_chat_groups(tick, groups, modes, intents)
         if groups:
             self.run_conversations(tick, groups, intents, hour, modes=modes)
         self.sim_talk(tick)
+        self.clock_to(min(118.0, max([s_["m"] + 1.0 for s_ in self._sim_said] or [self._m])))
         self.reaction_pass(tick, hour)
         self.occasion_now = None
         self.island_tick_effects(tick, hour)
@@ -971,16 +994,24 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                 self.log_event(tick, {"type": "system", "who": cid, "room": a["room"], "vis": "gm", "text": f"{name} could not take {item}: {err}."}, actor=cid)
             w.remember(cid, f"{hhmm(tick['hour'])} You reached for the {w.item_name(item)} but could not get it ({err}).")
 
-    def apply_decision(self, tick, cid, d, intents, attacks):
+    def apply_decision(self, tick, cid, d, intents, attacks, defer=None):
+        """Carry out a decision. With `defer` (a list), only the setting off happens now: they leave at their own minute in the first quarter hour and walk; what they came to do
+        is appended to `defer` as (arrival minute, cid, decision, room they left) for the turn to run at that minute."""
         w, s = self.world, self.s
         a = w.agents[cid]
         start = a["room"]
+        turn_clock = defer is not None and self.__dict__.get("_turn_clock")
+        if turn_clock:
+            self.clock_to(0.0)
+            self._m = float(self._stagger(cid, tick))           # each sets off at their own minute
         a["activity"] = d["activity"]
         self.note_acts(cid, d["activity"])
         self.note_decision(cid, d)
         if a.get("out"):
             tick["moves"][cid] = {"from": start, "path": [start], "to": start}
             a["activity"] = "Unconscious"
+            if turn_clock:
+                self._m = 0.0
             return
         if self.restrained(cid) and (d["target_room"] or d["action"] not in ("stay", "rest", "free", "search", "give", "use")):
             d["target_room"], d["action"] = "", "stay"
@@ -1019,7 +1050,9 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                                       "text": f"{name} {'slips out of' if a.get('sneaking') else 'leaves'} {w.room_name(start)} for {w.room_name(a['room'])}."}, actor=cid)
                 for o in before:
                     self.witness(o, {"type": "leave", "who": cid, "room": start, "to": pth[1] if len(pth) > 1 else a["room"], "hour": tick["hour"]})
-                arrivals = [o for o in w.occupants(a["room"]) if o != cid]
+                if turn_clock:
+                    self._m = self.sim_go(tick, cid, self._m)         # the walk: they arrive when they get there
+                arrivals = [o for o in w.occupants(a["room"]) if o != cid and self.present(o, a["room"])]
                 self.log_event(tick, {"type": "arrive", "who": cid, "room": a["room"], "vis": "public",
                                       "text": f"{name} {'slips into' if a.get('sneaking') else 'arrives in'} {w.room_name(a['room'])}."}, actor=cid)
                 for o in arrivals:
@@ -1030,7 +1063,37 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                                       "text": f"{name} is stopped: {mv['blocked']}."}, witnesses=w.occupants(a["room"]), actor=cid)
         else:
             tick["moves"][cid] = {"from": start, "path": [start], "to": start}
-        here = [o for o in w.occupants(a["room"]) if o != cid]
+        if turn_clock:
+            defer.append((self._m, cid, d, start))
+            self._m = 0.0
+            return
+        self.apply_act(tick, cid, d, intents, attacks, start)
+
+    def arrive_and_act(self, tick, cid, d, intents, attacks, start):
+        if cid in self.world.agents and not self.world.agents[cid].get("out"):
+            self.apply_act(tick, cid, d, intents, attacks, start)
+
+    def meet_minute(self, cid, target):
+        """When an attacker and their target are first in the same room: once both have arrived (the attacker strikes on arrival if the target is not coming)."""
+        arr = self.__dict__.get("_arrived") or {}
+        ta = arr.get(cid, self._m)
+        w = self.world
+        if target in w.agents and cid in w.agents and w.agents[target]["room"] == w.agents[cid]["room"]:
+            sm = self.sim()
+            tt = arr.get(target, sm.end_t(target) if target in sm.tracks else ta)
+            return max(ta, tt, self._m)
+        return max(ta, self._m)
+
+    def strike(self, tick, cid, d, hour):
+        self.resolve_attacks(tick, [(cid, d)], hour)
+        self.sim_sync(tick, self._m)
+
+    def apply_act(self, tick, cid, d, intents, attacks, start):
+        """What somebody came to do, done where they are now."""
+        w, s = self.world, self.s
+        a = w.agents[cid]
+        name = self.nm(cid)
+        here = [o for o in w.occupants(a["room"]) if o != cid and self.present(o, a["room"])]
         act, item = d["action"], d["item"]
         if act == "take" and item:
             self.do_take(tick, cid, d, here)

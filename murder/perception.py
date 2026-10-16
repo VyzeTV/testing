@@ -172,15 +172,14 @@ class PerceptionMixin:
         return bool(self.tune("perception"))
 
     def tile_of(self, cid):
-        """Where someone stands: their tile in the current turn when it is in the room the engine has them in (they may still be on their way), otherwise their usual spot there."""
+        """Where someone stands at the engine's current minute (on their way somewhere, if they are walking); outside a turn, their usual spot in their room."""
         a = self.world.agents.get(cid)
         if not a or a["room"] not in ROOMS:
             return None
-        nav = self.perc().nav
         t = self.sim_pos(cid)
-        if t is not None and nav.room_at(*t) == a["room"]:
+        if t is not None:
             return tuple(t)
-        return nav.nominal(a["room"], cid, 3)
+        return self.perc().nav.nominal(a["room"], cid, 3)
 
     def light_of(self, room):
         """lit / dim / dark for a room right now: a blackout leaves the house dark except for people carrying a light (handled by in_dark); cellars and the vault are dim."""

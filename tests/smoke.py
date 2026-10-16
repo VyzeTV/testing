@@ -4543,6 +4543,70 @@ rb2_.env_burn_items(tkb_)
 check("paper lying in a fire burns up, and the feed says so", "paper" not in wb_.state["room_items"]["library"] and any(e["type"] == "wreck" for e in tkb_["events"]))
 check("things that do not burn stay", wb_.state["room_items"]["library"].get("paperweight") == 1)
 
+# ---- the minute clock (rebuild phase 2): things happen at their minute
+from murder.clock import Timeline as _TL  # noqa: E402
+order_ = []
+class _E:
+    _m = 0.0
+    def clock_to(self, m):
+        self._m = max(self._m, m)
+tl_ = _TL(_E())
+tl_.at(30, order_.append, "b")
+tl_.at(5, order_.append, "a")
+tl_.at(30, order_.append, "c")
+tl_.every(15, lambda m: order_.append(f"s{int(m)}"), until=45)
+tl_.run()
+check("the timeline runs what is due in order of minute, cadences first at a shared minute, other ties in the order scheduled", order_ == ["a", "s15", "s30", "b", "c", "s45"], str(order_))
+cw_, cr_, _ = fresh(1700)
+cr_.clock_start()
+ctk_ = cr_.new_tick(12)
+cr_.sim_turn(ctk_)
+ca_, cb_ = sorted(cw_.agents)[:2]
+cw_.agents[ca_]["room"] = "library"
+cw_.agents[cb_]["room"] = "library"
+cr_.sim_sync(ctk_, 0)
+cw_.agents[cb_]["room"] = "kitchen"
+arr_b_ = cr_.sim_go(ctk_, cb_, 10.0)
+cr_._m = 10.5
+check("somebody still on their way to a room is not there yet", not cr_.present(cb_, "kitchen") or arr_b_ <= 10.5)
+cr_._m = arr_b_ + 0.1
+check("and is there once they have walked it", cr_.present(cb_, "kitchen"))
+cw_.agents[ca_]["room"] = "kitchen"
+cr_._arrived = {ca_: 3.0, cb_: arr_b_}
+cr_._m = 3.0
+check("an attacker who gets there first waits for the target to arrive before striking", cr_.meet_minute(ca_, cb_) >= arr_b_ > 3.0, f"{cr_.meet_minute(ca_, cb_)} vs {arr_b_}")
+cw_.agents[cb_]["room"] = "garden"
+check("and strikes on arrival when the target is not coming (the old not-there logic takes over)", cr_.meet_minute(ca_, cb_) == 3.0)
+cr_.clock_stop()
+ev_m_ = [e for t in wk_ticks if t.get("segment") in ("turn", "free") for e in t["events"]]
+check("in day turns every event carries the minute it happened", ev_m_ and all(e.get("m") is not None for e in ev_m_), str([e["text"][:60] for e in ev_m_ if e.get("m") is None][:3]))
+late_ = []
+for t in wk_ticks:
+    arr_ = {e["who"]: e["m"] for e in t["events"] if e["type"] == "arrive" and e.get("m") is not None}
+    for e in t["events"]:
+        if e["type"] in ("take", "search", "use", "drop", "give") and e.get("who") in arr_ and e.get("m") is not None and e["m"] + 0.05 < arr_[e["who"]] and not t.get("free"):
+            late_.append((t["day"], t["hour"], e["text"][:50], e["m"], arr_[e["who"]]))
+check("what somebody came to do happens after they arrive, not when they set off", not late_, str(late_[:3]))
+aw_, ar_, _ = fresh(1710)
+ac_ = sorted(aw_.agents)[0]
+aw_.agents[ac_]["room"] = "games_room"
+aw_.state["room_items"].setdefault("library", {})["paperweight"] = 1
+ar_.roll = lambda *a_, **k_: (True, 1.0)
+atk_ = ar_.new_tick(12)
+ar_.clock_start()
+ar_.sim_turn(atk_)
+dfr_ = []
+ar_.apply_decision(atk_, ac_, ar_.clean_decision({"action": "take", "target_room": "library", "item": "paperweight", "activity": "Fetching it"}), {}, [], defer=dfr_)
+tl2_ = _TL(ar_)
+for m_, c_, d_, st_ in dfr_:
+    tl2_.at(m_, ar_.arrive_and_act, atk_, c_, d_, {}, [], st_)
+tl2_.run()
+ar_.clock_stop()
+mv_ = next((e for e in atk_["events"] if e["type"] == "move" and e["who"] == ac_), None)
+arv_ = next((e for e in atk_["events"] if e["type"] == "arrive" and e["who"] == ac_), None)
+tk2_ = next((e for e in atk_["events"] if e["type"] == "take" and e["who"] == ac_), None)
+check("someone sent upstairs for something sets off, walks, and picks it up when they get there", mv_ and arv_ and tk2_ and 0 < mv_["m"] < arv_["m"] <= tk2_["m"], str([(e["type"], e.get("m")) for e in atk_["events"]]))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))
