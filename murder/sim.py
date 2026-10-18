@@ -150,6 +150,16 @@ class Sim:
         path = nav.route(here, dest, hidden, self.avoid) or nav.route(here, dest, hidden)
         if not path:
             path = nav.route(here, dest, frozenset(l["id"] for l in nav.gm["links"] if l["kind"] == "secret"))
+        if not path:
+            # the tile itself cannot be stood on (a seat on the furniture, a blocked spot): stand beside it, and step off it first if that is where they are
+            alt = nav.stand_near(dest[0], dest[1], dest[2], set(), nav.room_at(*dest))
+            src = here if nav.route(here, alt or dest) else (nav.stand_near(here[0], here[1], here[2], set(), nav.room_at(*here)) or here)
+            if alt:
+                path = nav.route(src, alt, hidden) or nav.route(src, alt)
+                if path:
+                    dest = _key(alt)
+                    if src != here:
+                        path = [here] + path
         if tr[-1][0] < m0:
             tr.append([round(m0, 2), here[0], here[1], here[2]])
         if not path:

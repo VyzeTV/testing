@@ -12,7 +12,12 @@ culprit; anyone who saw it is a witness. MurderPlanMixin is mixed into DayRunner
 """
 from .data_world import ROOMS
 
-PATIENCE = 10            # plot turns in the striking stage before the plotter takes any chance, scheme or not
+PATIENCE = 10
+ROPES = ("rope", "clothes_line", "extension_cord", "fishing_line")
+COMBOS = {  # scheme: (what it needs, how it is dressed up, the story)
+    "hang": (ROPES, "suicide", "strangled while helpless, then hanged to look like suicide"),
+    "bath": (("sleeping_pills",), "accident", "drugged, then drowned in the bath to look like an accident"),
+}            # plot turns in the striking stage before the plotter takes any chance, scheme or not
 
 
 class MurderPlanMixin:
@@ -82,6 +87,12 @@ class MurderPlanMixin:
         if rig and home in ROOMS:
             out.append((1.3, {"kind": "trap", "room": home if "fall" not in rig else w.agents[cid]["room"], "rig": rig[0], "when": "any",
                               "why": f"a rigged {rig[0]} where {self.nm(t)} will walk into it, with an alibi elsewhere"}))
+        for kind, (needs, _, story) in COMBOS.items():                # items combined (a rope and the gallery, pills and the bath)
+            have = any(w.agents[cid]["inv"].get(k, 0) > 0 for k in needs)
+            known = self.item_room(cid, needs)
+            if have or known:
+                out.append((1.45 if have else 1.15, {"kind": kind, "room": home if kind == "hang" else "bathroom", "when": "night" if kind == "hang" else "any",
+                                                     "needs": list(needs), "staged": COMBOS[kind][1], "why": f"{self.nm(t)} {story}"}))
         item, where = self.poison_source(cid)
         if item:
             out.append((1.1 if not where else 0.8, {"kind": "poison", "item": item, "room": where, "when": "any",
@@ -101,7 +112,8 @@ class MurderPlanMixin:
         rn = lambda: self.world.room_name(best["room"]) if best.get("room") else "somewhere quiet"
         self.plan_note(p, {"asleep": lambda: "will come for them in the night", "alone": lambda: f"will catch them alone in the {rn()}",
                            "height": lambda: f"will push them from the {rn()}", "poison": lambda: "will poison them", "drown": lambda: f"will drown them in the {rn()}",
-                           "lure": lambda: "will lure them to a quiet room at night", "trap": lambda: f"will rig a {best.get('rig')} trap"}[best["kind"]]())
+                           "lure": lambda: "will lure them to a quiet room at night", "trap": lambda: f"will rig a {best.get('rig')} trap",
+                           "hang": lambda: "will hang them and make it look like suicide", "bath": lambda: "will drug them and drown them in the bath"}[best["kind"]]())
         self.log_event(tick, {"type": "plot", "who": cid, "room": self.world.agents[cid]["room"], "vis": "gm",
                               "text": f"{self.nm(cid)} plans the murder of {self.nm(t)}: {best['why']}."}, actor=cid)
         return best
@@ -122,6 +134,10 @@ class MurderPlanMixin:
             return night and bool(mt) and a["room"] == mt["room"]
         if sc["kind"] == "trap":
             return False                                            # the trap does the work; they keep their distance
+        if sc["kind"] in COMBOS:
+            ta = self.world.agents.get(sc.get("target") or p.get("target")) or {}
+            helpless = bool(ta.get("asleep") or ta.get("out") or self.restrained(p.get("target")))
+            return helpless and (sc["kind"] != "bath" or a["room"] == "bathroom") and (sc["kind"] != "hang" or self.has_any(cid, ROPES))
         return True
 
     def scheme_method(self, cid, p):
@@ -135,7 +151,31 @@ class MurderPlanMixin:
             return "push"
         if sc.get("kind") == "drown" and self.world.agents[cid]["room"] == sc.get("room"):
             return "drown"
+        if sc.get("kind") == "bath" and self.world.agents[cid]["room"] == "bathroom":
+            return "drown"
+        if sc.get("kind") == "hang":
+            return "hands"
         return None
+
+    def scheme_staging(self, p):
+        """How the scheme dresses the killing up ("suicide", "accident"), or None."""
+        return (p.get("scheme") or {}).get("staged")
+
+    def has_any(self, cid, items):
+        inv = self.world.agents[cid]["inv"]
+        return next((k for k in items if inv.get(k, 0) > 0), None)
+
+    def item_room(self, cid, items):
+        """The nearest room where one of `items` lies about."""
+        w, s = self.world, self.s
+        best, bl = None, 10 ** 9
+        for room, its in sorted(s["room_items"].items()):
+            if any(its.get(k, 0) > 0 for k in items):
+                pth = w.path(cid, w.agents[cid]["room"], room)
+                n = sum(c for _, _, c in pth) if pth is not None else None
+                if n is not None and n < bl:
+                    best, bl = room, n
+        return best
 
     def scheme_needs(self, cid, p):
         """What the plotter still has to fetch for the scheme: a gag for anything done to someone awake, the means for a trap."""
@@ -143,6 +183,10 @@ class MurderPlanMixin:
         need = []
         if sc.get("kind") in ("alone", "height", "drown", "lure") and not self.gag_item(cid):
             need.append("gag")
+        if sc.get("needs") and not self.has_any(cid, sc["needs"]):
+            need.append(sc["needs"][0])
+        if sc.get("kind") in ("alone", "asleep", "lure", "trap") and self.facet(cid, "orderliness") >= 55 and not self.gloves_of(cid):
+            need.append("gloves")                                   # a careful killer leaves no prints (gear.py)
         return need
 
     def gag_room(self, cid):

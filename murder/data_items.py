@@ -162,6 +162,10 @@ NEW_ITEMS = {
     "antibiotics": _i("Antibiotics", "medical", "special", use={"hp": 1}),
     "smelling_salts": _i("Smelling salts", "medical", "special"),
     "paper_mask": _i("Paper mask", "clothing", "costume", "disguise", "mask", "special", "crafted"),
+    # ---- gear (gear.py): a holster hides one weapon and it draws at once, a bag hides a few, rubber gloves leave no prints
+    "holster": _i("Leather holster", "gear"),
+    "duffel_bag": _i("Canvas duffel bag", "gear"),
+    "rubber_gloves": _i("Rubber gloves", "gear"),
 }
 
 CLOTHES_BY_ROOM = {
@@ -177,11 +181,11 @@ ROOM_ADDITIONS = {
     "master_suite": {"bedside_lamp": 2, "mirror": 1, "pillow": 4, "perfume": 2, "paperweight": 1, "walking_cane": 1},
     "foyer": {"walking_cane": 1, "visitor_book": 1, "umbrella": 1},
     "dining_hall": {"carving_fork": 1, "serving_tray": 2, "decanter": 1},
-    "kitchen": {"frying_pan": 2, "rolling_pin": 1, "skewers": 1, "oven_gloves": 2, "tin_opener": 1, "fire_extinguisher": 1, "corkscrew": 1},
+    "kitchen": {"frying_pan": 2, "rolling_pin": 1, "skewers": 1, "oven_gloves": 2, "tin_opener": 1, "fire_extinguisher": 1, "corkscrew": 1, "rubber_gloves": 2},
     "pantry": {"sack_of_flour": 2, "mouse_traps": 3, "tinned_food": 0, "herb_bundle": 2},
     "lounge": {"decanter": 1, "crystal_ashtray": 1, "pillow": 4, "perfume": 1},
     "games_room": {"pool_cue": 2, "billiard_balls": 3},
-    "laundry": {"flat_iron": 2, "clothes_line": 2, "detergent": 2, "towels": 4, "bed_sheets": 2, "sewing_needles": 1, "key_yellow_room": 1, "key_red_room": 1, "key_violet_room": 1, "key_orange_room": 1},
+    "laundry": {"flat_iron": 2, "clothes_line": 2, "detergent": 2, "towels": 4, "bed_sheets": 2, "sewing_needles": 1, "key_yellow_room": 1, "key_red_room": 1, "key_violet_room": 1, "key_orange_room": 1, "rubber_gloves": 2},
     "blue_room": {"bedside_lamp": 1, "mirror": 1, "pillow": 2, "perfume": 1},
     "green_room": {"bedside_lamp": 1, "hot_water_bottle": 1, "mirror": 1, "pillow": 2},
     "yellow_room": {"mirror": 1, "pillow": 2, "paperweight": 1},
@@ -208,7 +212,7 @@ ROOM_ADDITIONS = {
     "greenhouse": {"fertiliser": 2, "herb_bundle": 3, "terracotta_pots": 6},
     "pool": {"life_ring": 2, "snorkel": 2, "towels": 4},
     "beach": {"rusty_anchor": 1, "fishing_net": 1, "buoy": 2},
-    "boathouse": {"oars": 2, "boat_hook": 1, "fishing_line": 2, "buoy": 2},
+    "boathouse": {"oars": 2, "boat_hook": 1, "fishing_line": 2, "buoy": 2, "duffel_bag": 1, "holster": 1},
     "generator_shed": {"screwdriver": 2, "pliers": 1, "jump_leads": 1, "extension_cord": 1, "duct_tape": 2, "hacksaw": 1, "work_gloves": 2},
     "lighthouse": {"lamp_oil": 3, "logbook": 1},
 }

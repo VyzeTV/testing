@@ -152,7 +152,7 @@ class CaseMixin:
             tname = self.nm(t)
             if self.interrupted(tick, cid, t, here, hour):
                 continue
-            staged = None
+            staged = d.get("staged") if d.get("staged") in ("accident", "suicide") else None      # a killing dressed up (planner combinations)
             framed = d.get("frame") if d.get("frame") in w.agents else None
             if method.startswith("poison:"):
                 item = method.split(":", 1)[1]
@@ -185,6 +185,14 @@ class CaseMixin:
                           "blunt": f"{name} brings the {wname} down on {tname} until the sound changes and {tname} goes limp",
                           "hands": f"{name} wraps their hands around {tname}'s throat and does not let go until the struggling stops",
                           "water": f"{name} holds {tname} under the water until the thrashing stops"}[kind]
+                rope = self.has_any(cid, ("rope", "clothes_line", "extension_cord", "fishing_line")) if staged == "suicide" else None
+                if rope:
+                    over = self.drop_edges(room)
+                    brutal = (f"{name} loops the {w.item_name(rope)} around {tname}'s neck and hangs them " + ("from the railing" if over else "from a beam")
+                              + ", arranging it to look as if they did it themselves")
+                    w.drop(cid, rope, 1)                                   # the rope stays: it is part of the scene
+                elif staged == "accident" and kind == "water":
+                    brutal = f"{name} slips {tname}, drugged and limp, under the bathwater and leaves the tap running"
                 self.log_event(tick, {"type": "attack", "who": cid, "room": room, "vis": "public",
                                       "text": f"{brutal}, in the {w.room_name(room)}."}, witnesses=seen, actor=cid)
                 self.log_event(tick, {"type": "fight", "who": cid, "room": room, "vis": "gm", "text": self.fight_text(cid, t, res, wname, kind)})
@@ -217,7 +225,13 @@ class CaseMixin:
                 if res["outcome"] == "escaped":
                     exits = sorted(e["room"] for e in w.adjacent(t, room) if e["ok"])
                     if exits:
-                        w.agents[t]["room"] = self.rng.choice(exits)
+                        mv = w.move(t, self.rng.choice(exits), 40)           # they run for it, along a real route
+                        if w.agents[t]["room"] != room:
+                            pm = tick["moves"].setdefault(t, {"from": room, "path": [room], "to": room})
+                            pm["path"] = list(pm.get("path") or [room]) + mv["path"][1:]
+                            pm["to"] = w.agents[t]["room"]
+                            if self.minute() is not None:
+                                self.sim_go(tick, t, self.minute())
                 if res["outcome"] == "rescued":
                     self.s.setdefault("_night_noise", {})[room] = 3            # a scream wakes the house
                 wounded = ", ".join(sorted({wd["part"] for wd in res["wounds"]}))
@@ -370,7 +384,8 @@ class CaseMixin:
             pool = s["room_items"].setdefault(room, {})
             pool[weapon] = pool.get(weapon, 0) + 1
             clues.append({"room": room, "scene": True, "found_by": [], "kind": "weapon",
-                          "text": f"A {w.item_name(weapon)}, freshly stained, lies near the body." + self.provenance_text(weapon, culprit)})
+                          "text": f"A {w.item_name(weapon)}, freshly stained, lies near the body." + self.provenance_text(weapon, culprit) + self.prints_text(culprit, weapon)})
+            case["prints"] = None if not culprit or self.gloves_of(culprit) else culprit
             if culprit and w.agents[culprit]["inv"].get(weapon, 0) > 0:
                 w.drop(culprit, weapon, 1)
         if culprit:
@@ -461,7 +476,8 @@ class CaseMixin:
         self.build_clues(case, tick)
         if culprit and culprit in w.agents:
             case["clues"].extend(self.clothes_clue(case))
-            self.stain_clothes(culprit)
+            if not self.coat_takes_blood(culprit):                  # a coat takes the blood instead (gear.py)
+                self.stain_clothes(culprit)
         if culprit and kind == "murder":
             case["clues"].extend(self.herring_clues(case))
         if culprit:

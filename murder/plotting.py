@@ -337,6 +337,17 @@ class PlotMixin:
                 if go:
                     d.update(target_room=go, action="stay", activity="Looks for something useful", step="looks for a gag")
                     return
+            for need in [n for n in self.scheme_needs(cid, p) if n != "gag"]:   # the things a plan needs (a rope, sleeping pills, gloves)
+                from .gear import GLOVES
+                items = list(GLOVES) if need == "gloves" else (sc.get("needs") or [need])
+                here_i = [k for k in items if s["room_items"].get(a["room"], {}).get(k, 0) > 0]
+                if here_i:
+                    d.update(action="take", item=here_i[0], qty=1, target_room="", activity=f"Quietly takes the {w.item_name(here_i[0])}", step=f"takes the {w.item_name(here_i[0])}")
+                    return
+                go = self.step_toward(cid, self.item_room(cid, items) or a["room"])
+                if go:
+                    d.update(target_room=go, action="stay", activity="Looks for something", step=f"looks for {w.item_name(items[0])}")
+                    return
             if sc.get("kind") == "trap" and not p.get("rigged"):
                 if a["room"] == sc["room"] and sc.get("rig") in self.rig_options(cid):
                     d.update(action="rig", rig={"kind": sc["rig"], "target": t}, target_room="", activity="Busy with something, out of sight", step="rigs the trap")
@@ -378,6 +389,10 @@ class PlotMixin:
             go = self.step_toward(cid, ta["room"])
             if go:
                 d.update(target_room=go, action="stay", activity=f"Goes after {self.nm(t)}", step="closes in")
+            return
+        if (p.get("scheme") or {}).get("kind") in ("hang", "bath") and a["room"] == ta["room"] and self.scheme_allows(cid, p, urgent) and not s.get("case"):
+            d.update(action="attack", target=t, method=self.scheme_method(cid, p), staged=self.scheme_staging(p), target_room="", activity="Does what they came to do", step="carries out the plan")
+            self.plan_note(p, f"did it, dressed up as {self.scheme_staging(p)}")
             return
         if ta.get("out") and a["room"] == ta["room"]:
             return self.plot_helpless(tick, cid, p, d, hour)

@@ -5363,6 +5363,60 @@ pl2_ = {"target": tv_, "stage": "preparing", "stage_ticks": 0, "plan": [], "sche
 w.agents[pk_]["inv"] = {}
 check("a plotter who means to catch someone awake goes looking for a gag first", "gag" in r.scheme_needs(pk_, pl2_))
 
+# ---- gear (gloves, a coat, a bag, a holster) and plans that combine items
+w, r, _ = fresh(202)
+ids = sorted(w.agents)
+k_, v_ = ids[0], ids[1]
+w.agents[k_]["inv"] = {"kitchen_knife": 1, "holster": 1}
+check("a holster hides a weapon and it comes out at once", "kitchen_knife" not in r.held_items(k_) and not r.must_draw(k_, "kitchen_knife"))
+w.agents[k_]["inv"] = {"kitchen_knife": 1, "duffel_bag": 1}
+check("a bag hides it too, but drawing from it takes a moment", "kitchen_knife" not in r.held_items(k_) and r.must_draw(k_, "kitchen_knife"))
+w.agents[k_]["inv"] = {"kitchen_knife": 1}
+check("without either, the knife is seen in the hand", "kitchen_knife" in r.held_items(k_))
+def kill_(gear):
+    w_, r_, _ = fresh(203)
+    i_ = sorted(w_.agents)
+    r_.ensure_wardrobe()
+    w_.agents[i_[0]]["inv"].update({"kitchen_knife": 1, **gear})
+    w_.agents[i_[0]]["room"] = w_.agents[i_[1]]["room"] = "lounge"
+    for c in i_[2:]:
+        w_.agents[c]["room"] = "garden"
+    w_.agents[i_[1]]["asleep"] = True
+    r_.resolve_attacks(r_.new_tick(14), [(i_[0], {"target": i_[1], "method": "kitchen_knife", "frame": None})], 14)
+    return w_, r_, i_
+w2_, r2_, i2_ = kill_({"work_gloves": 1, "trench_coat": 1})
+wc_ = next((c for c in w2_.state["case"]["clues"] if c["kind"] == "weapon"), None)
+check("gloves leave no fingerprints on the weapon", w2_.state["case"].get("prints") is None and (wc_ is None or "wore gloves" in wc_["text"]))
+check("a coat takes the blood instead of the clothes underneath", "stained_trench_coat" in w2_.agents[i2_[0]]["inv"] and "stained" not in r2_.tags(r2_.worn(i2_[0]) or "x"))
+w3_, r3_, i3_ = kill_({})
+wc3_ = next((c for c in w3_.state["case"]["clues"] if c["kind"] == "weapon"), None)
+check("without gloves the weapon carries prints", w3_.state["case"].get("prints") == i3_[0] and (wc3_ is None or "ingerprints" in wc3_["text"]))
+
+w, r, _ = fresh(204)
+ids = sorted(w.agents)
+pk_, tv_ = ids[0], ids[1]
+w.agents[pk_]["inv"] = {"rope": 1, "sleeping_pills": 1}
+kinds_ = {sc["kind"]: sc for _, sc in r.plan_schemes(pk_, tv_)}
+check("the planner combines items: a rope (hang it as a suicide), sleeping pills and the bath (an accident)", {"hang", "bath"} <= set(kinds_)
+      and kinds_["hang"]["staged"] == "suicide" and kinds_["bath"]["staged"] == "accident", str(sorted(kinds_)))
+w.agents[pk_]["inv"] = {}
+pl_ = {"target": tv_, "stage": "preparing", "stage_ticks": 0, "plan": [], "scheme": kinds_["hang"], "weapon": None}
+check("a plotter without the rope goes to fetch it", "rope" in r.scheme_needs(pk_, pl_))
+r.mind(pk_)["facets"]["orderliness"] = 80
+check("a careful plotter fetches gloves too", "gloves" in r.scheme_needs(pk_, {"scheme": {"kind": "asleep"}}))
+w.agents[pk_]["inv"] = {"rope": 1}
+home_ = w.cast[tv_]["home"]
+w.agents[pk_]["room"] = w.agents[tv_]["room"] = home_
+for c in ids[2:]:
+    w.agents[c]["room"] = "garden"
+w.agents[tv_]["asleep"] = True
+pl_.update(stage="striking")
+check("they only do it once the target is helpless", r.scheme_allows(pk_, pl_))
+r.resolve_attacks(r.new_tick(23), [(pk_, {"target": tv_, "method": r.scheme_method(pk_, pl_), "frame": None, "staged": r.scheme_staging(pl_)})], 23)
+cs_ = w.state.get("case") or {}
+check("a hanging is staged as a suicide (with the flaws a careful look finds) and the rope stays at the scene", cs_.get("killer") == pk_ and cs_.get("staged") == "suicide"
+      and any(c["kind"] == "staging" for c in cs_.get("clues", [])) and w.state["room_items"].get(home_, {}).get("rope", 0) >= 1, str({k: cs_.get(k) for k in ("staged", "kind")}))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

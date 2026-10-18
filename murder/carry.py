@@ -43,7 +43,8 @@ class CarryMixin:
     def held_items(self, cid):
         """What anyone looking can see in `cid`'s hands: large items, and weapons they are not hiding."""
         a = self.world.agents.get(cid) or {}
-        hidden = a.get("concealed") or {}
+        hidden = dict(a.get("concealed") or {})
+        hidden.update(self.stowed(cid))                             # in a holster or a bag (gear.py)
         out = []
         for k, q in sorted(a.get("inv", {}).items()):
             if q <= 0:
@@ -66,7 +67,7 @@ class CarryMixin:
 
     def must_draw(self, cid, weapon):
         """A weapon that is not in the hand (pocketed or hidden) has to be drawn first."""
-        return bool(weapon) and weapon not in self.held_items(cid)
+        return bool(weapon) and weapon not in self.held_items(cid) and self.stowed(cid).get(weapon) != "holster"
 
     def drop_held(self, tick, cid, why):
         """Knocked out or falling: whatever was in their hands falls to the floor."""

@@ -1047,7 +1047,7 @@ class FreeTimeMixin:
         self.plan_note(p, f"struck at {self.nm(t)} ({p['window']})")
         self._slice_m = m
         try:
-            self.resolve_attacks(tick, [(cid, {"target": t, "method": self.scheme_method(cid, p) or self.plot_method(p), "frame": None})], hour)
+            self.resolve_attacks(tick, [(cid, {"target": t, "method": self.scheme_method(cid, p) or self.plot_method(p), "frame": None, "staged": self.scheme_staging(p)})], hour)
         finally:
             self._slice_m = None
         busy[cid] = m + SLICE
