@@ -351,6 +351,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             f"{self.bible()}\n\n"
             f"You are {c['name']} ({c['role']}, {c['age']}, {c['gender']}, from {c['origin']}). You ARE this person; never mention being an AI.\n"
             f"PERSONA: {c['persona']}\nSECRET (never reveal casually): {c['secret']}\n"
+            f"YOUR LOOKS (what others see; bring it up only when it matters): {self.looks_line(cid)}\n"
             f"LIKES: {c['likes']}. DISLIKES: {c['dislikes']}.\nHOW YOU SPEAK: {c['speech']}\nWHEN STRESSED OR PROVOKED: {c.get('candor', '')}\nYOUR GOALS: {c['goals']}\n"
             + (quirk + "\n" if quirk else "") + "\n"
             f"ROOM IDS: {rooms}\nPEOPLE IDS: {people}, neovi=NeoVi (housemaid)\n\n"
@@ -621,7 +622,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                     extra = (f" YOU ARE THE ONE RESPONSIBLE for {self.nm(case['victim'])}'s death ({case['method']}"
                              f"{', unintended' if case['kind'] == 'manslaughter' else ''}); defend yourself, lie or break down, as you would; never confess lightly.")
                 cards.append(
-                    f"- {pid} = {c['name']}, {c['role']}. {c['persona']} Speech: {c['speech']} "
+                    f"- {pid} = {c['name']}, {c['role']}. {c['persona']} Looks: {self.looks_line(pid)}. Speech: {c['speech']} "
                     f"When stressed or provoked: {c.get('candor', '')} Secret to protect: {c['secret']} Mood: health {a['hp']}, sanity {a['sanity']} ({self.mood_text(a)}). "
                     f"Doing: {a['activity']}. Carrying: {', '.join(w.item_name(k) + (' (hidden on them: nobody sees it)' if k in a.get('concealed', {}) else '') for k in list(a['inv'])[:10]) or 'nothing'}. "
                     f"Wants: {intents.get(pid, 'just be around people')}. "

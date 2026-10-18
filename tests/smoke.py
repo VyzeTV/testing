@@ -5607,6 +5607,13 @@ w, r, ids, case_, tr, _ = trial_case_(217, hair_)
 cmp_ = [l["text"] for g in tr["talk"] if g.get("segment") for l in g["lines"] if l.get("move") == "compare"]
 check("at the trial a hair is held up against everyone's hair", any("Whose hair is that?" in t and r.nm(ids[0]) in t for t in cmp_), str(cmp_))
 
+w, r, _ = fresh(218)
+r.ensure_wardrobe()
+w.agents["chloe"]["inv"].pop("acc_chloe", None)
+r.scratch(None, "chloe", "thorns in the garden")
+check("the prompts carry how someone looks right now: their own looks, what they wear, a missing accessory, visible marks",
+      "lavender" in r.system_prompt("seul") and "without their usual red-framed glasses" in r.looks_line("chloe") and "scratches" in r.looks_line("chloe", short=True))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

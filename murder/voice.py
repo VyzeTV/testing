@@ -131,7 +131,7 @@ def voice_prompt(eng, conv, beats):
             continue
         c, a = w.cast[p], w.agents[p]
         rel = "; ".join(f"{eng.nm(o)} {a['aff'].get(o, 0):+d}" for o in conv["members"] if o != p and o in w.agents)
-        cards.append(f"- {p} = {c['name']}, {c['role']}. Speech: {c['speech']} Mood: {eng.mood_text(a)}. Feelings: {rel or 'n/a'}.")
+        cards.append(f"- {p} = {c['name']}, {c['role']}. Looks: {eng.looks_line(p, short=True)}. Speech: {c['speech']} Mood: {eng.mood_text(a)}. Feelings: {rel or 'n/a'}.")
     sysm = (eng.bible() + " You voice a scene the game has already decided: you write the words, never the outcomes. Plain, natural, short spoken lines, each in the speaker's own voice. "
             "Reply with a single JSON object and nothing else.")
     rule = (eng.s.get("rule") or {}).get("text")

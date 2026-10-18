@@ -251,7 +251,7 @@ class ClaimTrialMixin:
         w = self.world
         if not beats:
             return []
-        cards = "\n".join(f"- {p} = {self.nm(p)}. Speech: {w.cast[p]['speech'][:90]}" for p in sorted({b['speaker'] for b in beats if b['speaker'] in w.cast}))
+        cards = "\n".join(f"- {p} = {self.nm(p)}. Looks: {self.looks_line(p, short=True)}. Speech: {w.cast[p]['speech'][:90]}" for p in sorted({b['speaker'] for b in beats if b['speaker'] in w.cast}))
         listing = "\n".join(f"{i}. {b['speaker']}: {b['text']}" for i, b in enumerate(beats))
         sysm = f"{self.bible()}\nYou voice lines at a class trial. The engine has decided what is said; you only put it in each speaker's own words. Reply with JSON only."
         user = (f"{TITLES.get(seg['kind'], 'TRIAL')}. Rewrite each numbered line in the speaker's voice: same facts, same accusation or answer, max 25 words, no new facts, "

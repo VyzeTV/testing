@@ -122,9 +122,12 @@ class FallMixin:
         if sm is not None and sm.tick_id is not None and cid in sm.tracks and m is not None:
             sm._cut(cid, m)
             t1 = round(min(sm.dur - 0.05, m + 0.05 + 0.05 * levels), 2)
+            stood = list(sm.tracks[cid][-1][1:]) if sm.tracks[cid] else list(frm)    # over the railing from where they stood
             sm.tracks[cid].append([t1, to[0], to[1], to[2]])
             sm.cur[cid] = tuple(to)
             sm.falls.append([round(m, 2), list(frm), list(to)])
+            if stood != list(frm):
+                sm.falls.append([round(m, 2), stood, list(to)])
             sm.hold[cid] = max(sm.hold.get(cid, 0.0), t1 + 2.0)
         a["room"] = land_room
         name, here = self.nm(cid), w.room_name(land_room)

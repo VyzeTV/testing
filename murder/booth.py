@@ -129,7 +129,7 @@ class BoothMixin:
             if e["topic"] == "plot":
                 pl = self.s.get("plots", {}).get(e["id"]) or {}
                 topic = f"their secret plan to kill {self.nm(pl.get('target'))} (stage: {pl.get('stage')}); hint at it, gloat or shake, never spell out the method" if pl else "a plan"
-            cards.append(f"- {e['id']} = {c['name']}. Speech: {c['speech']} Mood: {self.mood_text(a)}. TALKS ABOUT: {topic}.")
+            cards.append(f"- {e['id']} = {c['name']}. Looks: {self.looks_line(e['id'], short=True)}. Speech: {c['speech']} Mood: {self.mood_text(a)}. TALKS ABOUT: {topic}.")
         sysm = (f"{self.bible()}\nCONFESSIONAL BOOTH of a reality show: one person alone in a curtained box, talking STRAIGHT TO THE AUDIENCE watching at home. "
                 "Reply with a single JSON object and nothing else.")
         user = (f"Day {self.day}. Write a booth confessional for each person below. Each is 1 to 3 SHORT lines, each line at most 14 words, spoken to the viewers "

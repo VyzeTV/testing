@@ -22,7 +22,7 @@ LOOKS = {
               "accessory": ("small silver cross earring", None), "shape": ["locs"]},
     "shintaro": {"hair": ("long", "dark green"), "eyes": "red eyes", "hand": "medium", "handed": "right", "height": "short",
                  "accessory": None, "shape": ["ponytail", "long hair"]},
-    "chloe": {"hair": ("short", "ash-brown"), "eyes": "pink eyes behind red-framed glasses", "hand": "small", "handed": "right", "height": "medium",
+    "chloe": {"hair": ("short", "ash-brown"), "eyes": "pink eyes", "hand": "small", "handed": "right", "height": "medium",
               "accessory": ("pair of red-framed glasses", None), "shape": ["glasses"]},
     "cail": {"hair": ("long", "orange"), "eyes": "teal eyes", "hand": "medium", "handed": "right", "height": "tall",
              "accessory": ("green hair ribbon", "green satin"), "shape": ["ponytail", "long hair"]},
@@ -74,6 +74,27 @@ def describe(cid, cast=None):
 class LooksMixin:
     def looks(self, cid):
         return looks_of(cid, self.world.cast.get(cid))
+
+    def looks_line(self, cid, short=False):
+        """How someone looks right now, for the prompts: the portrait's looks with what they actually wear, a missing accessory and visible marks."""
+        w = self.world
+        lk = self.looks(cid)
+        hl, hc = lk["hair"]
+        hair = f"{hc} locs" if hl == "locs" else f"{hl} {hc} hair" + (" in a ponytail" if "ponytail" in lk["shape"] else "")
+        worn = self.worn(cid) if cid in w.agents else None
+        own = worn == f"clothes_{cid}"
+        outfit = OUTFITS.get(cid, ("everyday clothes",))[0] if own else self.outfit_label(cid) if cid in w.agents else ""
+        if worn and not own and self.owner_of(worn) not in (None, cid) and self.nm(self.owner_of(worn)) not in outfit:
+            outfit += f" (not their own: {self.nm(self.owner_of(worn))}'s)"
+        acc = (lk.get("accessory") or (None,))[0]
+        acc_txt = "" if not acc else (f", {acc}" if self.wears_accessory(cid) else f", without their usual {acc.replace('pair of ', '')}")
+        marks = [x for x, on in (("fresh scratches on the hands", self.has_cond(cid, "scratched")), ("bleeding", self.has_cond(cid, "bleeding")),
+                                 ("clothes visibly stained", "stained" in self.tags(worn or "x"))) if on]
+        tail = f"; {', '.join(marks)}" if marks else ""
+        if short:
+            return f"{hair}, {outfit}{acc_txt}{tail}"
+        tall = {"short": "short", "medium": "of medium height", "tall": "tall"}[lk["height"]]
+        return f"{tall}, {hair}, {lk['eyes']}; wearing {outfit}{acc_txt}{tail}"
 
     def accessory_item(self, cid):
         return f"acc_{cid}" if self.looks(cid).get("accessory") else None
