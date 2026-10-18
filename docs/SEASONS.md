@@ -75,7 +75,7 @@ These notes are written by hand and are not regenerated.
 - With the weekly refill, seasons run about twice as long as without it (median 30 days in the default configuration, against 15.5 before), and 14 to 17 people die in a season instead of about 6.
 - Every season in this run ended through killing: TereVi's endgame when three or fewer were left, nobody left, or the Reckoning. In an earlier run of the same script, 2 of 20 default seasons ended with TereVi shut down.
 - The ways out need every step of a route at 100%. The furthest route ended at about 45 to 63% on average. In default season 9 a team tried to shut TereVi down on day 90 and failed; nobody was left by day 98. Escapes are reachable, but rare and late.
-- Newcomers win about as often as the original cast for their numbers (20 of the 49 default survivors were newcomers).
+- Most survivors are newcomers: 20 of 28 in the default configuration and 19 of 30 in the violent one. Arriving later means fewer days at risk.
 - Killers who get away after a wrong verdict count as "escaped the island": they leave alive.
 - After the 8 newcomer sketches run out, later newcomers reuse those personalities under new names.
 
