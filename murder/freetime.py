@@ -1072,6 +1072,7 @@ class FreeTimeMixin:
         prob = 0.55 + 0.06 * wait + 0.12 * (self.facet(cid, "impulsiveness") - 50) / 50 + 0.1 * (self.facet(cid, "cruelty") - 50) / 50 - 0.1 * (a["sanity"] > 85)
         prob = min(0.97, max(0.2, prob)) * (1.0 if self.perception_on() else 0.9)
         prob = self.goal_odds("strike", prob, cid, t)                    # the GM's goals shift it (goals.py)
+        prob = self.gm_roll("strike", prob, cid, t, f"{self.nm(cid)} striking at {self.nm(t)} now")      # a GM pause hook (pauses.py)
         if self.rng.random() >= prob:
             p["wait"] = wait + 0.5
             return False

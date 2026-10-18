@@ -320,8 +320,12 @@ class ClaimTrialMixin:
             key = (f["by"], f["about"], f["text"])
             if key in raised or f["about"] not in ids or f["by"] not in ids:
                 return False
-            if f["w"] > 0 and self.rng.random() > self.willingness(f["by"], f["about"]):
-                return False
+            if f["w"] > 0:
+                p_ = self.willingness(f["by"], f["about"])
+                if f["w"] >= 2 and p_ < 0.9:
+                    p_ = self.gm_roll("witness", p_, f["by"], f["about"], f"{self.nm(f['by'])} speaking up against {self.nm(f['about'])}")
+                if self.rng.random() > p_:
+                    return False
             raised.add(key)
             tr["raised"].append(f)
             if not quiet and f["text"] not in spoken:              # one clue naming several people is shown once

@@ -467,7 +467,8 @@ class Game:
         runner = DayRunner(world, llm, on_tick, gate=gate, should_stop=lambda: sess["stop"], step=sess["step"],
                            murders=sess["murders"], motive=sess["motive"], rule_mode=sess["rule"], rule_text=sess["rule_text"],
                            mischief=sess["mischief"], confessionals=sess["confessionals"],
-                           chaos=sess["chaos"], variation=sess["variation"], gm_pull=lambda: self._pull_gm(sess), lean=sess["lean"], call_cap=0, autodir=sess["autodir"], autodir_get=lambda: sess["autodir"], tuning_get=lambda: self.tuning)
+                           chaos=sess["chaos"], variation=sess["variation"], gm_pull=lambda: self._pull_gm(sess), lean=sess["lean"], call_cap=0, autodir=sess["autodir"], autodir_get=lambda: sess["autodir"], tuning_get=lambda: self.tuning,
+                           ask_gm=lambda q: self._ask_gm(sess, q))
         try:
             n = runner.run(resume_after=resume_after, start_idx=start_idx)
             fh.close()
@@ -509,6 +510,44 @@ class Game:
             with self.cv:
                 sess["error"] = f"Engine error: {type(e).__name__}: {e}"
                 self.cv.notify_all()
+
+    # ---------- GM pause hooks (pauses.py) ----------
+    def set_roll_prefs(self, kinds, timeout=None):
+        from .pauses import ROLL_KINDS
+        self.roll_prefs = {"kinds": [k for k in (kinds or []) if k in ROLL_KINDS],
+                           "timeout": max(5, min(300, int(timeout or getattr(self, "roll_prefs", {}).get("timeout", 45))))}
+        return self.roll_prefs
+
+    def _ask_gm(self, sess, q):
+        """Called on the engine's thread at a deciding roll: if the GM wants this kind of roll paused, publish the question and wait for an
+        answer (or the timeout, a stop or a fast-forward). Returns "encourage", "discourage" or None (let the dice decide)."""
+        prefs = getattr(self, "roll_prefs", None) or {}
+        if q.get("kind") not in prefs.get("kinds", []) or sess.get("mode") != "live":
+            return None
+        deadline = time.time() + prefs.get("timeout", 45)
+        with self.cv:
+            if sess["ff"] or sess["stop"]:
+                return None
+            sess["roll_seq"] = sess.get("roll_seq", 0) + 1
+            rid = sess["roll_seq"]
+            sess["roll"] = {**q, "id": rid, "timeout": prefs.get("timeout", 45)}
+            sess["roll_answer"] = None
+            self.cv.notify_all()
+            while sess.get("roll_answer") is None and not (sess["stop"] or sess["ff"]) and time.time() < deadline:
+                self.cv.wait(timeout=0.5)
+            ans = sess.get("roll_answer")
+            sess["roll"] = None
+            sess["roll_answer"] = None
+        return ans if ans in ("encourage", "discourage") else None
+
+    def answer_roll(self, rid, answer):
+        with self.cv:
+            s = self.session
+            if not s or not s.get("roll") or s["roll"]["id"] != int(rid):
+                return False
+            s["roll_answer"] = answer if answer in ("encourage", "discourage") else "dice"
+            self.cv.notify_all()
+            return True
 
     def set_autodir(self, on):
         self.pref_autodir = bool(on)
@@ -577,7 +616,7 @@ class Game:
                 s["pos"] = pos
                 self.cv.notify_all()
             return {"ticks": s["ticks"][since:], "done": s["done"], "error": s["error"], "aborted": s["aborted"],
-                    "ff": s["ff"], "known": len(s["ticks"]), "usage": s.get("usage"), "mode": s["mode"], "day": s["day"]}
+                    "ff": s["ff"], "known": len(s["ticks"]), "usage": s.get("usage"), "mode": s["mode"], "day": s["day"], "roll": s.get("roll")}
 
     def fast_forward(self):
         with self.cv:

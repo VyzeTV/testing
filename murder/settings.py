@@ -20,6 +20,7 @@ SETTINGS = [
     ("escapee_help", "Escaped killers helping", "Pacing", 0, 3, 0.1, 1.0, "How often a killer the show let go tries to help the cast from outside (low by default: they risk prison and are rarely believed). 0 = never."),
     ("season_days", "Season length", "Pacing", 7, 56, 1, 28, "The season's run in days: at the end of the last day TereVi ends the show her way."),
     ("goal_push", "GM goals: how hard the director pushes", "Drama", 0, 2, 0.1, 1.0, "How often the director makes a move toward each goal the GM has set (odds and opportunities only). 0 = goals are tracked but not pushed."),
+    ("gm_nudge", "GM pause: how much encourage or discourage shifts a roll", "Drama", 0, 0.5, 0.05, 0.25, "When you answer a paused roll, the chance moves by this much (it never becomes certain)."),
     ("escape_rate", "Work on the ways out", "Pacing", 0, 4, 0.1, 3.3, "How fast free-time work on a way out makes progress, and how keen people are to do it. 0 = nobody works on them in free time (experiments still count)."),
     ("drain_mult", "Everyday sanity drain", "Sanity", 0, 2, 0.1, 1.0, "How fast each quiet hour wears people down. 0 = no drain."),
     ("dread_mult", "Deadline dread", "Sanity", 0, 2, 0.1, 1.0, "How hard the approaching deadline hits everyone's sanity."),

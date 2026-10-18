@@ -6251,6 +6251,47 @@ gd_ = r.set_goal(r.new_tick(10), {"kind": "romance", "a": a_, "b": b_, "days": 2
 r.set_goal(r.new_tick(10), {"op": "drop", "id": gd_["id"]}, 10)
 check("the GM can drop a goal", gd_["status"] == "dropped")
 
+# ---- phase 8c: GM pause hooks (pauses.py)
+w, r, _ = fresh(330)
+check("with no GM listening a deciding roll is unchanged", r.gm_roll("strike", 0.6, "x", "y", "t") == 0.6)
+r.roll_policy = lambda q: "encourage"
+check("encourage raises the chance by the dial, short of certain", abs(r.gm_roll("strike", 0.6) - 0.85) < 1e-9 and r.gm_roll("strike", 0.95) == 0.97)
+r.roll_policy = lambda q: "discourage"
+check("discourage lowers it, never to zero", abs(r.gm_roll("witness", 0.6) - 0.35) < 1e-9 and r.gm_roll("witness", 0.1) == 0.03)
+r.roll_policy = lambda q: None
+check("letting the dice decide leaves it", r.gm_roll("betray", 0.4) == 0.4)
+asked_ = []
+import murder.llm as llm2_  # noqa: E402
+mp_ = llm2_.LLM.mock_plot_prob
+llm2_.LLM.mock_plot_prob = 0.1
+wq_ = World(new_state(3))
+for d in (3, 4, 5, 6):
+    wq_.state["day"] = d
+    rq_ = DayRunner(wq_, LLM(backend="mock"), lambda t: None, step=2, murders=True, rule_mode="roulette", seed=330 + d)
+    rq_.roll_policy = lambda q: asked_.append(q["kind"]) or None
+    rq_.run()
+    if not wq_.agents or wq_.state.get("over"):
+        break
+llm2_.LLM.mock_plot_prob = mp_
+check("over a few mock days the engine asks about deciding rolls (strikes, witnesses, betrayals)", asked_ and set(asked_) <= {"strike", "witness", "betray"}, str(Counter(asked_)))
+import threading as th_  # noqa: E402
+g_ = Game.__new__(Game)
+g_.cv = th_.Condition()
+g_.set_roll_prefs(["strike"], 5)
+sess_ = {"mode": "live", "ff": False, "stop": False}
+g_.session = sess_
+def answer_():
+    import time as tm_
+    for _ in range(50):
+        tm_.sleep(0.05)
+        if sess_.get("roll"):
+            g_.answer_roll(sess_["roll"]["id"], "encourage")
+            return
+th_.Thread(target=answer_, daemon=True).start()
+ans_ = g_._ask_gm(sess_, {"kind": "strike", "p": 0.5, "text": "x"})
+check("a live session waits for the GM's answer and passes it to the engine", ans_ == "encourage" and sess_["roll"] is None)
+check("a roll kind the GM did not ask to pause is not asked", g_._ask_gm(sess_, {"kind": "betray", "p": 0.5}) is None)
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

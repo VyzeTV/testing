@@ -71,6 +71,7 @@ from .endings import EndingsMixin
 from .departures import DeparturesMixin
 from .sifting import SiftingMixin
 from .goals import GoalsMixin
+from .pauses import PauseMixin
 from .claimtrial import ClaimTrialMixin
 from .perception import PerceptionMixin
 from .envsys import EnvironmentMixin
@@ -157,10 +158,10 @@ class Stop(Exception):
     pass
 
 
-class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, ScheduleMixin, BeliefMixin, NightLifeMixin, MurderPlanMixin, FightMixin, CarryMixin, EvidenceMixin, GearMixin, MarksMixin, LooksMixin, SceneMixin, EscapeWorkMixin, FinaleMixin, OutsideMixin, KumikoMixin, InnerVoiceMixin, IntimacyMixin, TwistMixin, EndingsMixin, DeparturesMixin, SiftingMixin, GoalsMixin, ClaimTrialMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
+class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, ScheduleMixin, BeliefMixin, NightLifeMixin, MurderPlanMixin, FightMixin, CarryMixin, EvidenceMixin, GearMixin, MarksMixin, LooksMixin, SceneMixin, EscapeWorkMixin, FinaleMixin, OutsideMixin, KumikoMixin, InnerVoiceMixin, IntimacyMixin, TwistMixin, EndingsMixin, DeparturesMixin, SiftingMixin, GoalsMixin, PauseMixin, ClaimTrialMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
     def __init__(self, world, llm, on_tick, gate=None, should_stop=None, step=2, workers=6, seed=None,
                  murders=True, motive="", rule_mode="roulette", rule_text="", confessionals=True, mischief="occasional", chaos="normal",
-                 variation=0, gm_pull=None, lean=False, call_cap=0, autodir=False, autodir_get=None, tuning_get=None):
+                 variation=0, gm_pull=None, lean=False, call_cap=0, autodir=False, autodir_get=None, tuning_get=None, ask_gm=None):
         self.world = world
         world.mem_hook = self.mem_hook
         self.llm = llm
@@ -193,6 +194,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         self.story_init(gm_pull, variation)
         self.life_init()
         self.tuning_get = tuning_get or (lambda: {})
+        self._ask_gm = ask_gm                     # GM pause hooks on deciding rolls (pauses.py)
         self.director_init(autodir, autodir_get)
         self.lean = bool(lean)
         self.degraded = False
@@ -255,6 +257,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         except Exception as e:  # sifting only records: never let it break a turn
             tick["sift_error"] = f"{type(e).__name__}: {e}"[:160]
         self._chron_names = None
+        self.flush_roll_notes(tick)
         self.chron_flush(tick)
         tick["state"] = self.world.snapshot()
         tick["usage"] = dict(self.llm.usage)

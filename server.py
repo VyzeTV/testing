@@ -260,6 +260,10 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/scenario":
                 game.set_scenario(body.get("scenario"))
                 return self._json({"ok": True, "scenario": game.get_scenario()["scenario"]})
+            if path == "/api/roll":
+                return self._json({"ok": game.answer_roll(body.get("id", 0), body.get("answer"))})
+            if path == "/api/rollprefs":
+                return self._json({"ok": True, "prefs": game.set_roll_prefs(body.get("kinds"), body.get("timeout"))})
             if path == "/api/autodir":
                 game.set_autodir(body.get("on"))
                 return self._json({"ok": True})

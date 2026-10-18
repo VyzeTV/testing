@@ -1199,12 +1199,38 @@ async function poll() {
         S.ticks.push(t);
       }
       S.done = r.done; S.usage = r.usage || S.usage; S.mode = r.mode || S.mode;
+      showRoll(r.roll);
       if (r.error && !S.error) { S.error = r.error; showError(r.error); }
       if (r.aborted && !S.error) { S.error = "stopped"; }
       updateUI();
     } catch (e) { /* server restarting */ }
     polling = false;
   }
+}
+
+// ---------- GM pause hooks (pauses.py): a deciding roll waits for the GM ----------
+function rollPrefs() { try { return JSON.parse(localStorage.getItem("mcRollPrefs") || "[]"); } catch (e) { return []; } }
+async function sendRollPrefs() {
+  const kinds = [...document.querySelectorAll(".rollk")].filter((x) => x.checked).map((x) => x.value);
+  try { localStorage.setItem("mcRollPrefs", JSON.stringify(kinds)); } catch (e) { /* private mode */ }
+  try { await fetch("/api/rollprefs", { method: "POST", body: JSON.stringify({ kinds }) }); } catch (e) { /* server restarting */ }
+}
+document.querySelectorAll(".rollk").forEach((x) => { x.checked = rollPrefs().includes(x.value); x.onchange = sendRollPrefs; });
+sendRollPrefs();
+let rollShown = null, rollTimer = null;
+function showRoll(q) {
+  const m = $("#rollModal");
+  if (!q) { if (rollShown) { m.style.display = "none"; rollShown = null; clearInterval(rollTimer); } return; }
+  if (rollShown === q.id) return;
+  rollShown = q.id;
+  $("#rollText").textContent = `Day ${q.day}, ${String(q.hour % 24).padStart(2, "0")}:00 (just ahead of what you are watching): ${q.text}.`;
+  $("#rollP").textContent = Math.round(q.p * 100) + "%";
+  let left = q.timeout || 45;
+  const tickDown = () => { $("#rollLeft").textContent = `The dice decide in ${left}s.`; left -= 1; if (left < 0) clearInterval(rollTimer); };
+  clearInterval(rollTimer); tickDown(); rollTimer = setInterval(tickDown, 1000);
+  const send = async (answer) => { m.style.display = "none"; clearInterval(rollTimer); try { await fetch("/api/roll", { method: "POST", body: JSON.stringify({ id: q.id, answer }) }); } catch (e) { /* ignore */ } };
+  $("#rollUp").onclick = () => send("encourage"); $("#rollDown").onclick = () => send("discourage"); $("#rollDice").onclick = () => send("dice");
+  m.style.display = "flex";
 }
 
 // ---------- UI ----------

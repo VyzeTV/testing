@@ -288,8 +288,21 @@
     <div class="field" id="dRoomF"><label class="t">Room</label><select id="dRoom"></select></div>
     <div class="field" id="dEvF"><label class="t">Event</label><select id="dEv"><option value="storm">Storm</option><option value="fire">Kitchen fire</option><option value="power">Power cut</option><option value="fog">Fog and whispers</option><option value="cat">Stray cat</option><option value="package">Mystery package</option></select></div>
     <div class="field" id="dTextF"><label class="t" id="dTextL">Text</label><textarea id="dText" rows="2" maxlength="300"></textarea></div>
+    <div class="field"><label class="t">Pause and ask me when</label>
+      <label class="toggle"><input type="checkbox" class="rollk" value="strike"> a plotter decides whether to strike</label>
+      <label class="toggle"><input type="checkbox" class="rollk" value="witness"> a witness decides whether to speak at the trial</label>
+      <label class="toggle"><input type="checkbox" class="rollk" value="betray"> someone decides whether to betray an ally</label>
+      <div class="s">You can encourage, discourage, or let the dice decide. It shifts the odds; it never forces the outcome. No answer within 45 seconds lets the dice decide.</div></div>
     <div class="err" id="dErr"></div>
     <div class="actions"><span></span><span><button id="dClose">Close</button> <button id="dSend" class="primary">Send</button></span></div>
+  </div>
+</div>
+<div class="modal" id="rollModal">
+  <div class="box">
+    <h2>A deciding moment</h2>
+    <p class="s" id="rollText"></p>
+    <p class="s">Chance now: <b id="rollP"></b>. <span id="rollLeft"></span></p>
+    <div class="actions"><button id="rollDown">Discourage</button><button id="rollDice">Let the dice decide</button><button id="rollUp" class="primary">Encourage</button></div>
   </div>
 </div>
 <div class="modal" id="tmodal">
