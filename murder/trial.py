@@ -436,6 +436,7 @@ class TrialMixin:
                          "wrongful": wrongful, "kind": case["kind"], "segments": tick.get("segments", []), "aware": case.get("culprit_aware", True)}
         if tick.get("claim_trial"):
             tick["trial"]["report"] = self.trial_report(tick, case, votes, accused, hour)      # truth against belief (claimtrial.py)
+        self.trial_farewells(tick, hour, case, votes, accused, found, wrongful)       # last words before they go (departures.py)
         kname = self.nm(killer)
         gone = [victim] + list(case.get("extra_victims", []))
         instig = case.get("instigator")
@@ -457,6 +458,7 @@ class TrialMixin:
             text = self.make_broadcast("escape", {"victim": killer, "murdered": victim, "accused": accused})
             tick["escape"] = {"id": killer, "text": text}
             w.end_agent(killer, "escaped", "escaped the island")
+            self.escapee_free(tick, killer, case)
             gone.append(killer)
             result = f"The cast voted wrongly: innocent {self.nm(accused)} was executed and {kname}, the real culprit, escapes the island{manip}."
             shock = 8
@@ -472,6 +474,7 @@ class TrialMixin:
             text = self.make_broadcast("escape", {"victim": killer, "murdered": victim, "accused": None})
             tick["escape"] = {"id": killer, "text": text}
             w.end_agent(killer, "escaped", "escaped the island")
+            self.escapee_free(tick, killer, case)
             gone.append(killer)
             result = f"The cast could not agree. {kname}, the culprit, escapes the island{manip}."
             shock = 5
@@ -505,4 +508,5 @@ class TrialMixin:
         s["incitements"] = []
         self.begin_aftermath(tick, hour)
         self.after_trial_twist(tick)
+        self.after_trial_count(tick)
         return tick

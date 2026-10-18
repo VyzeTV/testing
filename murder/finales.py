@@ -43,7 +43,13 @@ class FinaleMixin:
         else:
             ok, outcome = (self.raid_core(tick, team, p, aid, beats) if rid == "shutdown" else self.bomb_standoff(tick, team, p, beats))
         site = {"shutdown": "core_vault", "ultimatum": "generator_shed", "raft": "beach"}[rid]
+        if (self.s.get("locks") or {}).get(site, {}).get("by") == "terevi":       # her lockdown (escape.escape_counter) does not stop them tonight
+            del self.s["locks"][site]
+            self.log_event(tick, {"type": "door", "who": team[0], "room": site, "vis": "public", "text": f"{self.nm(team[0])} forces the lock TereVi put on the {self.world.room_name(site)}."})
         self.run_scene_live(tick, rid, site, [c for c in team if c in self.world.agents], hour, beats)
+        said = [ln["m"] for g in tick.get("talk") or [] for ln in g.get("lines") or [] if "m" in ln]
+        if said:
+            self.clock_to(min(self.sim_turn(tick).dur - 1.0, max(said) + 0.5))    # what follows (a blast, a fire, a launch) comes after the last word
         tick["events"].append({"type": "system_notable", "who": team[0], "room": site, "vis": "gm",
                                "text": f"Finale ({rid}): base odds {int(p * 100)}%, outcome {outcome}."})
         return ok, outcome

@@ -120,6 +120,8 @@ class AftermathMixin:
             a = w.agents[cid]
             loved = any(a["aff"].get(v, 0) >= 3 for v in dead) or any(x.get("id") in dead and x.get("close") for x in a["memory"].get("lost", []))
             gain = int(self.tune("vigil_gain")) + (3 if loved else 0)
+            if dead and max(a["aff"].get(v, 0) for v in dead) <= -5:
+                gain //= 2                                            # hard to grieve someone you hated
             self.stat(tick, cid, "sanity", gain, "remembering the dead together")
             a["comfort_today"] = a.get("comfort_today", 0)
         for i, x in enumerate(ids):

@@ -135,6 +135,8 @@ class OutsideMixin:
                     self.outside_snip(tick, crew, self.rng.choice(SEA["rough" if storm or crew["food"] < 0 else "calm"]))
                     if self.rng.random() < 0.2:
                         self.terevi_says(tick, f"Still no word from {names}. The sharks out here are so well fed. Just saying.")
+            elif crew.get("kind") == "killer":
+                self.escapee_dawn(tick, crew)                          # departures.py
             else:
                 crew["tries"] += 1
                 p = 0.2 + (0.45 if crew["proof"] else 0) + 0.08 * len(crew["alive"]) - 0.1 * (crew["tries"] - 1)
@@ -185,7 +187,7 @@ class OutsideMixin:
         r = s["rescue"]
         self.rescue_loss(tick)                                     # the island may keep one (endings.py)
         alive = list(w.agents)
-        out = [c for crew in self.outside()["crews"] for c in crew["alive"] if crew["stage"] in ("believed", "ashore", "sea")]
+        out = [c for crew in self.outside()["crews"] for c in crew["alive"] if crew["stage"] in ("believed", "ashore", "sea") and crew.get("kind") != "killer"]
         enough = len(alive) >= max(3, (r.get("alive_then", 6) + 1) // 2)
         text = (f"Helicopters over the island. Boats in the bay. Armed officers kick in the Foyer doors while TereVi screams static. "
                 f"{len(alive)} survivors are led out into the daylight.")

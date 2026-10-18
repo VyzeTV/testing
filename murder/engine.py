@@ -68,6 +68,7 @@ from .innervoice import InnerVoiceMixin
 from .intimacy import IntimacyMixin
 from .twists import TwistMixin
 from .endings import EndingsMixin
+from .departures import DeparturesMixin
 from .claimtrial import ClaimTrialMixin
 from .perception import PerceptionMixin
 from .envsys import EnvironmentMixin
@@ -154,7 +155,7 @@ class Stop(Exception):
     pass
 
 
-class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, ScheduleMixin, BeliefMixin, NightLifeMixin, MurderPlanMixin, FightMixin, CarryMixin, EvidenceMixin, GearMixin, MarksMixin, LooksMixin, SceneMixin, EscapeWorkMixin, FinaleMixin, OutsideMixin, KumikoMixin, InnerVoiceMixin, IntimacyMixin, TwistMixin, EndingsMixin, ClaimTrialMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
+class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, ScheduleMixin, BeliefMixin, NightLifeMixin, MurderPlanMixin, FightMixin, CarryMixin, EvidenceMixin, GearMixin, MarksMixin, LooksMixin, SceneMixin, EscapeWorkMixin, FinaleMixin, OutsideMixin, KumikoMixin, InnerVoiceMixin, IntimacyMixin, TwistMixin, EndingsMixin, DeparturesMixin, ClaimTrialMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
     def __init__(self, world, llm, on_tick, gate=None, should_stop=None, step=2, workers=6, seed=None,
                  murders=True, motive="", rule_mode="roulette", rule_text="", confessionals=True, mischief="occasional", chaos="normal",
                  variation=0, gm_pull=None, lean=False, call_cap=0, autodir=False, autodir_get=None, tuning_get=None):
@@ -1236,7 +1237,11 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             self.experiments.append((cid, d))
             self.exp_today += 1
         elif act == "attack" and self.murders:
-            attacks.append((cid, d))
+            if self.motive_ok(cid, d.get("target"), d) or getattr(self.llm, "mock", False):      # the mock's forced attacks are a test knob
+                attacks.append((cid, d))
+            else:
+                self.log_event(tick, {"type": "system", "who": cid, "room": w.agents[cid]["room"], "vis": "gm",
+                                      "text": f"{self.nm(cid)} thought about hurting {self.nm(d.get('target'))}, but had no real reason to, and could not."}, actor=cid)
         elif act == "end_life" and self.murders:
             self.end_lives.append((cid, d))
         elif act == "build":
@@ -1995,7 +2000,14 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             self.gate(self.idx)
             if self.should_stop():
                 raise Stop()
-            if self.endgame_due():
+            capped = self.season_over_due(hour)                      # the season's run is over (departures.py)
+            if capped and not s.get("_capped"):
+                s["_capped"] = True
+                self.saga(f"Day {self.day}: the season's run is over, and TereVi ends the show her way.")
+                if s.get("case"):                                     # the last death is never tried
+                    self.saga(f"The death of {self.nm(s['case']['victim'])} is never tried.")
+                    s["case"] = None
+            if self.endgame_due() or capped:
                 rid = self.last_stand_route()
                 if rid:
                     self.emit(self.run_finale(rid, hour))                # the last few try an unfinished way out first (endings.py)

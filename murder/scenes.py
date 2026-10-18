@@ -25,7 +25,7 @@ LABELS = {"intro": "the introductions", "reveal": "TereVi's announcement", "last
 CONTEXT = {"intro": "The cast meet each other for the first time in the Dining Hall, believing this is a reality show.",
            "reveal": "TereVi has just told them the show is real: nobody leaves, and if nobody dies by the deadline, everyone dies.",
            "lastcall": "Two hours to the deadline and nobody has died. TereVi has gathered everyone.",
-           "vigil": "The survivors gather to remember the dead.",
+           "vigil": "The survivors gather to remember the dead. Most grieve; a few are honest that they did not like the dead, or that they voted them to their death.",
            "shutdown": "A small team creeps down beneath the Lighthouse to destroy TereVi's core while she may be watching.",
            "ultimatum": "A team holds a bomb trigger at the Generator Shed and makes demands of TereVi, who bluffs, bargains and tempts.",
            "raft": "At dawn on the beach a small raft that holds only two or three is pushed into the surf; the rest stay behind."}
@@ -192,6 +192,8 @@ class SceneMixin:
         w, s = self.world, self.s
         beats = []
         case = s.get("case") or {}
+        last = (s.get("vote_log") or [{}])[-1]
+        wrong_voters = set(last.get("voters", [])) if last.get("wrongful") else set()
         for p in sorted(ids, key=lambda c: (-self.facet(c, "altruism"), c)):
             if not dead:
                 break
@@ -208,6 +210,13 @@ class SceneMixin:
                 self.scene_beat(beats, p, self.pick_line(beats, [f"I keep thinking about {vn}." + (f" {self.they(v)} loved {like}." if like else ""),
                                                               f"{vn} was the first one here who was kind to me.", f"I'd give anything to hear {vn} laugh again.",
                                                               f"{vn} should still be here. {self.they(v)} should still be here."]), "fond")
+            elif v == last.get("accused") and p in wrong_voters:
+                self.scene_beat(beats, p, self.pick_line(beats, [f"I voted for {vn}. {self.they(v)} didn't do it, and I voted for {self.them(v)}.",
+                                                              f"I sent {vn} up there. I have to live with that. I don't know how."]), "guilt")
+            elif aff <= -5:
+                self.scene_beat(beats, p, self.pick_line(beats, [f"I won't pretend I'll miss {vn}. I'm not going to lie at a funeral.",
+                                                              f"{vn} made every day here worse. I hated {self.them(v)}. And I still didn't want this.",
+                                                              f"...I've got nothing nice to say about {vn}, so I'll just stand here."]), "cold")
             elif aff <= -2:
                 self.scene_beat(beats, p, self.pick_line(beats, [f"I never got along with {vn}. I'm sorry for that now.", f"I said things to {vn} I can't take back now."]), "regret")
             else:

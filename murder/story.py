@@ -611,7 +611,7 @@ class StoryMixin:
             a = w.agents[by]
             weap = next((k for k in a["inv"] if "weapon" in w.item_spec(k).get("tags", [])), None) \
                 or next((k for k, q in s["room_items"].get(room, {}).items() if q > 0 and "weapon" in w.item_spec(k).get("tags", [])), None)
-            self.resolve_attacks(tick, [(by, {"target": t, "method": weap or "hands", "activity": "", "thought": "", "staged": ""})], hour)
+            self.resolve_attacks(tick, [(by, {"target": t, "method": weap or "hands", "activity": "", "thought": "", "staged": "", "engine": True})], hour)
         if not s.get("case") and self.murders:
             self.death_pact(tick, hour)                                             # two lovers may choose to go together (twists.py)
         if not s.get("case"):

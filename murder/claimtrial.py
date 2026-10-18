@@ -19,7 +19,7 @@ The model writes only the lines (one voicing call per sequence; templates otherw
 from collections import Counter
 
 TITLES = {"debate": "OPEN DEBATE", "hotseat": "THE HOT SEAT", "duel": "THE CLASH", "brainstorm": "BRAINSTORM", "closing": "CLOSING ARGUMENTS",
-          "crossexam": "CROSS-EXAMINATION", "split": "SPLIT COURT", "climax": "THE CLIMAX"}
+          "crossexam": "CROSS-EXAMINATION", "split": "SPLIT COURT", "climax": "THE CLIMAX", "farewell": "LAST WORDS"}
 CLUE_WEIGHT = {"weapon": 2.5, "stained": 2.5, "clothes": 2.0, "planted": 2.0, "framed_unconscious": 3.0, "decoy": 1.0, "ledger": 0.6, "drag_marks": 1.0, "staging": 1.0}
 CRIES = ["Objection!", "Hold it!", "That's wrong!", "No, that's not it!", "Wait a second!", "Liar!", "Contradiction!", "I'll cut through that!"]
 CORNERED = {"indignant": "How dare you. I have answered every question and you still want blood.", "tearful": "Please, I'm telling you, I didn't, I couldn't...",
@@ -559,10 +559,23 @@ class ClaimTrialMixin:
                 pairs.append((a, b))
         self.rng.shuffle(pairs)
         start = self.rng.randrange(3)
+        sm = self.sim_turn(tick)
+
+        def there(c, m):
+            p = sm.pos_at(c, m) if c in sm.tracks else None
+            return p is None or sm.nav.room_at(*p) == room
+
         for i, (a, b) in enumerate(pairs[:2]):
             if t1 - t0 < 4:
                 break
-            x = round(t0 + self.rng.random() * (t1 - t0 - 2), 2)
+            x = None
+            for _ in range(5):                                     # both must be in the room (someone may have slipped out)
+                m_ = round(t0 + self.rng.random() * (t1 - t0 - 2), 2)
+                if all(there(c, m) for c in (a, b) for m in (m_, m_ + 0.6)):
+                    x = m_
+                    break
+            if x is None:
+                continue
             sus = self.suspicion.get(a) if room == "voting_grounds" else None
             options = whisper or [((f"It's {self.nm(sus)}, isn't it?" if sus else "What do you think?"), "Not now. Later."), ("Who are you voting for?", "I haven't decided."),
                                   ("Something doesn't add up.", "Then say it out loud.")]

@@ -92,7 +92,9 @@ def one_season(job):
             "survivors": sorted(c for c, a in w.state["agents"].items() if a.get("status", "alive") == "alive"),
             "graveyard": [{"id": g["id"], "day": g["day"], "how": g["how"]} for g in w.state.get("graveyard", [])],
             "trials": trials, "finales": finales, "saga": list(w.state.get("saga", [])), "names": names, "arrivals": arrivals,
-            "rafts": [{"ids": c["ids"], "stage": c["stage"], "day": c["day"]} for c in (w.state.get("outside") or {}).get("crews", [])], "rescue": w.state.get("rescue"),
+            "rafts": [{"ids": c["ids"], "stage": c["stage"], "day": c["day"]} for c in (w.state.get("outside") or {}).get("crews", []) if c.get("kind") != "killer"],
+            "killers_out": [{"id": c["ids"][0], "stage": c["stage"]} for c in (w.state.get("outside") or {}).get("crews", []) if c.get("kind") == "killer"],
+            "nv_joined": nv.get("joined_for"), "capped": bool(w.state.get("_capped")), "rescue": w.state.get("rescue"),
             "escape": {rid: int(round(sum(r["plan"].values()) / len(r["plan"]))) for rid, r in (w.state.get("escape") or {}).get("routes", {}).items()}}
 
 
@@ -141,6 +143,11 @@ def markdown(seasons):
         costs = Counter(c.split(" took ")[0] + " took someone with her" if c.startswith("TereVi took") else (c.split(" never came out")[0] and "someone never came out of the house" if "never came out" in c else c)
                         for s in ss for c in s["costs"])
         out.append("- **Wins at a price** (good endings made bittersweet): " + (", ".join(f"{k} {n}" for k, n in costs.most_common()) or "none") + ".")
+        ko = [k for s in ss for k in s["killers_out"]]
+        out.append(f"- **Killers the show let go:** {len(ko)}; {sum(s['twists'].get('killer_helps', 0) for s in ss)} tried to help from outside "
+                   f"(believed {sum(1 for k in ko if k['stage'] == 'believed')}, dismissed {sum(1 for k in ko if k['stage'] == 'dismissed')}), the rest kept quiet or gave up.")
+        out.append(f"- **NeoVi joined the cast** after the fourth trial in {sum(1 for s in ss if s['nv_joined'] == 'fourth trial')} seasons, as a punishment in "
+                   f"{sum(1 for s in ss if s['nv_joined'] == 'punishment')}. Seasons that ran the full 28 days: {sum(1 for s in ss if s['capped'])}.")
         out.append(f"- **Season length:** median {statistics.median(days)} days (shortest {min(days)}, longest {max(days)}).")
         out.append("- **How seasons ended:** " + ", ".join(f"{k} {n}" for k, n in ends.most_common()) + ".")
         out.append(f"- **Deaths per season:** {round(sum(len(s['graveyard']) for s in ss) / len(ss), 1)} on average. Causes: "

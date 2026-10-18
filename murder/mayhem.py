@@ -280,7 +280,7 @@ class MayhemMixin:
     def terevi_mood(self):
         s = self.s
         anger = min(1.0, s["escape"]["progress"] / 100 + 0.1 * sum(s.get("adapt", {}).get("hardness", {}).values()))
-        weights = {"battle": 0.4 + 0.3 * anger, "crown": 0.4 + 0.2 * (1 - anger), "capricious": 0.12}
+        weights = {"battle": 0.5 + 0.3 * anger, "crown": 0.35 + 0.2 * (1 - anger), "capricious": 0.15}
         tot = sum(weights.values())
         r = self.rng.random() * tot
         for k, v in weights.items():
@@ -302,7 +302,7 @@ class MayhemMixin:
         alive = list(w.agents)
         site = "voting_grounds"
         if not alive:
-            out = [c for crew in self.outside()["crews"] for c in crew["alive"] if crew["stage"] in ("sea", "ashore", "believed")]
+            out = [c for crew in self.outside()["crews"] for c in crew["alive"] if crew["stage"] in ("sea", "ashore", "believed") and crew.get("kind") != "killer"]
             if out:
                 self._end_season(tick, "raft", "ONLY THE RAFT GOT AWAY", "The island is silent. Somewhere out on the water, the only ones left are the ones who sailed away.", ids=out)
             else:

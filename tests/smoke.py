@@ -5139,7 +5139,7 @@ for seed_ in (40, 60):
         if not wb_.agents or wb_.state.get("over"):
             break
     false_ += sum(1 for e in wb_.state.get("lies_caught") or [] if not e["true_lie"])
-    told_ += sum(1 for a in wb_.agents.values() for b in a.get("beliefs", []) if b["src"] == "seen")
+    told_ += sum(1 for a in wb_.state["agents"].values() for b in a.get("beliefs", []) if b["src"] == "seen")      # the dead saw things too
 llm_.LLM.mock_murder_prob = mmp_
 check("phase 5 gate: mock weeks build beliefs from what people see, and nobody telling the truth is ever caught 'lying'", told_ > 100 and false_ == 0, f"{told_} sightings, {false_} false catches")
 
@@ -6113,6 +6113,86 @@ lost_ = None
 for _ in range(20):
     lost_ = lost_ or r.rescue_loss(r.new_tick(12))
 check("the rescue can leave someone behind", lost_ and len(w.agents) == n0_ - 1 and w.state["_left_behind"] == lost_)
+
+# ---- departures: last words, escaped killers, motives, yandere, the season's run, the fourth trial (departures.py)
+w, r, _ = fresh(300)
+w.state["revealed"] = True
+ids_ = sorted(w.agents)
+k_, v_, l_ = ids_[0], ids_[1], ids_[2]
+w.agents[k_]["aff"][l_] = 8
+w.agents[l_]["aff"][k_] = 7
+case_ = {"victim": v_, "killer": k_, "kind": "murder", "motive": {"kind": "jealousy", "why": "x"}}
+bt_ = r.farewell_beats(k_, case_, [], condemned=True, innocent=False)
+check("a condemned killer's last words give their motive and say goodbye to the one they care about most, who answers",
+      bt_[0]["speaker"] == k_ and bt_[0]["move"] == "motive" and any(b["move"] == "goodbye" for b in bt_) and any(b["speaker"] == l_ for b in bt_))
+votes_ = [{"voter": l_, "target": v_}]
+w.agents[v_]["aff"][l_] = 6
+bt_ = r.farewell_beats(v_, case_, votes_, condemned=True, innocent=True)
+check("an innocent sent to die protests, and asks a friend who voted against them 'you too?'", bt_[0]["move"] == "innocent" and any(b["move"] == "betrayed" for b in bt_))
+w, r, _ = fresh(301)
+w.state["revealed"] = True
+k_ = sorted(w.agents)[0]
+r.tuning_get = lambda: {"escapee_help": 30}
+w.end_agent(k_, "escaped", "escaped the island")
+r.escapee_free(r.new_tick(14), k_, {"remorse": 0.5})
+crew_ = r.outside()["crews"][-1]
+check("an escaped killer may try to help from outside", crew_["kind"] == "killer" and crew_["stage"] == "ashore")
+r.rng.seed(5)
+for _ in range(8):
+    if crew_["stage"] != "ashore":
+        break
+    r.escapee_dawn(r.new_tick(31), crew_)
+check("they are believed, dismissed, or give up for fear of prison", crew_["stage"] in ("believed", "dismissed", "quiet")
+      and (crew_["stage"] != "believed" or w.state.get("rescue")), crew_["stage"])
+r.tuning_get = lambda: {"escapee_help": 0}
+k2_ = sorted(w.agents)[0]
+w.end_agent(k2_, "escaped", "escaped the island")
+r.escapee_free(r.new_tick(14), k2_, {"remorse": 0.5})
+check("most keep quiet", r.outside()["crews"][-1]["stage"] == "quiet")
+w, r, _ = fresh(302)
+w.state["revealed"] = True
+a_, b_ = sorted(w.agents)[:2]
+for o in w.agents[a_]["aff"]:
+    w.agents[a_]["aff"][o] = 2
+r.mind(a_)["facets"]["cruelty"] = 10
+w.agents[a_]["drive"]["id"] = "survivor"
+check("nobody kills for the sake of it: no plot and no motive, no attack", not r.motive_ok(a_, b_, {}))
+w.state["plots"] = {a_: {"target": b_}}
+check("a plot is reason enough", r.motive_ok(a_, b_, {}))
+w.state["plots"] = {}
+r.mind(a_)["facets"]["cruelty"] = 90
+check("a twisted character needs no reason", r.motive_ok(a_, b_, {}))
+w, r, _ = fresh(303)
+w.state["revealed"] = True
+y_, be_, ri_ = sorted(w.agents)[:3]
+w.state["cast"][y_]["traits"] = ["yandere"]
+w.agents[y_]["aff"][be_] = 9
+w.agents[be_]["aff"][ri_] = 7
+mot_ = r.yandere_motives(y_)
+check("a yandere sees anyone the beloved warms to as a rival worth killing", mot_ and mot_[0][1] == ri_ and mot_[0][3] == "jealousy")
+w.agents[be_]["aff"][y_] = -4
+w.agents[y_]["sanity"] = 30
+check("and may turn on a beloved who turns cold", any(m[1] == be_ and m[3] == "obsession" for m in r.yandere_motives(y_)))
+w, r, _ = fresh(304)
+w.state["revealed"] = True
+r.day = 28
+check("the season's run ends on day 28, at its last turn: TereVi ends the show", r.season_over_due(18) and not r.season_over_due(16))
+w, r, _ = fresh(305)
+w.state["revealed"] = True
+w.state["trials_held"] = 3
+r.after_trial_count(r.new_tick(12))
+check("after the fourth trial no newcomers arrive, and NeoVi joins the cast instead", w.state["no_newcomers"] and "kumiko" in w.agents
+      and w.state["npcs"]["neovi"]["joined_for"] == "fourth trial")
+
+w, r, _ = fresh(306)
+w.state["revealed"] = True
+ids_ = sorted(w.agents)
+d_ = ids_[0]
+for c in ids_[1:]:
+    w.agents[c]["aff"][d_] = -7
+w.end_agent(d_, "dead", "murdered")
+bt_ = r.vigil_beats(ids_[1:], [d_])
+check("the remembrance is honest: those who hated the dead do not pretend", any(b.get("move") == "cold" for b in bt_), str([b.get("move") for b in bt_][:5]))
 
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]

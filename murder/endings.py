@@ -190,7 +190,7 @@ class EndingsMixin:
             out.append(self._pick(["Nobody outside ever learns what {n} did on the island. {n} does, every night.",
                                    "{n} has a good lawyer and a better story, and a face in the dark that the story leaves out."], n=n))
         elif len(out) < 3:
-            moment = next((m.split(": ", 1)[-1] for m in reversed(a.get("memory", {}).get("moments", [])) if ("died" in m or "watched" in m or "found" in m) and "sail" not in m), None)
+            moment = next((m.split(": ", 1)[-1] for m in reversed(a.get("memory", {}).get("moments", [])) if any(k in m for k in ("died", " die", "dead", "body", "killed", "executed"))), None)
             if moment and self.rng.random() < 0.5:
                 out.append(f"{n} never talks about the day they {moment}.")
             else:

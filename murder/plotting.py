@@ -201,6 +201,7 @@ class PlotMixin:
             for x in others:
                 if w.agents[x]["inv"].get("master_key", 0) or w.agents[x]["inv"].get("skeleton_keys", 0):
                     cands.append((0.25, x, f"{self.nm(x)} carries the keys that would get you out of here", "greed"))
+        cands += self.yandere_motives(cid)                          # obsessive love (departures.py)
         if drive in GENTLE and pr < 0.9:
             cands = [(sc - 0.4, t, why, k) for sc, t, why, k in cands if k not in ("protection",)] + [c for c in cands if c[3] == "protection"]
         if sum(a["aff"].get(o, 0) for o in others) / len(others) > 3:

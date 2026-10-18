@@ -111,7 +111,7 @@ class RoutesMixin:
         hp = sum(w.agents[c]["hp"] for c in team) / max(1, len(team))
         san = sum(w.agents[c]["sanity"] for c in team) / max(1, len(team))
         skill = sum(1 for c in team if any(k in w.cast[c]["role"].lower() for k in ("hack", "engineer", "tech", "explor", "student")))
-        base = {"transmit": 0.45, "shutdown": 0.50, "raft": 0.55, "ultimatum": 0.55}[rid]
+        base = {"transmit": 0.45, "shutdown": 0.50, "raft": 0.55, "ultimatum": 0.45}[rid]
         p = base + (0.1 if len(team) >= 2 else 0) + 0.06 * min(2, skill) - 0.05 * att
         if rid in ("transmit", "shutdown") and aid:
             p += 0.15

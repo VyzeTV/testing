@@ -549,6 +549,8 @@ class CaseMixin:
                                   "text": f"{vname} {how} in the {w.room_name(room)}."}, witnesses=witnesses, actor=None)
         self.fx(tick, "shake", room, victim)
         self.day_notable.append(f"{vname} {how} in the {w.room_name(room)}.")
+        if culprit and self.s["plots"].get(culprit):
+            case["motive"] = {"kind": self.s["plots"][culprit].get("motive"), "why": self.s["plots"][culprit].get("reason")}
         if culprit and (self.s["plots"].get(culprit) or {}).get("motive") == "paranoia":
             self.twist("hallucination_kill")                       # a hallucination that turned into a real killing (innervoice.py)
         self.s["plots"].pop(culprit, None) if culprit else None
@@ -859,7 +861,8 @@ class CaseMixin:
                 self.mourn(tick, ev, "died", hour)
                 s["vacancies"].append({"gender": w.cast[ev]["gender"], "reason": f"{w.cast[ev]['name']} left the show"})
             res = f"{self.nm(case['victim'])}'s death{self.more_dead({})} was announced: no trial, the deadline is lifted."
-            tick["events"].append({"type": "system_notable", "who": case["victim"], "room": case["room"], "vis": "public", "text": res})
+            tick["events"].append({"type": "system_notable", "who": case["victim"], "room": case["room"], "vis": "public", "text": res,
+                                   **({"m": round(self.minute(), 1)} if self.minute() is not None else {})})
             self.day_notable.append(res)
             self.saga(res)
             self.clear_notebooks()

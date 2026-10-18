@@ -250,7 +250,7 @@ class KumikoMixin:
                 self.stat(tick, c, "sanity", -3, "what TereVi did to NeoVi")
         return "caught"
 
-    def make_participant(self, tick):
+    def make_participant(self, tick, reason="punishment"):
         """TereVi's harshest punishment: the housemaid becomes a contestant. Nobody can replace her, so no newcomers arrive after this."""
         w, s = self.world, self.s
         nv = s["npcs"]["neovi"]
@@ -285,7 +285,10 @@ class KumikoMixin:
         if vac is not None:
             del s["vacancies"][vac]
         text = ("TereVi strips NeoVi of her uniform and her keys in front of everyone. \"Congratulations, darling. You're a contestant now.\" "
-                "For the first time, the cast hears her real name: Kumiko Akimoto.")
+                "For the first time, the cast hears her real name: Kumiko Akimoto.") if reason == "punishment" else (
+                "Four trials in, TereVi announces there will be no more newcomers. Instead she hands NeoVi a room key and takes her uniform. "
+                "\"Our housemaid is joining the game, darlings. Say hello to Kumiko Akimoto.\"")
+        nv["joined_for"] = reason
         self.terevi_says(tick, "Let's give a warm welcome to our newest contestant! Say hello, Kumiko. Hehe.")
         self.log_event(tick, {"type": "system_notable", "who": KUMIKO_ID, "room": "foyer", "vis": "public", "text": text}, witnesses=list(w.agents))
         for c in sorted(w.agents):
