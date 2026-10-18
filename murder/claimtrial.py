@@ -548,12 +548,15 @@ class ClaimTrialMixin:
             if b and w.agents[a]["aff"].get(b, 0) >= 3 and (b, a) not in pairs:
                 pairs.append((a, b))
         self.rng.shuffle(pairs)
-        for a, b in pairs[:2]:
+        start = self.rng.randrange(3)
+        for i, (a, b) in enumerate(pairs[:2]):
             if t1 - t0 < 4:
                 break
             x = round(t0 + self.rng.random() * (t1 - t0 - 2), 2)
             sus = self.suspicion.get(a) if room == "voting_grounds" else None
-            first, reply = whisper or ((f"It's {self.nm(sus)}, isn't it?" if sus else "What do you think?"), "Not now. Later.")
+            options = whisper or [((f"It's {self.nm(sus)}, isn't it?" if sus else "What do you think?"), "Not now. Later."), ("Who are you voting for?", "I haven't decided."),
+                                  ("Something doesn't add up.", "Then say it out loud.")]
+            first, reply = options[0] if sus and i == 0 and not whisper else options[(start + i) % len(options)]
             lines = [{"speaker": a, "kind": "say", "text": f"(whispering) {first}", "m": x, "room": room, "move": "whisper"},
                      {"speaker": b, "kind": "say", "text": f"(whispering) {reply}", "m": round(x + 0.6, 2), "room": room, "move": "whisper"}]
             conv = {"members": [a, b], "room": room, "seen_by": set(), "wary": True}

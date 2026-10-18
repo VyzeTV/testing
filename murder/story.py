@@ -589,7 +589,8 @@ class StoryMixin:
             v = vols[0]
             a = w.agents[v]
             here = [o for o in w.occupants(room) if o in w.agents and o != v]
-            savers = [o for o in here if w.agents[o]["aff"].get(v, 0) >= 3 and a["aff"].get(o, 0) >= 0 and self.rng.random() < 0.35]
+            saver = s.pop("_lastcall_saver", None)                                 # decided with the scene (scenes.py), so the line and the outcome agree
+            savers = [saver] if saver in here else []
             if savers:
                 self.log_event(tick, {"type": "mercy", "who": savers[0], "room": room, "vis": "public",
                                       "text": f"{self.nm(savers[0])} refuses to let {self.nm(v)} sacrifice themselves, and the moment passes."}, witnesses=here, actor=savers[0])

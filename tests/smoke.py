@@ -5027,7 +5027,9 @@ check("a mock week serves meals", "meal" in kinds_wk_, str(sorted(k for k in kin
 gate_kinds_ = set()
 import murder.llm as llm_  # noqa: E402
 mmp_ = llm_.LLM.mock_murder_prob
-for seed_, murders_ in ((43, True), (61, False)):                       # a murder brings a trial and a vigil; a week with none reaches the deadline: the last call
+for seed_, murders_ in ((41, True), (43, True), (44, True), (45, True), (61, False)):   # a murder brings a trial and a vigil; a week with none reaches the deadline: the last call
+    if murders_ and "vigil" in gate_kinds_:
+        continue                                                            # some murder weeks end before a vigil is due: try the next
     llm_.LLM.mock_murder_prob = 0.08 if murders_ else 0.0
     wk_ = World(new_state(3))
     tg_ = []
@@ -5658,6 +5660,18 @@ r.emit(t_)
 ok_, ls_ = scene_ok_(t_, "lounge")
 check("the remembrance: each survivor speaks of the dead, someone lights a candle, nobody says the same line twice", ok_ and any(l.get("move") == "candle" for l in ls_)
       and any(l["speaker"] == ids[1] and l.get("move") == "fond" for l in ls_) and len({l["text"] for l in ls_}) >= len(ls_) - 1, str([(l["speaker"], l["text"]) for l in ls_][:4]))
+
+w, r, _ = fresh(222)
+w.state["revealed"] = True
+ids = sorted(w.agents)
+moves_ = [b["move"] for b in r.lastcall_beats(ids)[0]]
+check("at the last call people take different stances, not all the same plea", len(set(moves_)) >= 3, str(moves_))
+w, r, _ = fresh(223)
+ids = sorted(w.agents)
+w.end_agent(ids[0], "executed", "executed after the trial")
+w.end_agent(ids[1], "dead", "murdered")
+vb_ = r.vigil_beats(sorted(w.agents), [ids[0], ids[1]])
+check("at the remembrance an executed killer is not mourned like a victim", all(r.nm(ids[0]) not in b["text"] or b["move"] in ("betrayed", "candle") for b in vb_), str([b["text"] for b in vb_]))
 
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]

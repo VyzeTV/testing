@@ -24,8 +24,12 @@ CONTEXT = {"intro": "The cast meet each other for the first time in the Dining H
            "reveal": "TereVi has just told them the show is real: nobody leaves, and if nobody dies by the deadline, everyone dies.",
            "lastcall": "Two hours to the deadline and nobody has died. TereVi has gathered everyone.",
            "vigil": "The survivors gather to remember the dead."}
-WHISPERS = {"intro": ("What do you make of them?", "Too early to tell."), "reveal": ("Are you okay?", "Stay close to me."),
-            "lastcall": ("If it comes to it... stay away from the lights.", "I know."), "vigil": ("Are you holding up?", "Not really.")}
+WHISPERS = {"intro": [("What do you make of them?", "Too early to tell."), ("That one's trouble. I can feel it.", "Shh. They'll hear you."),
+                      ("Is it just me, or is this place weird?", "It's not just you.")],
+            "reveal": [("Are you okay?", "Stay close to me."), ("Do you believe her?", "I don't know what to believe."), ("We stick together. Promise me.", "I promise.")],
+            "lastcall": [("If it comes to it... stay away from the lights.", "I know."), ("Who do you think will do it?", "Don't say that."),
+                         ("Whatever happens, it wasn't you. Okay?", "Okay.")],
+            "vigil": [("Are you holding up?", "Not really."), ("I can't stop shaking.", "Me neither."), ("Do you think it's over?", "It's never over here.")]}
 
 
 class SceneMixin:
@@ -37,6 +41,12 @@ class SceneMixin:
         said = {b["text"] for b in beats}
         fresh = [o for o in options if o not in said]
         return self.rng.choice(fresh or options)
+
+    def executed_as_culprit(self, cid):
+        return any(g["id"] == cid and g.get("how") == "executed after the trial" for g in self.s.get("graveyard", []))
+
+    def them(self, cid):
+        return {"he": "him", "she": "her"}.get((self.world.cast.get(cid) or {}).get("pron"), "them")
 
     def they(self, cid):
         return {"he": "He", "she": "She"}.get((self.world.cast.get(cid) or {}).get("pron"), "They")
@@ -124,6 +134,7 @@ class SceneMixin:
                     t = min((o for o in ids if o != p), key=lambda o: (w.agents[p]["aff"].get(o, 0), o))
                     strikers.append((p, t))
         lurk = {by for by, _ in strikers}
+        used = set()
         for p in sorted(ids, key=lambda c: (-self.facet(c, "assertiveness"), c)):
             if p in vols:
                 continue
@@ -132,18 +143,41 @@ class SceneMixin:
                 if self.rng.random() < 0.5:
                     self.scene_beat(beats, p, f"is very quiet, eyes on {self.nm(t)}.", "lurk", "act")
                 continue
-            worst = min((o for o in ids if o != p), key=lambda o: (w.agents[p]["aff"].get(o, 0), o), default=None)
-            if worst and w.agents[p]["aff"].get(worst, 0) <= -3 and self.facet(p, "cruelty") >= 50:
+            a = w.agents[p]
+            worst = min((o for o in ids if o != p), key=lambda o: (a["aff"].get(o, 0), o), default=None)
+            friend = max((o for o in ids if o != p), key=lambda o: (a["aff"].get(o, 0), o), default=None)
+            f = lambda k: self.facet(p, k)
+            if worst and a["aff"].get(worst, 0) <= -3 and f("cruelty") >= 50:
                 self.scene_beat(beats, p, f"If anyone deserves it, it's {self.nm(worst)}.", "accuse")
                 w.adjust_aff(worst, p, -2)
-            elif w.agents[p]["sanity"] < 40:
+            elif "lots" not in used and f("assertiveness") >= 60:
+                used.add("lots")
+                self.scene_beat(beats, p, "We draw lots. It's the only fair way, and you all know it.", "lots")
+            elif "bargain" not in used and f("courage") >= 60 and f("anger") >= 45:
+                used.add("bargain")
+                self.scene_beat(beats, p, "TereVi! What if we give you a show instead? Anything but this!", "bargain")
+                self.scene_beat(beats, "terevi", "A show? Darling, this IS the show.", "answer")
+            elif friend and a["aff"].get(friend, 0) >= 6 and "protect" + friend not in used:
+                used.add("protect" + friend)
+                self.scene_beat(beats, p, f"Nobody touches {self.nm(friend)}. Nobody.", "protect")
+            elif "joke" not in used and f("humour") >= 65:
+                used.add("joke")
+                self.scene_beat(beats, p, "Well. At least the food was good.", "joke")
+            elif a["sanity"] < 40:
                 self.scene_beat(beats, p, self.pick_line(beats, ["Two hours. Two hours, and then we're all dead.", "I don't want to die. I don't want to die here.",
                                                               "So this is it. This is how it ends."]), "despair")
+            elif "watch" not in used and f("trust") < 40:
+                used.add("watch")
+                self.scene_beat(beats, p, "keeps their back to the wall, watching everyone's hands.", "watch", "act")
             else:
                 self.scene_beat(beats, p, self.pick_line(beats, ["Somebody think of something. We can't just sit here and wait.", "There has to be another way. There has to be.",
                                                               "Please. Let's just stay calm and stay together."]), "plead")
         for v in vols:
             self.scene_beat(beats, v, "It's me. Let it be me.", "volunteer")
+            savers = [o for o in sorted(ids) if o != v and w.agents[o]["aff"].get(v, 0) >= 3 and w.agents[v]["aff"].get(o, 0) >= 0 and self.rng.random() < 0.35]
+            if savers:
+                self.scene_beat(beats, savers[0], f"No. Not you, {self.nm(v)}. I won't let you.", "save")
+                self.s["_lastcall_saver"] = savers[0]
         return beats, vols, strikers[:1]
 
     def vigil_beats(self, ids, dead):
@@ -156,7 +190,10 @@ class SceneMixin:
             v = max(dead, key=lambda d: (w.agents[p]["aff"].get(d, 0), d))
             vn = self.nm(v)
             aff = w.agents[p]["aff"].get(v, 0)
-            if case.get("killer") == p and case.get("victim") == v and case.get("culprit_aware", True):
+            if (w.all_agents.get(v) or {}).get("status") == "executed" and self.executed_as_culprit(v):
+                self.scene_beat(beats, p, self.pick_line(beats, [f"I still can't believe {vn} did it.", f"I trusted {vn}. I actually trusted {self.them(v)}.",
+                                                              f"Part of me still wants to mourn {vn}. Is that wrong?"]), "betrayed")
+            elif case.get("killer") == p and case.get("victim") == v and case.get("culprit_aware", True):
                 self.scene_beat(beats, p, self.pick_line(beats, [f"I can't believe {vn} is gone. I just can't.", f"Who would do this to {vn}? Who?"]), "mask")
             elif aff >= 3:
                 like = self.first_like(v)
