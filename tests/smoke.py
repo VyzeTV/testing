@@ -5512,6 +5512,21 @@ rep_ = tr["trial"].get("report") or {}
 check("after the verdict a truth-against-belief report: what really happened, each vote, what each person held and kept quiet",
       rep_.get("truth", "").startswith(r.nm(ids[0]) if ids[0] in w.cast else "") and len(rep_.get("rows", [])) == len(tr["trial"]["votes"]) and all("silent" in x for x in rep_["rows"]), str(rep_)[:200])
 
+# ---- phase 7: the trial as a live practice on the map
+w, r, ids, case_, tr, _ = trial_case_(205, seen_)
+r.emit(tr)
+pr_ = tr.get("practice") or {}
+seg_lines_ = [l for g in tr["talk"] if g.get("segment") for l in g["lines"]]
+check("the trial is a live practice: everyone walks to the Voting Grounds, and nobody speaks before they have arrived",
+      pr_.get("room") == "voting_grounds" and len(pr_.get("arrive", {})) >= len(ids) - 2
+      and all(l.get("m") is not None and l["room"] == "voting_grounds" and l["m"] >= pr_["arrive"].get(l["speaker"], 0) for l in seg_lines_), str(pr_)[:200])
+check("the trial lines are on the clock in order and the walk in is on the map", [l["m"] for l in seg_lines_] == sorted(l["m"] for l in seg_lines_)
+      and all(g.get("live") for g in tr["talk"] if g.get("segment")) and len((tr.get("live") or {}).get("tracks") or {}) >= len(ids) - 2)
+ev_ = [l["text"] for l in seg_lines_ if l.get("move") == "evidence"]
+check("each piece of evidence is shown once, and each person names who they saw in one line", len(ev_) == len(set(ev_)) and sum(1 for x in ev_ if x.startswith("I saw ")) <= len(ids), str(ev_))
+wh_ = [g for g in tr["talk"] if g.get("whisper")]
+check("allies whisper at the trial; a whisper is a live side conversation on the clock", all(g.get("live") and all(l.get("m") is not None for l in g["lines"]) for g in wh_))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

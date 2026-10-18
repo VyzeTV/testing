@@ -323,6 +323,7 @@ class TrialMixin:
         victim, killer = case["victim"], case["killer"]
         tick = self.new_tick(hour, phase="trial")
         tick["type"] = "trial"
+        self.begin_practice(tick)                                    # the trial runs on the live map: people walk in (claimtrial.py)
         ids = list(w.agents.keys())
         opening = self.make_broadcast("trial_open", {"victim": victim})
         tick["broadcasts"].append({"speaker": "terevi", "kind": "trial", "text": opening})
@@ -342,6 +343,7 @@ class TrialMixin:
             a["activity"] = "At the class trial"
             w.remember(cid, f"{_hh(hour)} The class trial began at the Voting Grounds.")
         self.neovi_attend(tick, TRIAL_ROOM)
+        arrivals = self.walk_in(tick, ids)
         self.suspicion, self.theory, self.confused = {}, None, ""
         used, hot_done, duels, brain = 0, set(), 0, False
         claim_votes = self.run_claim_trial(tick, hour, case) if self.tune("claim_trial") else None      # the engine decides, the model voices (claimtrial.py)
@@ -405,6 +407,8 @@ class TrialMixin:
                 return {"voter": cid, "target": self.rng.choice(ctx["candidates"]), "reason": "(muddled, went with a gut feeling)"}, None
             return None, (self.system_prompt(cid), user, ctx)
 
+        if claim_votes is not None:
+            self.stage_trial_live(tick, arrivals)
         prepared = {cid: vote_prompt(cid) for cid in ids} if claim_votes is None else {}
         answers = self.ask_parallel([(cid, lambda q=q: self.llm.vote(*q)) for cid, (done, q) in prepared.items() if q]) if prepared else {}
         votes = list(claim_votes or [])

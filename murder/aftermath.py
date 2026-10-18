@@ -97,6 +97,7 @@ class AftermathMixin:
         aft = s["aftermath"]
         aft["vigil_done"] = True
         tick = self.new_tick(hour)
+        self.begin_practice(tick)                                # people walk in on the live map (claimtrial.py)
         s["_hour"] = hour
         ids = [c for c in w.agents if not w.agents[c].get("out")]
         dead = [v for v in aft["victims"] if v in w.cast]

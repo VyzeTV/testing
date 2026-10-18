@@ -900,9 +900,16 @@ function showLine(g, l) {
   if (!isAct) speak(l.speaker, l.text);
   return ms;
 }
+// A trial on the live map has no free-time acts: who is where comes from the walk in.
+function practiceActs(t) {
+  const P = t.practice; if (!P || !P.arrive) return null;
+  const out = {}, dur = t.live.dur;
+  for (const [id, m] of Object.entries(P.arrive)) out[id] = [[0, Math.ceil(m), "walk", "Heading to the class trial", P.room], [Math.ceil(m), dur, "trial", "At the class trial", P.room]];
+  return out;
+}
 async function playWindow(t, tok, late) {
   const L = t.live, dur = L.dur, per = Math.max(40, S.pace * 1000 / 60);
-  S.freeActs = L.acts && Object.keys(L.acts).length ? L.acts : null;
+  S.freeActs = L.acts && Object.keys(L.acts).length ? L.acts : practiceActs(t);
   TileMap.setTick(t, 0);
   const byText = {};
   for (const e of L.events || []) byText[e.text.slice(0, 200)] = e.m;

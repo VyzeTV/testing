@@ -499,6 +499,7 @@ class StoryMixin:
         w, s = self.world, self.s
         tick = self.new_tick(hour)
         tick["type"] = "meeting"
+        self.begin_practice(tick)                                # people walk in on the live map (claimtrial.py)
         ids = [c for c in w.agents if not w.agents[c].get("out")]            # the unconscious are not marched to the meeting
         room = "dining_hall"
         text = self.make_broadcast("intro_meeting", {})
@@ -522,6 +523,7 @@ class StoryMixin:
         w, s = self.world, self.s
         tick = self.new_tick(hour)
         tick["type"] = "reveal"
+        self.begin_practice(tick)                                # people walk in on the live map (claimtrial.py)
         ids = [c for c in w.agents if not w.agents[c].get("out")]
         for c_ in w.agents:
             if c_ not in ids:
@@ -566,6 +568,7 @@ class StoryMixin:
         self.last_call_done = True
         tick = self.new_tick(hour)
         tick["type"] = "lastcall"
+        self.begin_practice(tick)                                # people walk in on the live map (claimtrial.py)
         ids = [c for c in w.agents if not w.agents[c].get("out")]            # the unconscious are not marched to the meeting
         room = "dining_hall"
         text = self.make_broadcast("lastcall", {})

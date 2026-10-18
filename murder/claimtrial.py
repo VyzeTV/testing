@@ -26,6 +26,9 @@ CORNERED = {"indignant": "How dare you. I have answered every question and you s
             "silent": "...", "lashing": "Why is nobody looking at {other}? They had every reason!"}
 
 
+AGAIN = ("So did I. {who} was there.", "Same here: I saw {who} there too.", "I can back that up. I saw {who} there as well.", "Me too. {who}, right there.")
+
+
 class ClaimTrialMixin:
     # ------------------------------------------------------------------ the facts each person holds
     def case_time(self, case):
@@ -74,10 +77,14 @@ class ClaimTrialMixin:
                 elif b["k"] == "has" and b["s"] in ids:
                     facts.append({"by": h, "about": b["s"], "kind": "has", "w": 1.0, "text": b.get("n", "")[:160], "true": b.get("true", True)})
                 elif b["k"] == "lied" and b["s"] in ids:
-                    facts.append({"by": h, "about": b["s"], "kind": "lied_before", "w": 1.5, "text": f"{self.nm(b['s'])} has lied to me before: {b.get('n', '')[:120]}", "true": b.get("true", True)})
+                    what = b.get("n", "")[:120].replace("you saw", "I saw")
+                    facts.append({"by": h, "about": b["s"], "kind": "lied_before", "w": 1.5, "text": f"{self.nm(b['s'])} has lied to me before: they {what}.", "true": b.get("true", True)})
+        seen_it = 0
         for wit in case.get("witnesses") or []:
             if wit in ids and case.get("killer") in ids and wit != case["killer"]:
-                facts.append({"by": wit, "about": case["killer"], "kind": "witness", "w": 6.0, "text": f"I saw it happen. It was {self.nm(case['killer'])}.", "true": True})
+                text = f"I saw it happen. It was {self.nm(case['killer'])}." if not seen_it else f"I saw it too. It was {self.nm(case['killer'])}."
+                facts.append({"by": wit, "about": case["killer"], "kind": "witness", "w": 6.0, "text": text, "true": True})
+                seen_it += 1
         return facts
 
     def weak_points(self, claims, ids, exposed):
@@ -225,7 +232,7 @@ class ClaimTrialMixin:
         facts = self.trial_facts(case, ids)
         cred = {p: (0.75 if any(p in self.caught_liars(o) for o in ids if o != p) else 1.0) for p in ids}
         meter = {p: 0.0 for p in ids}
-        raised, exposed, burnt, lies = set(), set(), {}, Counter()
+        raised, exposed, burnt, lies, spoken = set(), set(), {}, Counter(), set()
         tr = {"claims": claims, "raised": [], "lies": lies, "cred": cred}
         self.suspicion, self.theory = {}, None
         n = 0
@@ -234,7 +241,7 @@ class ClaimTrialMixin:
             if about in meter:
                 meter[about] = max(0.0, meter[about] + amount)
 
-        def raise_fact(f, beats):
+        def raise_fact(f, beats, quiet=False):
             key = (f["by"], f["about"], f["text"])
             if key in raised or f["about"] not in ids or f["by"] not in ids:
                 return False
@@ -242,9 +249,24 @@ class ClaimTrialMixin:
                 return False
             raised.add(key)
             tr["raised"].append(f)
-            self.trial_beat(beats, f["by"], f["text"] if f["kind"] != "clue" else f"Look at this: {f['text']}", "evidence")
+            if not quiet and f["text"] not in spoken:              # one clue naming several people is shown once
+                spoken.add(f["text"])
+                self.trial_beat(beats, f["by"], f["text"] if f["kind"] != "clue" else f"Look at this: {f['text']}", "evidence")
             push(f["about"], f["w"] * cred[f["by"]])
             return True
+
+        def raise_sightings(pool, beats):
+            """Each person says once who they saw near the scene, not once per name."""
+            for by in sorted({f["by"] for f in pool}):
+                named = [f["about"] for f in sorted(pool, key=lambda f: -f["w"]) if f["by"] == by and raise_fact(f, beats, quiet=True)]
+                if named:
+                    names = [self.nm(p) for p in named]
+                    who = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+                    text = f"I saw {who} in the {w.room_name(case.get('room'))} around {int(self.case_time(case) % 24):02d}:00."
+                    if text in spoken:
+                        text = AGAIN[len(spoken) % len(AGAIN)].format(who=who)
+                    spoken.add(text)
+                    self.trial_beat(beats, by, text, "evidence")
 
         def challenge(s, h, b, beats):
             """`h` raises what they saw against `s`'s claim; `s` answers (a liar is exposed, then the lie planner)."""
@@ -285,8 +307,9 @@ class ClaimTrialMixin:
         for s, h, b in self.weak_points(claims, ids, exposed):
             if (h, s, "contradiction") not in raised and self.rng.random() < self.willingness(h, s, b["c"]):
                 challenge(s, h, b, beats)
-        for f in sorted([f for f in facts if f["kind"] in ("near_scene", "witness")], key=lambda f: -f["w"]):
+        for f in sorted([f for f in facts if f["kind"] == "witness"], key=lambda f: -f["w"]):
             raise_fact(f, beats)
+        raise_sightings([f for f in facts if f["kind"] == "near_scene"], beats)
         self.update_trial_suspicion(ids, meter, facts, killer, case)
         self.publish_segment(tick, hour, "debate", n, beats, meter)
 
@@ -302,9 +325,10 @@ class ClaimTrialMixin:
             if meter[lead] >= 3.0 and lead not in hot_done:
                 hot_done.add(lead)
                 self.trial_beat(beats, lead, "Fine. Ask me anything. I have nothing to hide.", "hotseat_open")
-                pending = [f for f in facts if f["about"] == lead and (f["by"], f["about"], f["text"]) not in raised and f["w"] > 0]
+                pending = [f for f in facts if f["about"] == lead and (f["by"], f["about"], f["text"]) not in raised and f["w"] > 0 and f["text"] not in spoken]
                 for f in sorted(pending, key=lambda f: -f["w"])[:3]:
-                    if raise_fact(f, beats):
+                    said = len(beats)
+                    if raise_fact(f, beats) and len(beats) > said:
                         self.trial_beat(beats, lead, "That proves nothing." if lead != killer or lead not in exposed else "...", "answer")
                 for s, h, b in self.weak_points({lead: claims[lead]}, ids, exposed):
                     if (h, s, "contradiction") not in raised and self.rng.random() < min(0.95, self.willingness(h, s, b["c"]) + 0.15):
@@ -396,6 +420,98 @@ class ClaimTrialMixin:
         tick["claim_trial"] = {"meter": {k: round(v, 2) for k, v in meter.items()}, "lies_proven": dict(lies), "cred": {k: round(v, 2) for k, v in cred.items()},
                                "raised": len(tr["raised"]), "exposed": sorted(exposed)}
         return votes
+
+    # ------------------------------------------------------------------ the trial as a live practice on the map
+    def begin_practice(self, tick):
+        """A special scene runs on the live map: start the clock and the positions before anyone is sent there, so they walk in."""
+        self.clock_start()
+        self.sim_turn(tick)
+
+    def walk_in(self, tick, ids):
+        """Everyone sent to the scene walks there from where they were. Returns {cid: minute they arrive}."""
+        out = {}
+        for cid in ids:
+            if cid in self.world.agents:
+                out[cid] = float(self.sim_go(tick, cid, 0.0) or 0.0)
+        return out
+
+    def stage_trial_live(self, tick, arrivals):
+        """Put every trial line on the clock after people have arrived (nobody speaks before they are there), then the side business:
+        whispers between allies (overheard by whoever is close), and now and then someone slipping out for a moment."""
+        sm = self.sim_turn(tick)
+        room = "voting_grounds"
+        groups = [g for g in tick.get("talk") or [] if g.get("segment") and g.get("room") == room]
+        n = sum(len(g["lines"]) for g in groups)
+        if not n:
+            return
+        t0 = min(40.0, max(list(arrivals.values()) or [0.0]) + 1.5)
+        step = max(0.5, min(2.0, (sm.dur - 8 - t0) / (n + len(groups))))
+        m = t0
+        spoken = {}
+        for g in groups:
+            g["live"], g["m"] = True, round(m, 1)
+            g["members"] = sorted({l["speaker"] for l in g["lines"]})
+            for ln in g["lines"]:
+                m = max(m, arrivals.get(ln["speaker"], 0.0) + 0.3)
+                ln["m"], ln["room"] = round(min(sm.dur - 1.0, m), 2), room
+                spoken.setdefault(ln["speaker"], []).append(ln["m"])
+                m += step * (0.5 if ln.get("move") == "cry" else 1.0)
+            m += step
+        self.trial_whispers(tick, t0, min(m, sm.dur - 4), spoken)
+        self.trial_slip_out(tick, t0, min(m, sm.dur - 10), spoken)
+        tick["practice"] = {"room": room, "t0": round(t0, 1), "end": round(min(m, sm.dur), 1), "arrive": {c: round(v, 1) for c, v in sorted(arrivals.items())}}
+
+    def trial_whispers(self, tick, t0, t1, spoken):
+        w = self.world
+        room = "voting_grounds"
+        ids = sorted(w.agents)
+        pairs = []
+        for a in ids:
+            b = max((o for o in ids if o != a), key=lambda o: (w.agents[a]["aff"].get(o, 0), o), default=None)
+            if b and w.agents[a]["aff"].get(b, 0) >= 3 and (b, a) not in pairs:
+                pairs.append((a, b))
+        self.rng.shuffle(pairs)
+        for a, b in pairs[:2]:
+            if t1 - t0 < 4:
+                break
+            x = round(t0 + self.rng.random() * (t1 - t0 - 2), 2)
+            sus = self.suspicion.get(a)
+            lines = [{"speaker": a, "kind": "say", "text": f"(whispering) It's {self.nm(sus)}, isn't it?" if sus else "(whispering) What do you think?", "m": x, "room": room, "move": "whisper"},
+                     {"speaker": b, "kind": "say", "text": "(whispering) Not now. Later.", "m": round(x + 0.6, 2), "room": room, "move": "whisper"}]
+            conv = {"members": [a, b], "room": room, "seen_by": set(), "wary": True}
+            beats = [{"who": l["speaker"], "m": l["m"], "loud": "whisper", "room": room, "move": "confide"} for l in lines]
+            self.overhear(tick, conv, beats, notice=False)
+            for l, bt in zip(lines, beats):
+                if bt.get("heard"):
+                    l["heard"] = bt["heard"]
+                    for o, lvl in bt["heard"].items():
+                        if lvl == "full":
+                            w.remember(o, f"At the trial you overheard {self.nm(l['speaker'])} whisper: {l['text'][12:]}")
+            tick["talk"].append({"room": room, "lines": lines, "live": True, "m": x, "members": [a, b], "whisper": True})
+
+    def trial_slip_out(self, tick, t0, t1, spoken):
+        """The most rattled person who is not on the spot steps out for a few minutes and comes back."""
+        w = self.world
+        sm = self.sim_turn(tick)
+        if t1 - t0 < 12 or self.rng.random() > 0.35:
+            return None
+        top = max(self.suspicion.values(), key=lambda x: list(self.suspicion.values()).count(x)) if self.suspicion else None
+        for cid in sorted(w.agents, key=lambda c: -(self.mind(c)["stress"] if self.mind_on() else 0)):
+            if cid == top or cid not in sm.tracks:
+                continue
+            x = round(t0 + self.rng.random() * (t1 - t0 - 10), 2)
+            if any(x - 1 <= m <= x + 9 for m in spoken.get(cid, [])):
+                continue
+            exits = sorted(e["room"] for e in w.adjacent(cid, "voting_grounds") if e["ok"])
+            if not exits:
+                return None
+            out = exits[0]
+            sm.go_room(cid, out, x, salt=5, force=True)
+            back = sm.go_room(cid, "voting_grounds", x + 5.0, salt=6, force=True)
+            self.log_event(tick, {"type": "practice", "who": cid, "room": "voting_grounds", "vis": "viewer", "m": x, "text": f"{self.nm(cid)} slips out of the trial for a moment."})
+            self.log_event(tick, {"type": "practice", "who": cid, "room": "voting_grounds", "vis": "viewer", "m": round(float(back or x + 6), 1), "text": f"{self.nm(cid)} comes back in."})
+            return cid
+        return None
 
     # ------------------------------------------------------------------ after the verdict
     def trial_report(self, tick, case, votes, accused, hour):
