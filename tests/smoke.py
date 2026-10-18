@@ -3935,7 +3935,7 @@ def striking_pair(seed, wait=0.0):
         wp.agents[c]["room"] = "beach"
     wp.state["plots"] = {pa: {"target": ta, "stage": "striking", "motive": "hatred", "stage_ticks": 0, "weapon": None, "method": "", "step": "", "cover": "", "log": [], "quiet": 0, "wait": wait}}
     wp.agents[pa]["aff"][ta] = -8
-    rp.tuning_get = lambda: {"snap_rate": 0}
+    rp.tuning_get = lambda: {"snap_rate": 0, "escape_rate": 0}          # this checks the plotter, not who wanders off to work on a way out
     tp = rp.new_tick(14)
     tp["free"] = {}
     return wp, rp, tp, pa, ta
@@ -5684,6 +5684,34 @@ for c in sorted(w.agents)[3:]:
     w.end_agent(c, "dead", "murdered")
 t_ = r.run_endgame(20)
 check("the endgame records its tier with the ending", t_.get("ending", {}).get("tier") in ("good", "bittersweet", "bad") and w.state["over"].get("tier") == t_["ending"]["tier"])
+
+# ---- phase 7b step 2: working on the ways out (escape.py)
+w, r, _ = fresh(225)
+w.state["revealed"] = True
+ids = sorted(w.agents)
+c_ = ids[0]
+w.agents[c_]["route"] = "raft"
+rt_ = w.state["escape"]["routes"]["raft"]
+check("a step that needs parts stops at half way until they are gathered", r.step_missing("raft", "materials") and r.escape_step_for("raft") == "materials")
+src_ = r.parts_source(c_, "raft", "materials")
+check("someone working on it goes to fetch a part where one lies about", src_ in ("beach", "boathouse", "generator_shed", "laundry", "linen_store"), str(src_))
+w.agents[c_]["room"] = src_
+tk_ = r.new_tick(10)
+res_ = r.escape_work(tk_, c_, 10)
+check("fetching puts the part into the route's store", res_ and res_["verdict"] == "gathered" and rt_["parts"]["materials"] >= 1, str(res_))
+rt_["parts"]["materials"] = 3
+w.agents[c_]["room"] = "beach"
+r.rng = _Fixed(0.5, r.rng)
+for _ in range(20):
+    r.escape_work(tk_, c_, 10)
+r.rng = r.rng.b
+check("with the parts in, work takes the step all the way and the next step opens", rt_["plan"]["materials"] == 100 and r.escape_step_for("raft") != "materials", str(rt_["plan"]))
+w2_, r2_, _ = fresh(226)
+w2_.state["revealed"] = True
+r2_.rng = _Fixed(0.5, r2_.rng)
+for _ in range(20):
+    r2_.escape_work(r2_.new_tick(10), sorted(w2_.agents)[1], 10)
+check("without what a step needs, work stops at half way", max(w2_.state["escape"]["routes"][r2_.escape_route_for(sorted(w2_.agents)[1]) or "raft"]["plan"].values()) <= 50)
 
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]

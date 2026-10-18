@@ -85,7 +85,7 @@ class RoutesMixin:
                 gain += 12
                 self.log_event(tick, {"type": "mercy", "who": "neovi", "room": nv["room"], "vis": "public",
                                       "text": "NeoVi quietly helps, looking at the floor: a camera feed that stays dark for a while."}, witnesses=[cid], actor=cid)
-            plan[step] = min(100, plan[step] + gain)
+            plan[step] = min(100 if not self.step_missing(rid, step) else max(50, plan[step]), plan[step] + gain)     # past half way only once the step's needs are met (escape.py)
             self.tally(cid, "route_steps")
             if cid not in esc["routes"][rid]["contributors"]:
                 esc["routes"][rid]["contributors"].append(cid)

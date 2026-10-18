@@ -65,6 +65,7 @@ ACTS = {
     "sleep":    ("asleep", 120, [], ["bed"], "goes back to bed"),
     "snoop":    ("snooping around", 30, [], [], "searches the room quietly"),
     "tinker":   ("making something", 45, [], ["workbench", "table"], "tinkers with something"),
+    "escape":   ("working on a way out", 45, [], [], "gets to work on a way out"),
     "look":     ("looking around", 30, [], [], "looks around"),
     "explore":  ("exploring", 30, [], [], "has a look around"),
     "dress":    ("getting dressed", 15, [], [], "gets dressed"),
@@ -456,6 +457,13 @@ class FreeTimeMixin:
             add(0.75 + (100 - mi["purpose"]) / 70 + cur / 150, "tinker", why="making something")
         if a.get("worked") == self.day and self.revealed and mi["purpose"] < 75:
             add(0.9 + (100 - mi["purpose"]) / 80, "tinker", rooms=["generator_shed", "boathouse", "boiler_room", "study"], kinds=["workbench", "table", "desk", "radio"], why="back to work on a way out")
+        # a way out: work on a step of a route where that step is done (escape.py)
+        esc_sc = self.escape_work_score(cid, mi, f)
+        if esc_sc > 0:
+            rid_ = self.escape_route_for(cid)
+            step_ = self.escape_step_for(rid_) if rid_ else None
+            if step_:
+                add(esc_sc, "escape", room=self.escape_work_room(cid, rid_, step_), why=f"the way out ({step_})")
         # exploring: somewhere they have not been today
         seen = set(self.a_visited(cid))
         fresh = [r for r in reach if r not in seen and r not in PRIVATE_ROOMS and not self._unsafe(r) and r in ROOMS]
@@ -767,6 +775,8 @@ class FreeTimeMixin:
         walked = a["room"] != room
         start_room, m_go = a["room"], m
         arrived = self._walk(tick, cid, room, m)
+        if cid not in w.agents:
+            return m + SLICE                                  # they died on the way (a fall, a trap)
         if not arrived:
             self._seg(tick, cid, m, m + SLICE, a["room"], "walk", f"heading for {w.room_name(room)}")
             return m + SLICE
@@ -774,6 +784,8 @@ class FreeTimeMixin:
             m += SLICE // 2 if dur > SLICE else 0
         if act in ("bathroom", "shower", "bath") and self._occupied_alone(tick, a["room"], m):
             act, label, dur, verb, at = "look", "waiting for the bathroom", 15, "waits for the bathroom", None
+        if act == "chat" and partner not in w.agents:
+            act, label, dur, verb, at = "look", "looking around", 15, "looks around", None     # the one they meant to talk to died meanwhile
         if act == "chat":
             return self._start_chat(tick, cid, partner, m, why)
         if act == "explore":
@@ -811,10 +823,14 @@ class FreeTimeMixin:
             if self.brain_on():
                 self.plan_mark(c, "talk", who=other)
             self._seg(tick, c, m, m + dur, room, "chat", f"talking with {self.nm(other)}", "free", seat)
+            if c not in w.agents:
+                continue                                      # a fall on the way over (walk hazards run as the walk is laid down)
             if self._free_busy is not None:
                 self._free_busy[c] = m + dur
             ch = w.agents[c].setdefault("chatted", {})
             ch[other] = ch.get(other, 0) + 1
+        if cid not in w.agents or partner not in w.agents:
+            return m + SLICE
         text = f"{self.nm(cid)} and {self.nm(partner)} sit down to talk." if seated else f"{self.nm(cid)} goes over to {self.nm(partner)} for a word."
         self._fev(tick, cid, m, text, "free", "viewer", witnesses=[o for o in w.occupants(room) if o in w.agents and o not in (cid, partner)])
         if getattr(self, "_tl", None) is not None:
@@ -920,6 +936,13 @@ class FreeTimeMixin:
                     self._slice_m = None
             self.mind_relief(cid, "purpose", 14)
             self.stat(tick, cid, "sanity", 1, "making something")
+        elif act == "escape":
+            self._slice_m = m
+            try:
+                self.escape_work(tick, cid, m)
+            finally:
+                self._slice_m = None
+            self.mind_relief(cid, "purpose", 16)
         elif act in ("look", "explore"):
             self._slice_m = m
             try:
