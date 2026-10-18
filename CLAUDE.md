@@ -16,7 +16,7 @@ A Danganronpa-style killing-game simulation. **The engine decides what happens; 
      - `night.py`: bedtime at 22:00, night blocks at hours 23/25/27/29 (they run past midnight so time only moves forward; displayed with `% 24`), dawn at 31 (07:00) with diaries and the day increment. Sleep is a task, waking has reasons, and a short night leaves someone exhausted.
      - Deadline-day hourly sanity loss (`engine.tick_dread`/`deadline_hours`).
      - Viewer quiet-night skip (ask / auto / watch) and a GM "Skip quiet night" button.
-- **Phase 5 is done**: the code-health step (hash-seed determinism, the duplicate-method test, old-save conversion via `session.resume_hour`, `viewer_check.js` now plays into a night; the trial is not reached in the browser check) and **belief bases** (`beliefs.py`; see `docs/GAME_DESIGN.md` section 6, "Beliefs"). Still open from phase 5's plan: night uses of beliefs (snooping, secret meetings), the balance numbers report, and a real-model day (no API key was available in the session that built it).
+- **Phase 5 is done**: the code-health step (hash-seed determinism, the duplicate-method test, old-save conversion via `session.resume_hour`, `viewer_check.js` now plays into a night; the trial is not reached in the browser check) and **belief bases** (`beliefs.py`; see `docs/GAME_DESIGN.md` section 6, "Beliefs"). Still open from phase 5's plan: night uses of beliefs (snooping, secret meetings; moved into phase 6) and a real-model day. A real day needs no API key: the default `cli` backend uses the `claude` command and the user's subscription (about 90 calls a day), so ask the user before running one.
 - **Next: phase 6** (below). Beliefs are ready for it: `believed_at`, `seen_with`, `caught_liars` and `belief_lines` are the queries a murder planner needs (who could have seen me, who would I have to lie to).
 - Later phases (see the plan doc):
   - 6: affordances and a murder planner, plus fights in blows, carrying slots, hit locations and a small catalogue of distinct items (listed under "Phase 6 additions").
@@ -26,6 +26,7 @@ A Danganronpa-style killing-game simulation. **The engine decides what happens; 
 ## Running and checking
 
 - Tests (mock LLM, no network): `python tests/smoke.py` (859 checks, about 45 seconds; must end `N/N passed`) and `python tests/baseline.py` (mock calls a day; keep it at or below about 91.7. It is about 83 now).
+- Balance numbers: `python tests/balance.py --write` (about 30 seconds) writes `docs/BALANCE.md`: deaths and how weeks end, trials and verdicts, sanity, idle time, meals, nights, beliefs and lies caught. Report them at every phase gate.
 - Browser check: `MC_DATA_DIR=<scratch dir> python server.py &` then `node tests/viewer_check.js` (expects `frozen: 0`, `errors: []`). Use a fresh data dir: a leftover session or an old server on port 8766 gives misleading results. Stop the server with `pkill -f "[s]erver.py"` in its own shell call (an unbracketed pattern kills the shell itself).
 - Playwright and Chromium are preinstalled (`/opt/node22/lib/node_modules/playwright`).
 - A game must not depend on Python's hash seed: never let set order drive a choice (iterate `sorted(...)` instead). `smoke.py` runs three mock days under `PYTHONHASHSEED=1` and `=2` and fails if they differ, and also fails if two mixins define the same method name.
