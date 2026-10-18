@@ -27,6 +27,16 @@ def day_dir(day):
     return os.path.join(RUNS_DIR, f"day_{day:02d}")
 
 
+
+CHECKPOINT_V = 2          # 2: the night is bedtime (22), blocks 23/25/27/29 and dawn (31)
+
+
+def resume_hour(cp):
+    """The hour a saved day picks up after. An old checkpoint (no version) at 23 was the old single night turn, which ran before bedtime: replay from bedtime."""
+    if cp.get("v") is None and cp.get("hour") == 23:
+        return 21
+    return cp["hour"]
+
 class Game:
     def __init__(self):
         self.cv = threading.Condition()
@@ -418,7 +428,7 @@ class Game:
             with open(CHECKPOINT, "r", encoding="utf-8") as f:
                 cp = json.load(f)
             start_state = cp["state"]
-            resume_after, start_idx = cp["hour"], cp["idx"] + 1
+            resume_after, start_idx = resume_hour(cp), cp["idx"] + 1
             with open(tmp, "r", encoding="utf-8") as f:
                 sess["ticks"] = [json.loads(line) for line in f if line.strip()][:start_idx]
             fh = open(tmp, "w", encoding="utf-8")
@@ -438,7 +448,7 @@ class Game:
             fh.flush()
             try:
                 with open(CHECKPOINT + ".tmp", "w", encoding="utf-8") as cf:
-                    json.dump({"day": day, "hour": tick["hour"], "idx": tick["idx"], "state": world.dump()}, cf, ensure_ascii=False)
+                    json.dump({"day": day, "hour": tick["hour"], "idx": tick["idx"], "v": CHECKPOINT_V, "state": world.dump()}, cf, ensure_ascii=False)
                 os.replace(CHECKPOINT + ".tmp", CHECKPOINT)
             except OSError:
                 pass

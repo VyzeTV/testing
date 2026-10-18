@@ -5070,6 +5070,10 @@ print(h.hexdigest())
 digs_ = [subprocess.run([sys.executable, "-c", DET_], capture_output=True, text=True, env={**os.environ, "PYTHONHASHSEED": hs_}).stdout.strip() for hs_ in ("1", "2")]
 check("the same seed gives the same three days under two different hash seeds", digs_[0] and digs_[0] == digs_[1], str(digs_))
 
+from murder.session import resume_hour  # noqa: E402
+check("an old save checkpointed at the old 23:00 night turn replays from bedtime; new checkpoints resume where they stopped",
+      resume_hour({"hour": 23}) == 21 and resume_hour({"hour": 23, "v": 2}) == 23 and resume_hour({"hour": 14}) == 14)
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

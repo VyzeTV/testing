@@ -1,4 +1,5 @@
-// Viewer check in a real browser: start a mock live day, play it for two minutes, and report script errors and whether the game clock kept moving while people talked.
+// Viewer check in a real browser: start a mock live day, play it for two minutes, and report script errors and whether the game clock kept moving while people talked;
+// then fast-forward to the night and check that a quiet night block is offered for skipping and skipped. (The trial needs several days and is not reached here.)
 // Needs Node with Playwright and a running server on a scratch data directory, e.g.:
 //   MC_DATA_DIR=/tmp/mc_view python server.py &      then      node tests/viewer_check.js
 // Exits non-zero if there were script errors or the clock froze during a conversation.
@@ -29,8 +30,25 @@ const pw = (() => { try { return require("playwright"); } catch (e) { return req
     const a = samples[i - 1], c = samples[i];
     if (a.talking && c.talking && a.cursor === c.cursor) { talkPairs++; if (c.m === a.m) frozen++; }
   }
-  const out = { turnsPlayed: samples[samples.length - 1].cursor, talkPairs, frozen, errors: errs };
+  // then the night: fast-forward the rest of the day, step back to just before the first quiet night block, and check the "house sleeps" prompt skips it
+  await p.click("#btnFF").catch(() => {});
+  for (let i = 0; i < 120; i++) { if (await p.evaluate(() => S.done && S.cursor >= S.ticks.length - 1)) break; await p.waitForTimeout(500); }
+  await p.evaluate(() => { const c = document.querySelector("#ovClose"); if (c) c.click(); });
+  const qi = await p.evaluate(() => S.ticks.findIndex((t) => t.quiet));
+  let night = { quietBlocks: await p.evaluate(() => S.ticks.filter((t) => t.quiet).length), asked: false, skipped: false };
+  if (qi > 0) {
+    await p.evaluate(() => { try { localStorage.removeItem("mcLiveSettings"); TileMap.setQuietNight("ask"); } catch (e) { /* private mode */ } });
+    await p.evaluate((i) => { S.endShown = true; jumpTo(i - 1); S.paused = false; S.ff = false; S.quietChoice = null; }, qi);
+    for (let i = 0; i < 80 && !night.asked; i++) {
+      const txt = await p.evaluate(() => { const m = document.querySelector("#tmmodal"); return m && m.style.display === "flex" ? m.innerText.toLowerCase() : ""; });
+      if (txt.includes("the house sleeps")) night.asked = true;
+      else if (txt) await p.evaluate(() => document.querySelector("#tmmodal button").click());
+      else await p.waitForTimeout(250);
+    }
+    if (night.asked) { await p.click("#qnSkip"); await p.waitForTimeout(1500); night.skipped = await p.evaluate((i) => S.cursor >= i, qi); }
+  }
+  const out = { turnsPlayed: samples[samples.length - 1].cursor, talkPairs, frozen, night, errors: errs };
   console.log(JSON.stringify(out, null, 1));
   await b.close();
-  process.exit(errs.length || frozen ? 1 : 0);
+  process.exit(errs.length || frozen || (qi > 0 && !night.skipped) ? 1 : 0);
 })();
