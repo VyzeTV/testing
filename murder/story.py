@@ -625,8 +625,8 @@ class StoryMixin:
         for cid in ids:
             w.end_agent(cid, "executed", "died in the Reckoning")
         tick["reckoning"] = {"ids": ids, "scene": scene}
-        tick["ending"] = {"kind": "reckoning", "title": "THE RECKONING", "text": scene, "ids": ids}
-        s["over"] = {"kind": "reckoning", "day": self.day, "title": "THE RECKONING", "text": scene}
+        tick["ending"] = {"kind": "reckoning", "title": "THE RECKONING", "text": scene, "ids": ids, "tier": "bad"}
+        s["over"] = {"kind": "reckoning", "day": self.day, "title": "THE RECKONING", "text": scene, "tier": "bad"}
         res = "Nobody died before the deadline, so everyone was executed. The season is over."
         tick["events"].append({"type": "system_notable", "who": "terevi", "room": "foyer", "vis": "public", "text": res})
         self.day_notable.append(res)

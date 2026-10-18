@@ -5,6 +5,22 @@ RoutesMixin is mixed into DayRunner (engine.py).
 from .data_world import ESCAPE_ROUTES, ROOMS
 
 
+GOOD_ENDINGS = {"truth", "shutdown", "ultimatum", "rescue"}
+BAD_ENDINGS = {"reckoning", "extinction", "battle", "sole"}
+
+
+def ending_tier(kind, ids):
+    """Good, bittersweet or bad: the show defeated or several walking out together is good; a lone survivor or a partial escape is
+    bittersweet; everyone executed, nobody left, a fight to the death or a whim is bad."""
+    if kind in GOOD_ENDINGS:
+        return "good"
+    if kind in BAD_ENDINGS:
+        return "bad"
+    if kind == "winners":
+        return "good" if len(ids) >= 2 else "bittersweet"
+    return "bittersweet"
+
+
 def _hh(h):
     return f"{h:02d}:00"
 
@@ -144,8 +160,10 @@ class RoutesMixin:
         return tick
 
     def _end_season(self, tick, kind, title, text, ids=None):
-        self.s["over"] = {"kind": kind, "day": self.day, "title": title, "text": text}
-        tick["ending"] = {"kind": kind, "title": title, "text": text, "ids": ids or list(self.world.agents)}
+        ids = ids if ids is not None else list(self.world.agents)
+        tier = ending_tier(kind, ids)
+        self.s["over"] = {"kind": kind, "day": self.day, "title": title, "text": text, "tier": tier}
+        tick["ending"] = {"kind": kind, "title": title, "text": text, "ids": ids, "tier": tier}
 
     def finale_transmit(self, tick, team, ok, text, hour):
         w, s = self.world, self.s

@@ -732,7 +732,8 @@ async function playReckoning(rk, tok) {
 function showSeasonEnd(en) {
   const faces = (en.ids || []).map((id) => `<img src="portraits/${id}.png" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:3px solid ${info(id).color};margin:2px" onerror="this.style.visibility='hidden'">`).join("");
   const truth = en.kind !== "reckoning";
-  $("#overlayCard").innerHTML = `<div class="recapcard"><div class="ep">${truth ? "The season ends" : "The season is over"}</div><h2>${esc(en.title)}</h2>
+  const tier = { good: "A good ending", bittersweet: "A bittersweet ending", bad: "A bad ending" }[en.tier] || "";
+  $("#overlayCard").innerHTML = `<div class="recapcard"><div class="ep">${truth ? "The season ends" : "The season is over"}${tier ? " · " + tier : ""}</div><h2>${esc(en.title)}</h2>
     <div>${faces}</div><p>${esc(en.text)}</p>
     <p class="warn">${({ truth: "The world is listening. Rescue is on its way.", shutdown: "TereVi is gone and the doors stand open.", ultimatum: "TereVi gave in: the show is over.", raft: "The last of them sailed away.", reckoning: "Nobody died before the deadline, so everyone did." })[en.kind] || ""} Start a new game to play another season.</p></div>
     <div class="actions"><button id="ovClose">Close</button><button id="ovNext" class="primary">New game</button></div>`;

@@ -81,7 +81,9 @@ def one_season(job):
         day = w.state.get("day", day) + (1 if w.state.get("day", day) == day else 0)
     over = w.state.get("over") or {"kind": "unfinished", "title": f"still going after {MAX_DAYS} days", "day": day}
     names = {c: v["short"] for c, v in w.state["cast"].items()}
-    return {"violent": violent, "seed": seed, "ending": over["kind"], "title": over.get("title"), "day": over.get("day", day),
+    nv = (w.state.get("npcs") or {}).get("neovi") or {}
+    return {"violent": violent, "seed": seed, "ending": over["kind"], "title": over.get("title"), "day": over.get("day", day), "tier": over.get("tier", "unfinished"),
+            "neovi": ((nv.get("arc") or {}).get("fate") or "none"), "romances": sum(1 for b in w.state.get("bonds", []) if b.get("kind") == "romance"),
             "survivors": sorted(c for c, a in w.state["agents"].items() if a.get("status", "alive") == "alive"),
             "graveyard": [{"id": g["id"], "day": g["day"], "how": g["how"]} for g in w.state.get("graveyard", [])],
             "trials": trials, "finales": finales, "saga": list(w.state.get("saga", [])), "names": names, "arrivals": arrivals,
@@ -99,6 +101,9 @@ def markdown(seasons):
            f"{len(seasons)} seasons played from Day 1 until the show ended, with every empty place filled by a newcomer at the start of each week ({len(seasons) // 2} per configuration: the default mock cast and a violent one, as in "
            "`tests/balance.py`). Regenerate with `python tests/season.py --write` (a few minutes). For curiosity, not a gate.\n"]
     nm = lambda s, c: s["names"].get(c, c)
+    tiers = Counter(s["tier"] for s in seasons)
+    out.append("**Ending tiers, all seasons:** " + ", ".join(f"{t} {tiers.get(t, 0)} ({round(100 * tiers.get(t, 0) / len(seasons))}%)" for t in ("good", "bittersweet", "bad"))
+               + (f", unfinished {tiers['unfinished']}" if tiers.get("unfinished") else "") + ". Target: good 40%, bittersweet 30%, bad 30% (plan doc, phase 7b).\n")
     for label, violent in (("Default", False), ("Violent mock cast", True)):
         ss = [s for s in seasons if s["violent"] == violent]
         if not ss:
@@ -109,6 +114,9 @@ def markdown(seasons):
         hows = Counter(g["how"] for s in ss for g in s["graveyard"])
         winners = Counter(nm(s, c) for s in ss for c in s["survivors"])
         out.append(f"## {label}\n")
+        tt = Counter(s["tier"] for s in ss)
+        out.append("- **Ending tiers:** " + ", ".join(f"{t} {tt.get(t, 0)}" for t in ("good", "bittersweet", "bad")) + ".")
+        out.append("- **NeoVi's fate:** " + ", ".join(f"{k} {n}" for k, n in Counter(s["neovi"] for s in ss).most_common()) + f". Romances at the end: {sum(s['romances'] for s in ss)} in all.")
         out.append(f"- **Season length:** median {statistics.median(days)} days (shortest {min(days)}, longest {max(days)}).")
         out.append("- **How seasons ended:** " + ", ".join(f"{k} {n}" for k, n in ends.most_common()) + ".")
         out.append(f"- **Deaths per season:** {round(sum(len(s['graveyard']) for s in ss) / len(ss), 1)} on average. Causes: "
@@ -119,10 +127,10 @@ def markdown(seasons):
         out.append(f"- **Ways out at the end:** the furthest route reached {round(statistics.mean(max(s['escape'].values() or [0]) for s in ss))}% on average "
                    f"(best {max(max(s['escape'].values() or [0]) for s in ss)}%).")
         out.append("- **Who walked out alive (seasons):** " + (", ".join(f"{k} {n}" for k, n in winners.most_common()) or "nobody") + ".\n")
-        out.append("| Season | Days | Ending | Survivors | Deaths | Newcomers | Trials (right) |")
-        out.append("| --- | --- | --- | --- | --- | --- | --- |")
+        out.append("| Season | Days | Ending | Tier | Survivors | Deaths | Newcomers | Trials (right) |")
+        out.append("| --- | --- | --- | --- | --- | --- | --- | --- |")
         for s in ss:
-            out.append(f"| {s['seed']} | {s['day']} | {s['title']} | {', '.join(nm(s, c) for c in s['survivors']) or 'none'} | {len(s['graveyard'])} | {len(s['arrivals'])} | "
+            out.append(f"| {s['seed']} | {s['day']} | {s['title']} | {s['tier']} | {', '.join(nm(s, c) for c in s['survivors']) or 'none'} | {len(s['graveyard'])} | {len(s['arrivals'])} | "
                        f"{len(s['trials'])} ({sum(t['found'] for t in s['trials'])}) |")
         out.append("")
     best = max(seasons, key=lambda s: (len(s["graveyard"]) + 2 * len(s["trials"]), s["day"]))

@@ -5673,6 +5673,18 @@ w.end_agent(ids[1], "dead", "murdered")
 vb_ = r.vigil_beats(sorted(w.agents), [ids[0], ids[1]])
 check("at the remembrance an executed killer is not mourned like a victim", all(r.nm(ids[0]) not in b["text"] or b["move"] in ("betrayed", "candle") for b in vb_), str([b["text"] for b in vb_]))
 
+# ---- phase 7b: ending tiers
+from murder.routes import ending_tier  # noqa: E402
+check("every ending has a tier: the show defeated or several walking out is good, a lone survivor is bittersweet, a fight to the death is bad",
+      ending_tier("truth", ["a"]) == "good" and ending_tier("winners", ["a", "b"]) == "good" and ending_tier("winners", ["a"]) == "bittersweet"
+      and ending_tier("battle", ["a"]) == "bad" and ending_tier("reckoning", []) == "bad" and ending_tier("raft", ["a"]) == "bittersweet")
+w, r, _ = fresh(224)
+w.state["revealed"] = True
+for c in sorted(w.agents)[3:]:
+    w.end_agent(c, "dead", "murdered")
+t_ = r.run_endgame(20)
+check("the endgame records its tier with the ending", t_.get("ending", {}).get("tier") in ("good", "bittersweet", "bad") and w.state["over"].get("tier") == t_["ending"]["tier"])
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))
