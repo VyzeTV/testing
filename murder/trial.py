@@ -430,6 +430,8 @@ class TrialMixin:
         wrongful = accused is not None and accused != killer
         tick["trial"] = {"victim": victim, "killer": killer, "votes": votes, "tally": dict(tally), "accused": accused, "found": found,
                          "wrongful": wrongful, "kind": case["kind"], "segments": tick.get("segments", []), "aware": case.get("culprit_aware", True)}
+        if tick.get("claim_trial"):
+            tick["trial"]["report"] = self.trial_report(tick, case, votes, accused, hour)      # truth against belief (claimtrial.py)
         kname = self.nm(killer)
         gone = [victim] + list(case.get("extra_victims", []))
         instig = case.get("instigator")

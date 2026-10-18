@@ -392,9 +392,32 @@ class ClaimTrialMixin:
             self.trial_beat(beats, p, "Look at the evidence, not at me. Vote with your heads." if p != killer else "You're making a terrible mistake. The one who did this is sitting right there.", "plea")
         self.publish_segment(tick, hour, "closing", n + 1, beats, meter, {"debaters": top2})
         votes = self.compute_votes(ids, meter, facts, killer, case)
+        self._trial_state = {"facts": facts, "raised": tr["raised"], "lies": lies, "meter": meter}
         tick["claim_trial"] = {"meter": {k: round(v, 2) for k, v in meter.items()}, "lies_proven": dict(lies), "cred": {k: round(v, 2) for k, v in cred.items()},
                                "raised": len(tr["raised"]), "exposed": sorted(exposed)}
         return votes
+
+    # ------------------------------------------------------------------ after the verdict
+    def trial_report(self, tick, case, votes, accused, hour):
+        """Truth against belief: what really happened, and for each person what they believed, how they voted, and what they knew but never said.
+        Those who held a fact against the culprit, kept it to themselves and saw the vote go wrong remember it."""
+        w = self.world
+        st = self.__dict__.pop("_trial_state", None) or {}
+        killer = case.get("killer")
+        raised = {(f["by"], f["about"], f["text"]) for f in st.get("raised", [])}
+        truth = (f"{self.nm(killer)} killed {self.nm(case['victim'])} in the {w.room_name(case['room'])} around {int(self.case_time(case) % 24):02d}:00"
+                 + (f" ({case.get('method')})" if case.get("method") else "") + ".")
+        rows = []
+        for v in votes:
+            p = v["voter"]
+            held = [f for f in st.get("facts", []) if f["by"] == p and f["about"] == killer and f["w"] > 0]
+            silent = [f for f in held if (f["by"], f["about"], f["text"]) not in raised]
+            rows.append({"id": p, "voted": v["target"], "right": v["target"] == killer, "believed": self.suspicion.get(p), "held": len(held), "silent": len(silent),
+                         "lied": int((st.get("lies") or {}).get(p, 0))})
+            if silent and accused != killer and p in w.agents and p != killer:
+                w.remember(p, f"You knew something against {self.nm(killer)} and never said it. The vote went wrong.")
+                self.stat(tick, p, "sanity", -3, "kept quiet at the trial")
+        return {"truth": truth, "rows": rows, "right": sum(r["right"] for r in rows), "of": len(rows)}
 
     # ------------------------------------------------------------------ the later sequences
     def cross_examine(self, beats, accused, wit, cred, push, case, ids):

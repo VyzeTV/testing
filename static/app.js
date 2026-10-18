@@ -644,6 +644,12 @@ async function playVotes(t, tok) {
         : tr.accused === "nobody" ? `The cast says nobody is to blame. WRONG: ${esc(kn)} is responsible and walks free.`
           : kn ? `No majority. Nobody is executed, and the real culprit, ${esc(kn)}, walks free.` : `No majority. Nobody is executed (and nobody was guilty anyway).`;
   $("#vsum").innerHTML = `<div class="tally">${tally}</div><div class="verdict" style="color:${good ? "#6be38f" : "#ff8da1"}">${verdict}</div>`;
+  const rep = tr.report;
+  if (rep) {
+    // truth against belief: what really happened, how each person voted, and who knew something and kept quiet (claimtrial.py)
+    const rows = rep.rows.map((r) => `${r.right ? "\u2713" : "\u2717"} ${esc(info(r.id).short || r.id)} voted ${esc(info(r.voted).short || r.voted)}` + (r.silent ? ` (kept ${r.silent} thing${r.silent > 1 ? "s" : ""} to themselves)` : "") + (r.lied ? ` (caught lying ${r.lied}x)` : "")).join("<br>");
+    feedAdd(`<b>Truth vs belief</b> \u00b7 ${rep.right}/${rep.of} voted right<br>${esc(rep.truth)}` + (S.gm ? `<br><span style="opacity:.8">${rows}</span>` : ""), "segment");
+  }
   await waitClock(4000);
   if (tok !== S.token) return;
   sc.style.display = "none";

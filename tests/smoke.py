@@ -5507,6 +5507,11 @@ beats_ = []
 sides_ = r.split_court(beats_, ids[0], ids[1], facts_, cred_, lambda p, x, why=None: mt_.__setitem__(p, max(0, mt_[p] + x)), ids)
 check("when the room splits between two suspects, the two sides argue and the weaker side loses people", len(sides_[ids[0]]) > 3 and any(b["move"] == "switch" for b in beats_) and mt_[ids[0]] > mt_[ids[1]], str(sides_))
 
+w, r, ids, case_, tr, _ = trial_case_(205, seen_)
+rep_ = tr["trial"].get("report") or {}
+check("after the verdict a truth-against-belief report: what really happened, each vote, what each person held and kept quiet",
+      rep_.get("truth", "").startswith(r.nm(ids[0]) if ids[0] in w.cast else "") and len(rep_.get("rows", [])) == len(tr["trial"]["votes"]) and all("silent" in x for x in rep_["rows"]), str(rep_)[:200])
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))
