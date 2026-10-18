@@ -320,6 +320,11 @@ table.tel { font-size: 12px; border-collapse: collapse; margin: 4px 0 10px; } ta
 
 /* ---- a new part of the day */
 #segcard { position: absolute; left: 50%; top: 18%; transform: translateX(-50%); display: none; z-index: 9; text-align: center; padding: 14px 34px; border-radius: 14px; background: rgba(12, 14, 22, .9); border: 1px solid var(--accent); box-shadow: 0 10px 40px rgba(0,0,0,.55); pointer-events: none; animation: segin .35s ease-out; }
+#crycard { position: absolute; left: 50%; top: 34%; transform: translateX(-50%) rotate(-6deg); display: none; z-index: 10; pointer-events: none; padding: 10px 30px;
+  font-size: 46px; font-weight: 900; font-style: italic; letter-spacing: .04em; color: #fff; background: #d7263d; border: 4px solid #fff; border-radius: 6px;
+  text-shadow: 3px 3px 0 #000; box-shadow: 0 0 0 4px #d7263d, 0 14px 40px rgba(0,0,0,.6); animation: crypop .25s ease-out; white-space: nowrap; }
+#crycard small { display: block; font-size: 14px; font-style: normal; text-shadow: none; letter-spacing: .1em; opacity: .9; }
+@keyframes crypop { from { transform: translateX(-50%) rotate(-6deg) scale(2.2); opacity: 0; } to { transform: translateX(-50%) rotate(-6deg) scale(1); opacity: 1; } }
 #segcard.free { border-color: #ffd36b; } #segcard .st { font-size: 22px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; } #segcard .ss { color: var(--muted); font-size: 13px; margin-top: 3px; }
 @keyframes segin { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 #feed .segment { border-left: 3px solid var(--accent); padding: 4px 8px; margin: 8px 0; background: rgba(60, 220, 200, .07); }

@@ -18,8 +18,10 @@ The model writes only the lines (one voicing call per sequence; templates otherw
 """
 from collections import Counter
 
-TITLES = {"debate": "OPEN DEBATE", "hotseat": "THE HOT SEAT", "duel": "THE CLASH", "brainstorm": "BRAINSTORM", "closing": "CLOSING ARGUMENTS"}
+TITLES = {"debate": "OPEN DEBATE", "hotseat": "THE HOT SEAT", "duel": "THE CLASH", "brainstorm": "BRAINSTORM", "closing": "CLOSING ARGUMENTS",
+          "crossexam": "CROSS-EXAMINATION", "split": "SPLIT COURT", "climax": "THE CLIMAX"}
 CLUE_WEIGHT = {"weapon": 2.5, "stained": 2.5, "clothes": 2.0, "planted": 2.0, "framed_unconscious": 3.0, "decoy": 1.0, "ledger": 0.6, "drag_marks": 1.0, "staging": 1.0}
+CRIES = ["Objection!", "Hold it!", "That's wrong!", "No, that's not it!", "Wait a second!", "Liar!", "Contradiction!", "I'll cut through that!"]
 CORNERED = {"indignant": "How dare you. I have answered every question and you still want blood.", "tearful": "Please, I'm telling you, I didn't, I couldn't...",
             "silent": "...", "lashing": "Why is nobody looking at {other}? They had every reason!"}
 
@@ -138,6 +140,22 @@ class ClaimTrialMixin:
             return {"r": r, "t": t, "text": f"All right, I wasn't where I said. I was in the {w.room_name(r)}. That's the truth.", "lie": True}
         return None
 
+    def objection_cry(self, cid):
+        """What someone shouts when they catch a contradiction: their own signature cry (a cast field, or from their temperament), now and then another."""
+        c = self.world.cast.get(cid, {})
+        if c.get("objection") and self.rng.random() < 0.8:
+            return c["objection"]
+        if self.rng.random() < 0.3:
+            return self.rng.choice(CRIES)
+        f = self.facet
+        if f(cid, "anger") >= 60:
+            return "That's wrong!"
+        if f(cid, "vanity") >= 60:
+            return "Objection!"
+        if f(cid, "courage") < 40:
+            return "W-wait a second!"
+        return CRIES[sum(map(ord, cid)) % len(CRIES)]
+
     def cornered_mode(self, cid):
         f = self.facet
         if f(cid, "anger") >= 65:
@@ -172,6 +190,9 @@ class ClaimTrialMixin:
                 got[ln["i"]] = str(ln["text"]).strip()[:260]
         out = []
         for i, b in enumerate(beats):
+            if b.get("move") == "cry":
+                out.append({"speaker": b["speaker"], "kind": "say", "text": b["text"], "move": "cry"})      # a cry is never reworded
+                continue
             text = self.clean_line(b["speaker"], b.get("kind", "say"), got.get(i, b["text"]))
             out.append({"speaker": b["speaker"], "kind": b.get("kind", "say"), "text": text or b["text"], "move": b.get("move")})
         return out
@@ -228,6 +249,7 @@ class ClaimTrialMixin:
         def challenge(s, h, b, beats):
             """`h` raises what they saw against `s`'s claim; `s` answers (a liar is exposed, then the lie planner)."""
             cl = claims[s]
+            self.trial_beat(beats, h, self.objection_cry(h), "cry")
             self.trial_beat(beats, h, f"That's not true. I saw {self.nm(s)} in the {w.room_name(b['r'])} at that time, not the {w.room_name(cl['r'])}.", "objection")
             push(s, 2.0 * cred[h] * b["c"])
             raised.add((h, s, "contradiction"))
@@ -269,7 +291,7 @@ class ClaimTrialMixin:
         self.publish_segment(tick, hour, "debate", n, beats, meter)
 
         # 2. the hot seat, the clash, the brainstorm, as the state of the room calls for them
-        hot_done, clashed, brained = set(), False, False
+        hot_done, clashed, brained, crossed, split_done = set(), False, False, set(), False
         while n < 5:
             if self.should_stop():
                 raise self.StopExc()
@@ -294,7 +316,22 @@ class ClaimTrialMixin:
                 self.update_trial_suspicion(ids, meter, facts, killer, case)
                 self.publish_segment(tick, hour, "hotseat", n, beats, meter, {"subject": lead})
                 continue
+            wit = max([f for f in tr["raised"] if f["about"] == lead and f["kind"] in ("near_scene", "witness") and f["by"] != lead],
+                      key=lambda f: f["w"] * cred[f["by"]], default=None)
+            if wit and lead not in crossed:
+                crossed.add(lead)
+                self.cross_examine(beats, lead, wit, cred, push, case, ids)
+                self.update_trial_suspicion(ids, meter, facts, killer, case)
+                self.publish_segment(tick, hour, "crossexam", n, beats, meter, {"subject": wit["by"]})
+                continue
             picks = Counter(self.suspicion.values())
+            if not split_done and len(picks) >= 2 and sorted(picks.values())[-2] >= 3:
+                split_done = clashed = True
+                (ta, _), (tb, _) = picks.most_common(2)
+                sides = self.split_court(beats, ta, tb, facts, cred, push, ids)
+                self.update_trial_suspicion(ids, meter, facts, killer, case)
+                self.publish_segment(tick, hour, "split", n, beats, meter, {"sides": sides, "debaters": [ta, tb]})
+                continue
             if not clashed and len(picks) >= 2:
                 (ta, _), (tb, _) = picks.most_common(2)
                 a = next((v for v, x in sorted(self.suspicion.items()) if x == ta and v != ta), None)
@@ -339,7 +376,14 @@ class ClaimTrialMixin:
             self.update_trial_suspicion(ids, meter, facts, killer, case)
             self.publish_segment(tick, hour, "debate", n, beats, meter)
 
-        # 3. closing arguments and the vote
+        # 3. the climax (the accuser tells the whole story), closing arguments and the vote
+        lead = max(ids, key=lambda p: (meter[p], p))
+        if meter[lead] >= 4.0:
+            beats = []
+            steps = self.climax(beats, lead, tr, facts, cred, push, case, ids, exposed, lies)
+            self.update_trial_suspicion(ids, meter, facts, killer, case)
+            self.publish_segment(tick, hour, "climax", n + 1, beats, meter, {"subject": lead, "steps": steps})
+            n += 1
         top2 = sorted(ids, key=lambda p: -meter[p])[:2]
         self.withhold_trial(tick, hour, top2)
         self.trial_betrayals(tick, hour, top2)
@@ -351,6 +395,90 @@ class ClaimTrialMixin:
         tick["claim_trial"] = {"meter": {k: round(v, 2) for k, v in meter.items()}, "lies_proven": dict(lies), "cred": {k: round(v, 2) for k, v in cred.items()},
                                "raised": len(tr["raised"]), "exposed": sorted(exposed)}
         return votes
+
+    # ------------------------------------------------------------------ the later sequences
+    def cross_examine(self, beats, accused, wit, cred, push, case, ids):
+        """The accused (or their friend) tests the witness against them: could they see, have they lied before, do they hate the accused?"""
+        w = self.world
+        h = wit["by"]
+        self.trial_beat(beats, h, f"I'll say it again: {wit['text']}", "testimony")
+        asker = accused
+        weak = []
+        b = self.believed_at(h, accused, self.case_time(case), slack=0.8)
+        if b and b.get("c", 1) < 0.8:
+            weak.append(("light", f"It was dark. How can you be sure it was me you saw?", 0.6))
+        if any(h in self.caught_liars(o) for o in ids if o != h):
+            weak.append(("liar", f"You've lied to people here before. Why should anyone believe you now?", 0.5))
+        if w.agents[h]["aff"].get(accused, 0) <= -4:
+            weak.append(("grudge", f"You've hated me from the start. Of course you'd say that.", 0.7))
+        if not weak:
+            self.trial_beat(beats, asker, "Where exactly were you standing? ...Fine.", "probe")
+            self.trial_beat(beats, h, "Right there. I know what I saw.", "stands")
+            push(accused, 1.0)                                          # the testimony survives the test
+            return False
+        kind, line, hit = weak[0]
+        self.trial_beat(beats, asker, line, "crossexam")
+        self.trial_beat(beats, h, {"light": "I... I think it was. It looked like them.", "liar": "That was different!", "grudge": "This isn't about that!"}[kind], "falter")
+        cred[h] *= 0.8
+        push(accused, -hit * 2)
+        return True
+
+    def split_court(self, beats, ta, tb, facts, cred, push, ids):
+        """The room has split between two suspects: two sides argue in turn, and people can cross over."""
+        sides = {ta: sorted(v for v, x in self.suspicion.items() if x == ta), tb: sorted(v for v, x in self.suspicion.items() if x == tb)}
+        score = {ta: 0.0, tb: 0.0}
+        for rnd in range(2):
+            for t, other in ((ta, tb), (tb, ta)):
+                team = [m for m in sides[t] if m != t]
+                pool = [f for f in facts if f["about"] == t and f["by"] in team and f["w"] > 0]
+                if not team:
+                    continue
+                f = sorted(pool, key=lambda f: -f["w"] * cred[f["by"]])[rnd] if len(pool) > rnd else None
+                sp = f["by"] if f else team[rnd % len(team)]
+                self.trial_beat(beats, sp, f"It's {self.nm(t)}. " + (f["text"] if f else f"Nobody can say where {self.nm(t)} really was."), "split")
+                score[t] += (f["w"] * cred[f["by"]]) if f else 0.4
+        win, lose = (ta, tb) if score[ta] >= score[tb] else (tb, ta)
+        moved = [m for m in sides[lose] if m != lose][: max(0, int(abs(score[ta] - score[tb]) // 1.5))]
+        for m in moved:
+            self.trial_beat(beats, m, f"...No. I think they're right about {self.nm(win)}.", "switch")
+            sides[lose].remove(m)
+            sides[win].append(m)
+        push(win, 1.0)
+        push(lose, -0.8)
+        return {k: v for k, v in sides.items()}
+
+    def climax(self, beats, lead, tr, facts, cred, push, case, ids, exposed, lies):
+        """The accuser tells the crime from start to end from the facts on the table; every step without a fact is a gap, and gaps weaken the case."""
+        w = self.world
+        accuser = max((p for p in ids if p != lead), key=lambda p: (sum(f["w"] for f in tr["raised"] if f["by"] == p and f["about"] == lead) * cred[p], p))
+        raised = [f for f in tr["raised"] if f["about"] == lead and f["w"] > 0]
+        t = self.case_time(case)
+        pick = lambda kinds: next((f for f in raised if f["kind"] in kinds), None)
+        steps = [
+            ("opportunity", pick(("near_scene", "witness")), f"{self.nm(lead)} was near the {w.room_name(case['room'])} around {int(t % 24):02d}:00."),
+            ("weapon", next((f for f in raised if f["kind"] in ("clue", "has") and ("knife" in f["text"].lower() or "weapon" in f["text"].lower() or "prints" in f["text"].lower() or f["kind"] == "has")), None),
+             f"They had the means: {(pick(('has',)) or {}).get('text', 'the weapon')}"),
+            ("the deed", pick(("witness",)) or (pick(("clue",)) if case.get("weapon") else None), f"They killed {self.nm(case['victim'])} there."),
+            ("the cover-up", True if lies.get(lead) else None, f"Then {self.nm(lead)} lied about where they were, and we caught the lie."),
+        ]
+        self.trial_beat(beats, accuser, f"Let me tell you what happened, from the start.", "climax_open")
+        out, gaps, interrupted = [], 0, False
+        for name, fact, text in steps:
+            if fact:
+                self.trial_beat(beats, accuser, text, "climax_step")
+                out.append({"step": name, "text": text, "gap": False})
+            else:
+                gaps += 1
+                self.trial_beat(beats, accuser, f"And then... {name}: that part we don't know yet.", "climax_gap")
+                out.append({"step": name, "text": f"{name}: unknown", "gap": True})
+                if not interrupted:
+                    interrupted = True
+                    self.trial_beat(beats, lead, "You can't prove any of that!", "interrupt")
+        push(lead, -0.5 * gaps)
+        if not gaps:
+            self.trial_beat(beats, accuser, f"That's how it happened. Isn't it, {self.nm(lead)}?", "climax_end")
+            push(lead, 1.0)
+        return out
 
     def personal_suspicion(self, voter, ids, meter, facts, killer, case):
         """How suspicious each candidate looks to `voter`: the public meter, what only they know, affinity and fear."""

@@ -416,6 +416,7 @@ function sfx(kind) {
   else if (kind === "boom") tone(60, 1.2, "sine", 0.5, 28);
   else if (kind === "betray") { tone(440, 0.8, "sawtooth", 0.1, 220); tone(415, 0.8, "sawtooth", 0.08, 207, 0.05); }
   else if (kind === "madness") { tone(311, 0.9, "square", 0.05, 233); tone(330, 0.9, "square", 0.05, 247, 0.1); }
+  else if (kind === "cry") { tone(880, 0.12, "square", 0.12, 1320); tone(196, 0.35, "sawtooth", 0.12, 98, 0.08); }
   else if (kind === "reveal") { tone(330, 0.15, "sine", 0.1); tone(392, 0.15, "sine", 0.1, null, 0.12); tone(494, 0.4, "sine", 0.12, null, 0.24); }
 }
 function eventSfx(e) {
@@ -850,6 +851,7 @@ function setRoster(on) {
 }
 setInterval(() => { try { renderRoster(); } catch (e) { /* the roster never blocks playback */ } }, 400);
 async function playLine(g, l, tok) {
+  if (l.move === "cry") showCry(l);
   feedLine(l.speaker, l.text, l.kind);
   const dur = Math.max(2000, l.text.length * 55);
   const isAct = l.kind === "act";
@@ -873,7 +875,16 @@ async function animateTo(m, minMs, per, tok) {
   await waitClock(span);
   if (tok === S.token) { S.tileAnim = null; TileMap.setMinute(Math.max(from, m)); }
 }
+function showCry(l) {
+  // "Objection!": a contradiction was caught. The speaker's cry is stamped over the map for a moment.
+  const el = $("#crycard");
+  el.innerHTML = `${esc(l.text)}<small>${esc((info(l.speaker).short || l.speaker).toUpperCase())}</small>`;
+  el.style.display = "none"; void el.offsetWidth; el.style.display = "block";
+  sfx("cry");
+  clearTimeout(S.cryT); S.cryT = setTimeout(() => (el.style.display = "none"), 1300);
+}
 function showLine(g, l) {
+  if (l.move === "cry") showCry(l);
   feedLine(l.speaker, l.text, l.kind, l.heard);
   if (l.heard) for (const [id, lvl] of Object.entries(l.heard)) S.ears.push({ id, from: l.speaker, lvl, until: S.clock + readMs(l) });
   const isAct = l.kind === "act", ms = readMs(l);

@@ -5478,6 +5478,35 @@ hi_ = r.willingness(ids[2], ids[1], 0.9)
 lo_ = r.willingness(ids[0], ids[1], 0.9)
 check("people are less willing to speak against someone they love than against a stranger", lo_ < hi_, f"{lo_:.2f} vs {hi_:.2f}")
 
+# ---- phase 7: cries, cross-examination, split court, climax
+w, r, ids, case_, tr, _ = trial_case_(205, seen_)
+kinds_ = [sg["kind"] for sg in tr["segments"]]
+lines_ = [l for g in tr["talk"] if g.get("segment") for l in g["lines"]]
+check("the strongest witness against the accused is cross-examined", "crossexam" in kinds_ and any(l.get("move") in ("probe", "crossexam") for l in lines_), str(kinds_))
+clim_ = next((sg for sg in tr["segments"] if sg["kind"] == "climax"), None)
+check("before the vote the accuser tells the crime step by step; steps with no fact are gaps the accused can jump on", clim_ and clim_.get("steps")
+      and any(st["gap"] for st in clim_["steps"]) and any(l.get("move") == "interrupt" for l in lines_), str(clim_ and clim_.get("steps")))
+w, r, ids, case_, tr, _ = trial_case_(207, lie_)
+cries_ = [l for g in tr["talk"] if g.get("segment") for l in g["lines"] if l.get("move") == "cry"]
+from murder.claimtrial import CRIES  # noqa: E402
+check("whoever catches a contradiction shouts their cry first (Objection!, Hold it!, That's wrong!...), never reworded", cries_ and all(l["text"].rstrip("!").strip() for l in cries_)
+      and any(l["text"] in CRIES or l["text"].startswith("W-wait") for l in cries_), str([l["text"] for l in cries_]))
+w, r, _ = fresh(211)
+ids = sorted(w.agents)
+w.cast[ids[0]]["objection"] = "Take that!"
+r.rng = _Fixed(0.5, r.rng)
+check("a character can have a signature cry of their own", r.objection_cry(ids[0]) == "Take that!")
+w, r, _ = fresh(212)
+ids = sorted(w.agents)
+r.suspicion = {ids[2]: ids[0], ids[3]: ids[0], ids[4]: ids[0], ids[5]: ids[1], ids[6]: ids[1], ids[7]: ids[1]}
+facts_ = [{"by": ids[2], "about": ids[0], "kind": "clue", "w": 4.0, "text": "Clear fingerprints on the handle.", "true": True},
+          {"by": ids[5], "about": ids[1], "kind": "has", "w": 1.0, "text": "carrying a hammer", "true": True}]
+cred_ = {p: 1.0 for p in ids}
+mt_ = {p: 0.0 for p in ids}
+beats_ = []
+sides_ = r.split_court(beats_, ids[0], ids[1], facts_, cred_, lambda p, x, why=None: mt_.__setitem__(p, max(0, mt_[p] + x)), ids)
+check("when the room splits between two suspects, the two sides argue and the weaker side loses people", len(sides_[ids[0]]) > 3 and any(b["move"] == "switch" for b in beats_) and mt_[ids[0]] > mt_[ids[1]], str(sides_))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))
