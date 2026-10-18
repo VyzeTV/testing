@@ -15,14 +15,23 @@ DMG = {  # (kind, part): health per hit
     ("blunt", "head"): 58, ("blunt", "throat"): 20, ("blunt", "chest"): 18, ("blunt", "belly"): 15, ("blunt", "back"): 15, ("blunt", "arm"): 12, ("blunt", "leg"): 12, ("blunt", "hand"): 8,
     ("hands", "throat"): 26, ("hands", "head"): 10, ("hands", "chest"): 6, ("hands", "belly"): 6, ("hands", "back"): 5, ("hands", "arm"): 4, ("hands", "leg"): 4, ("hands", "hand"): 3,
 }
-HIT = {"sharp": 0.62, "blunt": 0.58, "hands": 0.52}
-VERB = {"sharp": "stabs at", "blunt": "swings at", "hands": "goes for"}
+DMG[("water", "head")] = 32                       # held under water
+HIT = {"sharp": 0.62, "blunt": 0.58, "hands": 0.52, "water": 0.55}
+VERB = {"sharp": "stabs at", "blunt": "swings at", "hands": "goes for", "water": "forces under the water"}
+GAG_ITEMS = ("duct_tape", "masking_tape", "rags", "towels", "scarf", "pillow", "apron")
+WATER_ROOMS = ("pool", "bathroom", "beach", "water_tower")
 MAX_ROUNDS = 6
 
 
 class FightMixin:
+    def gag_item(self, cid):
+        a = self.world.agents.get(cid) or {}
+        return next((k for k in GAG_ITEMS if a.get("inv", {}).get(k, 0) > 0), None)
+
     def aim(self, cid, t, kind, rnd, helpless):
         """The part of the body the attacker goes for this round."""
+        if kind == "water":
+            return "head"
         if kind == "hands":
             return "throat" if helpless or rnd > 0 or self.rng.random() < 0.7 else "head"
         if helpless:
@@ -58,11 +67,18 @@ class FightMixin:
         strength = self.success_p(cid, 1.0)
         grip = False
         drawing = self.must_draw(cid, weapon)             # a hidden weapon has to come out first: they see it coming
+        gag = self.gag_item(cid)
+        silenced = bool(v.get("gagged"))
         for rnd in range(MAX_ROUNDS):
-            part = "throat" if grip else self.aim(cid, t, kind, rnd, helpless)
+            part = ("head" if kind == "water" else "throat") if grip else self.aim(cid, t, kind, rnd, helpless)
             p = 0.9 if grip else HIT[kind] * (0.75 + 0.25 * strength) + (0.3 if helpless else 0.15 if rnd == 0 else 0)
             surprised = rnd == 0 and not drawing and self.rng.random() < 0.6     # the first blow usually comes before they can react
+            if rnd == 0 and not silenced and (surprised or helpless) and (gag or kind in ("hands", "water")):
+                silenced = True                                                  # a gag, a hand over the mouth, or the water: no scream will carry
+                blows.append({"part": "mouth", "reply": None, "hit": False, "gag": gag or ("water" if kind == "water" else "hand")})
             reply = None if helpless or surprised else ("struggle" if grip else self.defend(cid, t, kind, weapon, hp, others))      # a hand on the throat leaves only the struggle
+            if reply == "scream" and silenced:
+                reply = "struggle"                                               # muffled: all they can do is fight
             if reply == "block":
                 p *= 0.5
                 part = "arm" if self.rng.random() < 0.45 else part
@@ -79,7 +95,7 @@ class FightMixin:
             blows.append(blow)
             if hp <= 0:
                 return {"outcome": "killed", "blows": blows, "wounds": wounds, "scratched": scratched}
-            if kind == "hands" and blow["hit"] and part == "throat":
+            if (kind == "hands" and blow["hit"] and part == "throat") or (kind == "water" and blow["hit"]):
                 if grip and reply == "struggle" and self.rng.random() < 0.25 + 0.25 * hp / 100:
                     grip = False                                   # they break the grip
                     blow["broke_free"] = True
@@ -101,13 +117,16 @@ class FightMixin:
             if nerve <= 0:
                 break
         v["hp"] = max(1, hp)
-        return {"outcome": "survived", "blows": blows, "wounds": wounds, "scratched": scratched, "drew": drawing}
+        return {"outcome": "survived", "blows": blows, "wounds": wounds, "scratched": scratched, "drew": drawing, "silenced": silenced}
 
     def fight_text(self, cid, t, res, wname, kind):
         """The fight told blow by blow, short."""
         n, tn = self.nm(cid), self.nm(t)
         bits = []
         for b in res["blows"][:5]:
+            if b.get("gag"):
+                bits.append({"hand": f"a hand clamps over {tn}'s mouth", "water": f"{tn} goes under"}.get(b["gag"], f"{n} gags {tn} with the {self.world.item_name(b['gag'])}"))
+                continue
             r = {"block": f"{tn} blocks", "dodge": f"{tn} twists away", "struggle": f"{tn} grabs for the {wname}" if kind != "hands" else f"{tn} claws at {n}",
                  "flee": f"{tn} tries to run", "scream": f"{tn} screams", None: ""}[b.get("reply")]
             hit = f"hits the {b['part']}" if b["hit"] else "misses"

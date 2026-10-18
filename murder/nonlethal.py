@@ -122,6 +122,13 @@ class NonlethalMixin:
                                   "text": f"{name} {how if method != 'hands' else 'knocks ' + tname + ' out cold'}{'' if method != 'choke' else ' ' + tname + ' until they go limp'}."}, witnesses=here, actor=cid)
             tags = set(w.item_spec(weapon).get("tags", [])) if weapon else {"hands"}
             self.injure(tick, t, cid, tags, 12, "blow", weapon)
+            gag = self.gag_item(cid)
+            if gag:                                                       # gagged while out: they will not be calling for help (combat.py)
+                ta["gagged"] = {"with": gag, "day": self.day, "by": cid}
+                w.agents[cid]["inv"][gag] -= 1
+                if w.agents[cid]["inv"][gag] <= 0:
+                    del w.agents[cid]["inv"][gag]
+                self.log_event(tick, {"type": "attack", "who": cid, "room": room, "vis": "public", "text": f"{name} gags {tname} with the {w.item_name(gag)}."}, witnesses=here, actor=cid)
             if self.rng.random() < risk * self.sevmul() and not s.get("case") and self.lethal_blow(tick, cid, t, weapon, tick["hour"]):
                 return
             self.hook_note_knockout(tick, cid, t)

@@ -262,6 +262,8 @@ class ConditionMixin:
             return
         out = a.pop("out")
         a["activity"] = "Groggy"
+        if a.get("gagged") and not self.restrained(cid):
+            a.pop("gagged")                                          # they tear the gag off as soon as their hands are free
         bl = self.s.setdefault("blackouts", [])
         bl.append({"who": cid, "cause": out["cause"], "by": out.get("by"), "room": a["room"], "day": out["day"], "hour": out["hour"], "woke_day": self.day, "woke_hour": tick.get("hour", 12),
                    "seen_by": list(out.get("seen_by", []))})

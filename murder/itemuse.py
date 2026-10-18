@@ -147,6 +147,7 @@ class ItemUseMixin:
             p = 0.9 if (r["by"] == cid or w.has_room_key(cid, a["room"]) and self.has(cid, "master_key")) else (tool[0] * 0.8 if tool else 0.0)
         if self.rng.random() < p:
             w.agents[t].pop("restrained", None)
+            w.agents[t].pop("gagged", None)                         # free hands: the gag comes off too
             a["inv"]["handcuffs"] = a["inv"].get("handcuffs", 0) + 1
             self.log_event(tick, {"type": "restrain", "who": cid, "room": a["room"], "vis": "public",
                                   "text": f"{self.nm(cid)} gets {'themselves' if t == cid else self.nm(t)} out of the handcuffs."}, witnesses=[o for o in w.occupants(a["room"]) if o != cid], actor=cid)

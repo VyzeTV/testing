@@ -36,7 +36,8 @@ CAUSES = {"trap_fall": "a shattering fall from something that had been tampered 
           "trap_drink": "agonising poisoning from a tainted drink",
           "trap_blade": "a rigged blade that opened them up",
           "sharp": "deep stab and slash wounds", "blunt": "a fractured skull from a heavy blow",
-          "hands": "bruises around the throat", "poison": "froth at the lips and a bitter smell"}
+          "hands": "bruises around the throat", "poison": "froth at the lips and a bitter smell",
+          "water": "water in the lungs and bruises on the shoulders where they were held down"}
 STAGE_STORY = {"accident": "apparently in a terrible accident", "suicide": "apparently by their own hand"}
 STAGE_FLAWS = {
     "accident": ["The 'accident' does not add up: the wound is on the wrong side for the fall it is supposed to come from.",
@@ -145,6 +146,9 @@ class CaseMixin:
                 if self.push_kill(tick, cid, t) is not None:
                     continue
                 method = "hands"
+            drown = method == "drown" and room in ("pool", "bathroom", "beach", "water_tower")
+            if method == "drown":
+                method = "hands"
             tname = self.nm(t)
             if self.interrupted(tick, cid, t, here, hour):
                 continue
@@ -165,7 +169,7 @@ class CaseMixin:
                     self.note_holder(cid, method, hour)
                     weapon = method
             tags = w.item_spec(weapon).get("tags", []) if weapon else []
-            kind = "sharp" if "sharp" in tags else "blunt" if "blunt" in tags else "hands"
+            kind = "water" if drown else "sharp" if "sharp" in tags else "blunt" if "blunt" in tags else "hands"
             vhp = w.agents[t]["hp"]
             res = self.fight(tick, cid, t, weapon, kind, hour, others=here)     # blow by blow (combat.py)
             good = res["outcome"] == "killed"
@@ -179,7 +183,8 @@ class CaseMixin:
             if good or vhp - 35 <= 0:
                 brutal = {"sharp": f"{name} drives the {wname} into {tname} again and again until {tname} stops moving",
                           "blunt": f"{name} brings the {wname} down on {tname} until the sound changes and {tname} goes limp",
-                          "hands": f"{name} wraps their hands around {tname}'s throat and does not let go until the struggling stops"}[kind]
+                          "hands": f"{name} wraps their hands around {tname}'s throat and does not let go until the struggling stops",
+                          "water": f"{name} holds {tname} under the water until the thrashing stops"}[kind]
                 self.log_event(tick, {"type": "attack", "who": cid, "room": room, "vis": "public",
                                       "text": f"{brutal}, in the {w.room_name(room)}."}, witnesses=seen, actor=cid)
                 self.log_event(tick, {"type": "fight", "who": cid, "room": room, "vis": "gm", "text": self.fight_text(cid, t, res, wname, kind)})
@@ -447,7 +452,7 @@ class CaseMixin:
             shown = "apparently self-inflicted wounds"
         elif staged == "accident":
             shown = "what looks like a nasty accident"
-        desc = (f"{wkind} ({w.item_name(weapon) if weapon else 'bare hands'})" if wkind in ("sharp", "blunt", "hands")
+        desc = ("drowning" if wkind == "water" else f"{wkind} ({w.item_name(weapon) if weapon else 'bare hands'})" if wkind in ("sharp", "blunt", "hands")
                 else (true_cause if (kind in ("suicide", "accident") or trap) else str(wkind)))
         case = self.new_case(kind, victim, culprit, room, hour, witnesses, method=desc, cause=shown, true_cause=true_cause, weapon=weapon,
                              staged=staged, instigator=instigator, intended=intended, note=note, detail=detail, culprit_aware=aware,

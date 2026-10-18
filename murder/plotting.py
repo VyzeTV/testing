@@ -325,6 +325,27 @@ class PlotMixin:
         if stage == "brooding":
             return
         if stage == "preparing":
+            sc = p.get("scheme") or {}
+            if "gag" in self.scheme_needs(cid, p):                  # something to keep them quiet (planner.py)
+                from .combat import GAG_ITEMS
+                here_g = [k for k in GAG_ITEMS if s["room_items"].get(a["room"], {}).get(k, 0) > 0]
+                if here_g:
+                    d.update(action="take", item=here_g[0], qty=1, target_room="", activity=f"Tucks the {w.item_name(here_g[0])} away", step="takes something to gag them with")
+                    return
+                gr = self.gag_room(cid)
+                go = self.step_toward(cid, gr) if gr and self.rng.random() < 0.5 else None
+                if go:
+                    d.update(target_room=go, action="stay", activity="Looks for something useful", step="looks for a gag")
+                    return
+            if sc.get("kind") == "trap" and not p.get("rigged"):
+                if a["room"] == sc["room"] and sc.get("rig") in self.rig_options(cid):
+                    d.update(action="rig", rig={"kind": sc["rig"], "target": t}, target_room="", activity="Busy with something, out of sight", step="rigs the trap")
+                    p["rigged"] = True
+                    return
+                go = self.step_toward(cid, sc["room"])
+                if go:
+                    d.update(target_room=go, action="stay", activity="Heads off somewhere quiet", step="goes to set the trap")
+                    return
             if p["weapon"]:
                 return
             here = [k for k, q in s["room_items"].get(a["room"], {}).items() if q > 0 and "weapon" in w.item_spec(k).get("tags", []) and "instrument" not in w.item_spec(k).get("tags", [])]
@@ -363,7 +384,8 @@ class PlotMixin:
         humans = [o for o in w.occupants(a["room"]) if o in w.agents]
         alone = len(self.perceivers_of(cid, a["room"], "quiet", exclude=(t,))) == 0 if self.perception_on() else len(humans) <= 2
         window = alone or a["room"] in CAMERA_BLIND or self.blackout_until >= self.idx or bool(ta.get("asleep"))
-        if (window or urgent) and not s.get("case") and p.get("motive") in ("blackmail", "exposure", "silencing", "jealousy") and self.rng.random() < 0.35:
+        subdue = p.get("motive") in ("blackmail", "exposure", "silencing", "jealousy") or (not ta.get("asleep") and (self.has(cid, "sleeping_pills") or (p["weapon"] and "blunt" in self.tags(p["weapon"]))))
+        if (window or urgent) and not s.get("case") and subdue and self.rng.random() < 0.5:      # an awake target is put down first, then finished (plot_helpless)
             p["window"] = "alone" if alone else "blind spot"
             d.update(action="knockout", target=t, method=self.plot_method(p) if not p["weapon"] or "blunt" in self.tags(p["weapon"]) else "hands", target_room="", activity="Moves on them from behind", step="knocks them out")
             self.plan_note(p, f"put {self.nm(t)} out of action ({p['window']})")

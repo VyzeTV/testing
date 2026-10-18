@@ -34,6 +34,9 @@ class NightLifeMixin:
             for h in helpers:
                 if by in w.agents and h.get("helper") in w.agents:
                     pairs.append((0.6, by, h["helper"], "accomplices"))
+        for pc, pl in sorted((s.get("plots") or {}).items()):        # a plotter who means to lure the target asks for a quiet word tonight
+            if (pl.get("scheme") or {}).get("kind") == "lure" and pl.get("stage") in ("stalking", "striking") and pc in w.agents and pl.get("target") in w.agents:
+                pairs.append((0.9, pc, pl["target"], "lure"))
         rooms = [r for r in MEET_ROOMS if r in ROOMS]
         used = set()
         for p, a, b, why in sorted(pairs, key=lambda x: (-x[0], x[1], x[2])):

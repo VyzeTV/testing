@@ -71,6 +71,17 @@ class MurderPlanMixin:
             if self.drop_edges(room):
                 out.append((1.45 + 0.2 * cr, {"kind": "height", "room": room, "when": "day",
                             "why": f"a fall from the {w.room_name(room)} would look like an accident"}))
+        for room, n in sorted(alone.items(), key=lambda kv: (-kv[1], kv[0])):
+            if room in ("pool", "bathroom", "beach", "water_tower"):
+                out.append((1.35 + 0.15 * min(3, n), {"kind": "drown", "room": room, "when": "day", "why": f"{self.nm(t)} alone by the water in the {w.room_name(room)}: no blood, no scream"}))
+                break
+        trust = w.agents[t]["aff"].get(cid, 0)
+        if trust >= 2:
+            out.append((1.0 + 0.1 * min(6, trust), {"kind": "lure", "room": None, "when": "night", "why": f"{self.nm(t)} trusts them enough to meet them alone at night"}))
+        rig = self.rig_options(cid)
+        if rig and home in ROOMS:
+            out.append((1.3, {"kind": "trap", "room": home if "fall" not in rig else w.agents[cid]["room"], "rig": rig[0], "when": "any",
+                              "why": f"a rigged {rig[0]} where {self.nm(t)} will walk into it, with an alibi elsewhere"}))
         item, where = self.poison_source(cid)
         if item:
             out.append((1.1 if not where else 0.8, {"kind": "poison", "item": item, "room": where, "when": "any",
@@ -87,8 +98,10 @@ class MurderPlanMixin:
             return None
         best = max(opts, key=lambda x: x[0] + 0.3 * self.rng.random())[1]
         p["scheme"] = best
-        self.plan_note(p, {"asleep": "will come for them in the night", "alone": f"will catch them alone in the {self.world.room_name(best['room'])}",
-                           "height": f"will push them from the {self.world.room_name(best['room'])}", "poison": "will poison them"}[best["kind"]])
+        rn = lambda: self.world.room_name(best["room"]) if best.get("room") else "somewhere quiet"
+        self.plan_note(p, {"asleep": lambda: "will come for them in the night", "alone": lambda: f"will catch them alone in the {rn()}",
+                           "height": lambda: f"will push them from the {rn()}", "poison": lambda: "will poison them", "drown": lambda: f"will drown them in the {rn()}",
+                           "lure": lambda: "will lure them to a quiet room at night", "trap": lambda: f"will rig a {best.get('rig')} trap"}[best["kind"]]())
         self.log_event(tick, {"type": "plot", "who": cid, "room": self.world.agents[cid]["room"], "vis": "gm",
                               "text": f"{self.nm(cid)} plans the murder of {self.nm(t)}: {best['why']}."}, actor=cid)
         return best
@@ -102,8 +115,13 @@ class MurderPlanMixin:
         night = self.s.get("_hour", 12) >= 22
         if sc["kind"] == "asleep":
             return night and a["room"] == sc["room"]
-        if sc["kind"] in ("alone", "height"):
+        if sc["kind"] in ("alone", "height", "drown"):
             return a["room"] == sc["room"]
+        if sc["kind"] == "lure":
+            mt = next((m for m in self.s.get("meets") or [] if m.get("day") == self.day and cid in (m["a"], m["b"]) and m.get("why") == "lure"), None)
+            return night and bool(mt) and a["room"] == mt["room"]
+        if sc["kind"] == "trap":
+            return False                                            # the trap does the work; they keep their distance
         return True
 
     def scheme_method(self, cid, p):
@@ -115,7 +133,30 @@ class MurderPlanMixin:
                 return f"poison:{item}"
         if sc.get("kind") == "height" and self.world.agents[cid]["room"] == sc.get("room") and self.drop_edges(sc["room"]):
             return "push"
+        if sc.get("kind") == "drown" and self.world.agents[cid]["room"] == sc.get("room"):
+            return "drown"
         return None
+
+    def scheme_needs(self, cid, p):
+        """What the plotter still has to fetch for the scheme: a gag for anything done to someone awake, the means for a trap."""
+        sc = p.get("scheme") or {}
+        need = []
+        if sc.get("kind") in ("alone", "height", "drown", "lure") and not self.gag_item(cid):
+            need.append("gag")
+        return need
+
+    def gag_room(self, cid):
+        """The nearest room with something to gag someone with."""
+        from .combat import GAG_ITEMS
+        w, s = self.world, self.s
+        best, bl = None, 10 ** 9
+        for room, items in sorted(s["room_items"].items()):
+            if any(items.get(k, 0) > 0 for k in GAG_ITEMS):
+                pth = w.path(cid, w.agents[cid]["room"], room)
+                n = sum(c for _, _, c in pth) if pth is not None else None
+                if n is not None and n < bl:
+                    best, bl = room, n
+        return best
 
     # ------------------------------------------------------------------ the push
     def push_kill(self, tick, cid, t, m=None):

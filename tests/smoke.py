@@ -5304,6 +5304,65 @@ r.rng = _Fixed(0.0, r.rng)
 got_ = r.neovi_shares_footage(r.new_tick(16), 16)
 check("only NeoVi can show someone the camera archive, in secret, and then they can cite it", got_ and r.has_footage(got_) and any(c["kind"] == "ledger" and got_ in c["found_by"] for c in case_["clues"]))
 
+# ---- silencing a victim, and plotters who stack the odds
+w, r, _ = fresh(199)
+ids = sorted(w.agents)
+at_, vi_, by_ = ids[0], ids[1], ids[2]
+def rescues_(gag):
+    w.agents[at_]["inv"] = {"crowbar": 1, **({"duct_tape": 1} if gag else {})}
+    n = sil = 0
+    for i in range(150):
+        w.agents[vi_]["hp"], w.agents[vi_]["asleep"] = 100, False
+        res_ = r.fight(r.new_tick(14), at_, vi_, "crowbar", "blunt", 14, others=[by_])
+        n += res_["outcome"] == "rescued"
+        sil += bool(res_.get("silenced")) or any(b.get("gag") for b in res_["blows"])
+    return n, sil
+plain_, gagged_ = rescues_(False), rescues_(True)
+check("a gag stops the scream that would bring help", gagged_[0] < plain_[0] and gagged_[1] > 0, f"rescued {plain_[0]} without a gag, {gagged_[0]} with")
+from murder.combat import WATER_ROOMS  # noqa: E402
+w.agents[at_]["inv"] = {}
+w.agents[at_]["room"] = w.agents[vi_]["room"] = "pool"
+for c in ids[2:]:
+    w.agents[c]["room"] = "garden"
+w.agents[vi_]["hp"], w.agents[vi_]["asleep"] = 100, True
+r.resolve_attacks(r.new_tick(14), [(at_, {"target": vi_, "method": "drown", "frame": None})], 14)
+cs_ = w.state.get("case") or {}
+check("someone can be held under the water: a silent killing with its own marks", cs_.get("killer") == at_ and "water" in (cs_.get("cause") or "") + str(cs_.get("true_cause")), str(cs_.get("cause")))
+
+w, r, _ = fresh(200)
+ids = sorted(w.agents)
+at_, vi_ = ids[0], ids[1]
+w.agents[at_]["room"] = w.agents[vi_]["room"] = "lounge"
+for c in ids[2:]:
+    w.agents[c]["room"] = "garden"
+w.agents[at_]["inv"] = {"rags": 1}
+w.agents[vi_]["asleep"] = True
+r.rng = _Fixed(0.3, r.rng)
+r.do_knockout(r.new_tick(14), at_, {"target": vi_, "method": "hands"})
+r.rng = r.rng.b
+check("someone knocked out can be gagged, and tears it off when they come round", w.agents[vi_].get("out") and w.agents[vi_].get("gagged"), str(w.agents[vi_].get("out")))
+r.wake_up(r.new_tick(18), vi_)
+check("unless their hands are tied", not w.agents[vi_].get("gagged"))
+
+w, r, _ = fresh(201)
+ids = sorted(w.agents)
+pk_, tv_ = ids[0], ids[1]
+T_ = r.day * 24 + 11
+r.believe(pk_, {"k": "at", "s": tv_, "r": "pool", "t0": T_, "t1": T_ + 0.25, "src": "seen", "c": 0.9, "true": True})
+w.agents[tv_]["aff"][pk_] = 5
+kinds_ = {sc["kind"] for _, sc in r.plan_schemes(pk_, tv_)}
+check("plotters can plan to drown someone they saw alone by the water, or lure someone who trusts them", {"drown", "lure"} <= kinds_, str(sorted(kinds_)))
+pl_ = {"target": tv_, "stage": "stalking", "stage_ticks": 0, "plan": [], "scheme": {"kind": "lure", "room": None, "when": "night"}}
+w.state["plots"] = {pk_: pl_}
+w.state["revealed"] = True
+r.rng = _Fixed(0.0, r.rng)
+r.night_extra([])
+r.rng = r.rng.b
+check("a lure becomes a quiet meeting at night with the target", any(m["why"] == "lure" and {m["a"], m["b"]} == {pk_, tv_} for m in w.state.get("meets") or []))
+pl2_ = {"target": tv_, "stage": "preparing", "stage_ticks": 0, "plan": [], "scheme": {"kind": "alone", "room": "library", "when": "day"}, "weapon": None}
+w.agents[pk_]["inv"] = {}
+check("a plotter who means to catch someone awake goes looking for a gag first", "gag" in r.scheme_needs(pk_, pl2_))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))
