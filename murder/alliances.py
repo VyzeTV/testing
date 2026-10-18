@@ -137,7 +137,7 @@ class AllianceMixin:
                 continue                                   # nobody turns on an ally the day they swear to stand by them
             for m in list(al["members"]):
                 for ally in [x for x in al["members"] if x != m]:
-                    if self.rng.random() < self.betrayal_score(m, ally) * (1.0 - al["strength"] / 14) * self.tune("betrayal_rate"):
+                    if self.rng.random() < self.goal_odds("betray", self.betrayal_score(m, ally) * (1.0 - al["strength"] / 14) * self.tune("betrayal_rate"), m, ally):
                         self.betray(tick, m, ally, al, hour)
                         break
                 if al["status"] != "active":

@@ -6222,6 +6222,35 @@ st_ = next(e for e in r.stories_in_play(20) if e["kind"] == "triangle")
 txt_ = r.story_move(r.new_tick(16), 16, st_)
 check("the auto-director can push a story at its people (a rumour about the beloved reaches the one who loves them)", txt_ and r.nm(a_) in txt_)
 
+# ---- phase 8b: goal-based nudges (goals.py)
+w, r, _ = fresh(320)
+w.state["revealed"] = True
+a_, b_, c_ = sorted(w.agents)[:3]
+w.agents[a_]["aff"][b_] = w.agents[b_]["aff"][a_] = 2
+w.state["gm_pending"] = [{"type": "goal", "kind": "enemies", "a": a_, "b": b_, "days": 3}]
+tk_ = r.new_tick(10)
+r.apply_gm(tk_, 10)
+g_ = r.goals()[0]
+check("the GM can set a goal through the Director panel", g_["kind"] == "enemies" and g_["until"] == r.day + 3)
+r.tuning_get = lambda: {"goal_push": 2}
+for h_ in (10, 12, 14, 16, 10, 12, 14):
+    r.goals_tick(r.new_tick(h_), h_)
+kinds_ = {m[2].split(":")[0] for m in g_["moves"]}
+check("the director works toward it with engine moves (a rumour, a secret, a confrontation, a summons on the schedule)", len(kinds_) >= 2, str(kinds_))
+check("a summons on the schedule puts them in one room", any(m.get("draw", {}).get("label") == "TereVi's seating chart" for m in w.state.get("schedule_mods", []))
+      or "summons" not in kinds_)
+w.agents[a_]["aff"][b_] = w.agents[b_]["aff"][a_] = -6
+r.goals_tick(r.new_tick(16), 16)
+check("a goal is met when the state shows it", g_["status"] == "met")
+r.set_goal(r.new_tick(10), {"kind": "protect", "a": c_, "days": 1}, 10)
+check("keeping someone alive halves a plotter's chance to strike at them", abs(r.goal_odds("strike", 0.8, b_, c_) - 0.4) < 1e-9 and r.goal_odds("strike", 0.8, b_, a_) == 0.8)
+r.day += 2
+r.goals_tick(r.new_tick(10), 10)
+check("a protect goal is met when its days run out with them alive", r.goals(active=False)[-1]["status"] == "met")
+gd_ = r.set_goal(r.new_tick(10), {"kind": "romance", "a": a_, "b": b_, "days": 2}, 10)
+r.set_goal(r.new_tick(10), {"op": "drop", "id": gd_["id"]}, 10)
+check("the GM can drop a goal", gd_["status"] == "dropped")
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

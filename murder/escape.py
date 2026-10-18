@@ -138,8 +138,8 @@ class EscapeWorkMixin:
             return 0.0
         days_left = max(0, self.s.get("deadline_day", self.day) - self.day)
         mine = any(cid in r.get("contributors", []) for r in self.s["escape"]["routes"].values())
-        return (0.35 + 0.25 * min(1.5, rate) + (100 - mi["purpose"]) / 120 + (f("courage") - 45) / 160 + (f("curiosity") - 45) / 200
-                + (0.25 if mine else 0) + (0.2 if days_left <= 2 else 0) + (0.15 if a["sanity"] >= 40 else -0.2))
+        return self.goal_odds("escape", 0.35 + 0.25 * min(1.5, rate) + (100 - mi["purpose"]) / 120 + (f("courage") - 45) / 160 + (f("curiosity") - 45) / 200
+                + (0.25 if mine else 0) + (0.2 if days_left <= 2 else 0) + (0.15 if a["sanity"] >= 40 else -0.2), cid)
 
     def escape_work(self, tick, cid, m):
         """A stretch of work on a way out: parts carried go in, progress comes out (up to half way until the step's needs are met)."""

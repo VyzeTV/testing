@@ -273,7 +273,14 @@
         <option value="twist">Twist: push TereVi to escalate</option>
         <option value="event">Event: force an island event</option>
         <option value="schedule">Schedule: cancel or move a meal, or summon everyone</option>
+        <option value="goal">Goal: something you want to happen over the next days</option>
       </select></div>
+    <div class="field" id="dGoalF"><label class="t">Goal</label><select id="dGKind">
+        <option value="enemies">Make two people enemies</option><option value="friends">Make two people friends</option><option value="romance">Bring two people together</option>
+        <option value="betrayal">A betrays B</option><option value="protect">Keep someone alive</option><option value="breakdown">A breakdown for someone</option>
+        <option value="find">Get the evidence found</option><option value="death">Someone dies</option><option value="escape">Get a way out finished</option></select>
+      <select id="dGA"></select> <select id="dGB"></select> within <input id="dGDays" type="number" min="1" max="14" value="3" style="width:52px"> days
+      <div class="s" style="margin-top:4px">The director works toward it with rumours, notes, meetings, the schedule and shifted odds. Nothing is forced: the dice still decide.</div></div>
     <div class="field" id="dToF"><label class="t" id="dToL">To</label><select id="dTo"></select></div>
     <div class="field" id="dAboutF"><label class="t">About</label><select id="dAbout"></select></div>
     <div class="field" id="dSchedF"><label class="t">Change</label><select id="dSOp"><option value="cancel">Cancel</option><option value="move">Move</option><option value="add">Add a summons</option></select>

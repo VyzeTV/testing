@@ -561,7 +561,7 @@ function buildPaths(t) {
 }
 function applyState(t) {
   if (window.TileMap && S.mapMode === "tiles") { S.tileAnim = null; TileMap.setTick(t, t.live ? t.live.dur : 120); }
-  S.state = t.state; S.hour = t.hour; S.day = t.day; S.thoughts = t.thoughts || {}; S.stories = t.stories || []; S.dread = t.dread || 0;
+  S.state = t.state; S.hour = t.hour; S.day = t.day; S.thoughts = t.thoughts || {}; S.stories = t.stories || []; S.goals = t.goals || S.goals || []; S.goals = t.goals || S.goals || []; S.dread = t.dread || 0;
   if ($("#tab-chron") && $("#tab-chron").classList.contains("on")) renderChronicle();
   S.weather = t.island ? t.island.id : null; S.weatherRoom = t.island ? t.island.room : null;
   setPositions(mapFromState(t.state));
@@ -1311,8 +1311,9 @@ function renderStories() {
   const el = $("#storiesWrap"); if (!el) return;
   if (!S.gm) { el.innerHTML = '<i style="color:var(--muted)">Turn on GM view to see the stories forming on the island.</i>'; return; }
   const st = S.stories || [];
-  if (!st.length) { el.innerHTML = '<i style="color:var(--muted)">Nothing is forming yet.</i>'; return; }
-  el.innerHTML = st.map((x) => `<div class="story"><div class="heat" style="width:${Math.round(x.heat * 100)}%"></div><div class="sfaces">${x.people.map((id) => `<img src="portraits/${id}.png" title="${esc(info(id).name || id)}" onerror="this.style.visibility='hidden'">`).join("")}</div><div>${esc(x.text)}<div class="smeta">${esc(x.kind.replace(/_/g, " "))} · since Day ${x.since[0]} ${String(x.since[1] % 24).padStart(2, "0")}:00${x.pushed ? ` · pushed ${x.pushed}×` : ""}</div></div></div>`).join("");
+  const gl = (S.goals || []).length ? `<div class="hdr2">Your goals</div>` + S.goals.map((g) => `<div class="row">• <b>${esc(g.label)}</b> <i>(${esc(g.status)}${g.status === "active" ? `, by Day ${g.until}` : ""})</i>${(g.moves || []).map((m) => `<div style="color:var(--muted);font-size:11px;margin-left:12px">Day ${m[0]} ${String(m[1] % 24).padStart(2, "0")}:00 · ${esc(m[2])}</div>`).join("")}</div>`).join("") + `<div class="hdr2">Stories in play</div>` : "";
+  if (!st.length) { el.innerHTML = gl + '<i style="color:var(--muted)">Nothing is forming yet.</i>'; return; }
+  el.innerHTML = gl + st.map((x) => `<div class="story"><div class="heat" style="width:${Math.round(x.heat * 100)}%"></div><div class="sfaces">${x.people.map((id) => `<img src="portraits/${id}.png" title="${esc(info(id).name || id)}" onerror="this.style.visibility='hidden'">`).join("")}</div><div>${esc(x.text)}<div class="smeta">${esc(x.kind.replace(/_/g, " "))} · since Day ${x.since[0]} ${String(x.since[1] % 24).padStart(2, "0")}:00${x.pushed ? ` · pushed ${x.pushed}×` : ""}</div></div></div>`).join("");
 }
 function renderBoard() {
   const el = $("#boardWrap"), st = S.state;
@@ -1849,16 +1850,20 @@ function dirSync() {
   const show = (id, v) => ($("#" + id).style.display = v ? "" : "none");
   show("dToF", t === "whisper" || t === "rumor"); show("dAboutF", t === "rumor"); show("dRoomF", t === "item" || (t === "schedule" && $("#dSOp").value !== "cancel")); show("dEvF", t === "event");
   show("dSchedF", t === "schedule"); show("dSId", t === "schedule" && $("#dSOp").value !== "add"); show("dSAt", t === "schedule" && $("#dSOp").value !== "cancel");
-  show("dTextF", t !== "event" && !(t === "schedule" && $("#dSOp").value !== "add"));
+  show("dTextF", t !== "event" && t !== "goal" && !(t === "schedule" && $("#dSOp").value !== "add"));
+  show("dGoalF", t === "goal");
+  const gk = $("#dGKind").value, need = { enemies: 2, friends: 2, romance: 2, betrayal: 2, protect: 1, breakdown: 1 }[gk] || 0;
+  $("#dGA").style.display = need >= 1 ? "" : "none"; $("#dGB").style.display = need >= 2 ? "" : "none";
   $("#dToL").textContent = t === "rumor" ? "Who hears it" : "To";
   $("#dTextL").textContent = t === "schedule" ? "What it is for (optional)" : t === "item" ? "Item name" : t === "rumor" ? "The rumor" : t === "whisper" ? "The note" : t === "announce" ? "What TereVi says" : "Hint for TereVi (optional)";
 }
 $("#dType").onchange = dirSync;
+$("#dGKind").onchange = dirSync;
 $("#dSOp").onchange = dirSync;
 $("#btnDirector").onclick = () => {
   const alive_ = Object.keys(S.W.characters).filter((id) => (S.W.characters[id].status || "alive") === "alive" && !(S.state && S.state.agents[id] && !alive(S.state.agents[id])));
   const opts = alive_.map((id) => `<option value="${id}">${esc(info(id).name)}</option>`).join("");
-  $("#dTo").innerHTML = `<option value="all">Everyone</option>` + opts; $("#dAbout").innerHTML = opts;
+  $("#dTo").innerHTML = `<option value="all">Everyone</option>` + opts; $("#dAbout").innerHTML = opts; $("#dGA").innerHTML = opts; $("#dGB").innerHTML = opts;
   $("#dRoom").innerHTML = Object.entries(S.W.rooms).map(([id, r]) => `<option value="${id}">${esc(r.name)}</option>`).join("");
   $("#dErr").textContent = ""; $("#dText").value = ""; dirSync();
   $("#dmodal").style.display = "flex";
@@ -1871,6 +1876,8 @@ $("#dSend").onclick = async () => {
   else if (t === "rumor") { body.about = $("#dAbout").value; body.claim = text; body.to = $("#dTo").value; }
   else if (t === "item") { body.room = $("#dRoom").value; body.name = text; }
   else if (t === "event") body.id = $("#dEv").value;
+  else if (t === "goal") { body.kind = $("#dGKind").value; body.a = $("#dGA").value; body.b = $("#dGB").value; body.days = parseInt($("#dGDays").value, 10) || 3;
+    if (["enemies", "friends", "romance", "betrayal"].includes(body.kind) && body.a === body.b) { $("#dErr").textContent = "Pick two different people."; return; } }
   else if (t === "schedule") { const [hh, mm] = ($("#dSAt").value || "15:30").split(":").map(Number); body.op = $("#dSOp").value; body.id = $("#dSId").value; body.at = hh * 60 + mm; body.room = $("#dRoom").value; body.text = text; }
   else body.text = text;
   if ((t === "whisper" || t === "rumor" || t === "item" || t === "announce") && !text) { $("#dErr").textContent = "Write something first."; return; }

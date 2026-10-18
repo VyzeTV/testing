@@ -231,6 +231,7 @@ class PlotMixin:
                 pr_ = min(0.5, sc * 0.35 * self.tune("plot_rate") * (1.5 if s.get("rescue") else 1.0))     # TereVi's final episode stirs people up
                 if plots.get(target, {}).get("target") == cid:
                     pr_ *= 0.1                                              # two people plotting each other's deaths is rare, not the default outcome of a quarrel
+                pr_ = self.goal_odds("plot", pr_, cid, target)          # the GM's goals shift it (goals.py)
                 cands.append((pr_, cid, target, why, mk))
         self.rng.shuffle(cands)
         for p, cid, target, why, mk in cands:

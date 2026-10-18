@@ -425,6 +425,8 @@ class StoryMixin:
                         self.log_event(tick, {"type": "system", "who": to, "room": w.agents[to]["room"], "vis": "gm", "text": f"Director whispers to {self.nm(to)}: {text}"})
                 elif t == "schedule":
                     self.gm_schedule(tick, it, hour)
+                elif t == "goal":
+                    self.set_goal(tick, it, hour)                         # goals.py
                 elif t == "announce":
                     text = str(it["text"]).strip()[:400]
                     if text:
