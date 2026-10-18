@@ -15,7 +15,7 @@ Per-character counts over 80 mock weeks (seeds 101-140, the default and the viol
 | Shintaro | 17 | 14 (12 + 2) | 7 | 6 | 1 |
 | Chloe | 14 | 5 (3 + 2) | 4 | 0 | 2 |
 
-"Got away at trial" means a wrong verdict or none, so the killer survived. Killings that never reached a trial (the week ended, or the killer died first) count only as kills.
+"Got away at trial" means a wrong verdict or none, so the killer survived. Killings that never reached a trial (the mock week ended before the trial, or the killing happened during a frenzy, which has no trial) count only as kills.
 
 Most frequent pairs: Szymon killing Vixen (7), Ayden killing Seul (6), Cail killing Shintaro (6), Shintaro killing Noah (5), Ayden killing Szymon (5).
 
@@ -28,3 +28,5 @@ These notes are written by hand and are not regenerated.
 - Chloe rarely kills: she has the lowest cruelty score (47), which fits her timid personality.
 - Noah is executed in someone else's place 10 times, more than anyone. He is tall with short blond hair, so he often matches the same traces as Szymon.
 - Vixen and Shintaro get away at trial most often for the number of their kills.
+- Of the 133 killings with a culprit, 101 reached a trial, 19 were still being investigated when the mock week ended, and 13 happened during a killing frenzy.
+- 18 of the 19 manslaughters were self-defence: the person attacked killed their attacker.

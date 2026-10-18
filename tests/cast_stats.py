@@ -73,7 +73,7 @@ def markdown(log, cast_names=None):
         f"{len(trials) - sum(t['found'] for t in trials) - sum(t['wrongful'] for t in trials)} with no verdict.\n\n"
         "| Character | Victim | Killer (murder + manslaughter) | Caught at trial | Got away at trial | Executed in someone else's place |\n"
         "| --- | --- | --- | --- | --- | --- |\n" + rows + "\n\n"
-        "\"Got away at trial\" means a wrong verdict or none, so the killer survived. Killings that never reached a trial (the week ended, or the killer died first) "
+        "\"Got away at trial\" means a wrong verdict or none, so the killer survived. Killings that never reached a trial (the mock week ended before the trial, or the killing happened during a frenzy, which has no trial) "
         "count only as kills.\n\n"
         f"Most frequent pairs: {pairs}.\n"
     )
