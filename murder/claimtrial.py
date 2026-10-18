@@ -534,8 +534,8 @@ class ClaimTrialMixin:
                 spoken.setdefault(ln["speaker"], []).append(ln["m"])
                 m += step * (0.5 if ln.get("move") == "cry" else 1.0)
             m += step
-        self.trial_whispers(tick, t0, min(m, sm.dur - 4), spoken, room, whisper)
         self.trial_slip_out(tick, t0, min(m, sm.dur - 10), spoken, room, label)
+        self.trial_whispers(tick, t0, min(m, sm.dur - 4), spoken, room, whisper)       # after the slip-out, so who overhears reflects who stepped away
         tick["practice"] = {"room": room, "label": label, "t0": round(t0, 1), "end": round(min(m, sm.dur), 1), "arrive": {c: round(v, 1) for c, v in sorted(arrivals.items())}}
 
     def trial_whispers(self, tick, t0, t1, spoken, room="voting_grounds", whisper=None):
