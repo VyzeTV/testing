@@ -2,108 +2,106 @@
 
 40 seasons played from Day 1 until the show ended, with every empty place filled by a newcomer at the start of each week (20 per configuration: the default mock cast and a violent one, as in `tests/balance.py`). Regenerate with `python tests/season.py --write` (a few minutes). For curiosity, not a gate.
 
-**Ending tiers, all seasons:** good 21 (52%), bittersweet 0 (0%), bad 19 (48%). Target: good 40%, bittersweet 30%, bad 30% (plan doc, phase 7b).
+**Ending tiers, all seasons:** good 20 (50%), bittersweet 3 (8%), bad 17 (42%). Target: good 40%, bittersweet 30%, bad 30% (plan doc, phase 7b).
 
 ## Default
 
-- **Ending tiers:** good 11, bittersweet 0, bad 9.
-- **NeoVi's fate:** none 12, betrayer 4, martyr 3, survivor 1. Romances at the end: 9 in all.
-- **Season length:** median 21.5 days (shortest 7, longest 49).
-- **How seasons ended:** THE LAST BATTLE 8, THE WINNERS 4, RESCUE 3, THE SHOW SURRENDERS 3, TEREVI IS SHUT DOWN 1, THE RECKONING 1.
-- **Deaths per season:** 9.9 on average. Causes: murdered 50, executed after the trial 36, escaped the island 30, wrongly executed 29, killed 16, died in the final battle 14, escaped on a raft 8, died in the Reckoning 8.
-- **Trials:** 66 in all, 36 right verdicts.
-- **Newcomers:** 4.8 per season on average; 35 of the survivors were newcomers.
-- **Rafts launched:** 4 (believed 3, sea 1). Rescue countdowns started: 3.
-- **Ways out at the end:** the furthest route reached 76% on average (best 100%).
-- **Who walked out alive (seasons):** Noah 5, Bram 5, Dario 5, June 4, Seul 4, Shintaro 3, Nadia 3, Rosa 3, Teo 3, Chloe 3, Szymon 2, Hana 2, Vixen 2, Ilya 2, Cail 2, Mara 2, Elsa 1, Ayden 1, Carmen 1, Lucas 1, Omar 1, Priya 1, Felix 1.
+- **Ending tiers:** good 13, bittersweet 1, bad 6.
+- **NeoVi's fate:** martyr 7, none 6, participant 3, betrayer 3, survivor 1. Romances at the end: 3 in all.
+- **Kumiko:** helped the cast 123 times; told someone her real name in 17 seasons; a romance with someone in 14; punished: re-education 11, humiliation 5, participant 3.
+- **Season length:** median 20.0 days (shortest 9, longest 42).
+- **How seasons ended:** THE SHOW SURRENDERS 7, THE WINNERS 4, THE LAST BATTLE 3, NOBODY LEFT 2, TEREVI IS SHUT DOWN 1, THE LAST ONE STANDING 1, RESCUE 1, CROWNED BY WHIM 1.
+- **Deaths per season:** 9.4 on average. Causes: murdered 60, executed after the trial 40, escaped the island 25, wrongly executed 23, killed 15, died in the final battle 11, died in an accident 5, escaped on a raft 4.
+- **Trials:** 65 in all, 40 right verdicts.
+- **Newcomers:** 5.0 per season on average; 36 of the survivors were newcomers.
+- **Rafts launched:** 2 (believed 1, sea 1). Rescue countdowns started: 1.
+- **Ways out at the end:** the furthest route reached 89% on average (best 100%).
+- **Who walked out alive (seasons):** Vixen 7, Seul 6, Shintaro 6, Ayden 5, Ilya 5, Bram 5, Mara 4, Hana 4, Chloe 3, Noah 3, Cail 3, Szymon 3, Nadia 3, Dario 2, June 2, Kumiko 2, Rosa 2, Teo 2, Elsa 2, Felix 2, Kenji 1, Omar 1, Priya 1.
 
 | Season | Days | Ending | Tier | Survivors | Deaths | Newcomers | Trials (right) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 11 | THE WINNERS | good | Noah, Shintaro, Szymon | 5 | 0 | 2 (1) |
-| 2 | 33 | RESCUE | good | Bram, Elsa, June, Nadia, Rosa, Teo | 12 | 10 | 4 (2) |
-| 3 | 38 | THE LAST BATTLE: DARIO STANDS | bad | Dario | 18 | 11 | 7 (5) |
-| 4 | 25 | THE SHOW SURRENDERS | good | Bram, Dario, Hana, June, Rosa, Teo | 10 | 8 | 4 (2) |
-| 5 | 14 | THE WINNERS | good | Ayden, Seul | 6 | 0 | 1 (0) |
-| 6 | 9 | THE SHOW SURRENDERS | good | Chloe, Noah, Seul, Shintaro, Szymon, Vixen | 2 | 0 | 1 (1) |
-| 7 | 19 | TEREVI IS SHUT DOWN | good | Bram, Dario, Ilya, June, Vixen | 8 | 5 | 3 (1) |
-| 8 | 10 | THE WINNERS | good | Cail, Chloe, Shintaro | 5 | 0 | 2 (1) |
-| 9 | 49 | RESCUE | good | Carmen, Lucas, Omar, Priya | 22 | 18 | 8 (4) |
-| 10 | 31 | THE LAST BATTLE: NADIA STANDS | bad | Nadia | 18 | 11 | 5 (3) |
-| 11 | 24 | THE SHOW SURRENDERS | good | Bram, Dario, Ilya, Mara, Seul, Teo | 7 | 5 | 3 (3) |
-| 12 | 28 | THE LAST BATTLE: HANA STANDS | bad | Hana | 14 | 7 | 5 (3) |
-| 13 | 9 | THE LAST BATTLE: NOAH STANDS | bad | Noah | 7 | 0 | 2 (0) |
-| 14 | 28 | THE LAST BATTLE: FELIX STANDS | bad | Felix | 14 | 7 | 5 (2) |
-| 15 | 13 | THE LAST BATTLE: NOAH STANDS | bad | Noah | 7 | 0 | 2 (1) |
-| 16 | 28 | THE LAST BATTLE: JUNE STANDS | bad | June | 12 | 5 | 4 (2) |
-| 17 | 7 | THE RECKONING | bad | none | 8 | 0 | 0 (0) |
-| 18 | 11 | THE LAST BATTLE: NOAH STANDS | bad | Noah | 7 | 0 | 2 (1) |
-| 19 | 24 | RESCUE | good | Bram, Dario, Mara, Nadia, Rosa | 11 | 8 | 4 (3) |
-| 20 | 14 | THE WINNERS | good | Cail, Chloe, Seul | 5 | 0 | 2 (1) |
+| 1 | 10 | TEREVI IS SHUT DOWN | good | Ayden, Chloe, Ilya, Mara, Noah, Seul, Shintaro, Vixen | 2 | 2 | 1 (1) |
+| 2 | 26 | THE SHOW SURRENDERS | good | Bram, Dario, Hana, Ilya, June, Kumiko, Mara, Rosa, Teo | 8 | 8 | 3 (2) |
+| 3 | 11 | THE SHOW SURRENDERS | good | Ayden, Cail, Ilya, June, Mara, Noah, Seul, Shintaro | 3 | 3 | 1 (0) |
+| 4 | 12 | THE SHOW SURRENDERS | good | Cail, Chloe, Seul, Shintaro, Szymon, Vixen | 2 | 0 | 1 (1) |
+| 5 | 10 | THE LAST BATTLE: VIXEN STANDS | bad | Vixen | 7 | 0 | 2 (1) |
+| 6 | 25 | NOBODY LEFT | bad | none | 13 | 5 | 3 (2) |
+| 7 | 20 | THE WINNERS | good | Bram, Dario, Mara | 9 | 4 | 4 (3) |
+| 8 | 37 | THE SHOW SURRENDERS | good | Ilya, Kumiko, Nadia, Rosa | 14 | 9 | 6 (3) |
+| 9 | 14 | THE SHOW SURRENDERS | good | Chloe, Seul, Shintaro, Szymon, Vixen | 3 | 0 | 1 (1) |
+| 10 | 34 | THE LAST ONE STANDING | bittersweet | Bram | 19 | 12 | 6 (3) |
+| 11 | 9 | THE SHOW SURRENDERS | good | Ayden, Noah, Seul, Shintaro, Szymon, Vixen | 2 | 0 | 1 (1) |
+| 12 | 19 | THE LAST BATTLE: HANA STANDS | bad | Hana | 11 | 4 | 4 (3) |
+| 13 | 30 | RESCUE | good | Bram, Elsa, Felix, Hana, Nadia, Teo | 13 | 11 | 4 (2) |
+| 14 | 11 | THE WINNERS | good | Ayden, Cail, Vixen | 6 | 1 | 0 (0) |
+| 15 | 34 | THE SHOW SURRENDERS | good | Bram, Elsa, Felix, Hana, Nadia | 14 | 11 | 6 (4) |
+| 16 | 39 | THE WINNERS | good | Kenji, Omar, Priya | 19 | 14 | 7 (3) |
+| 17 | 20 | THE LAST BATTLE: SEUL STANDS | bad | Seul | 11 | 4 | 3 (2) |
+| 18 | 42 | NOBODY LEFT | bad | none | 18 | 9 | 7 (6) |
+| 19 | 21 | CROWNED BY WHIM: ILYA | bad | Ilya | 9 | 2 | 3 (1) |
+| 20 | 14 | THE WINNERS | good | Ayden, Shintaro, Vixen | 5 | 0 | 2 (1) |
 
 ## Violent mock cast
 
-- **Ending tiers:** good 10, bittersweet 0, bad 10.
-- **NeoVi's fate:** none 15, martyr 2, betrayer 2, survivor 1. Romances at the end: 0 in all.
-- **Season length:** median 13.5 days (shortest 7, longest 43).
-- **How seasons ended:** THE WINNERS 8, THE LAST BATTLE 7, NOBODY LEFT 2, TEREVI IS SHUT DOWN 1, THE SHOW SURRENDERS 1, CROWNED BY WHIM 1.
-- **Deaths per season:** 11.2 on average. Causes: murdered 76, executed after the trial 69, killed 21, escaped the island 19, wrongly executed 18, died in the final battle 16, escaped on a raft 3, executed by TereVi's whim 2.
-- **Trials:** 88 in all, 69 right verdicts.
-- **Newcomers:** 5.2 per season on average; 20 of the survivors were newcomers.
-- **Rafts launched:** 1 (sea 1). Rescue countdowns started: 0.
-- **Ways out at the end:** the furthest route reached 67% on average (best 100%).
-- **Who walked out alive (seasons):** Szymon 4, Ayden 4, Dario 3, Vixen 3, Ilya 3, June 3, Chloe 2, Hana 2, Shintaro 2, Nadia 2, Seul 2, Mara 1, Lena 1, Lucas 1, Priya 1, Cail 1, Rosa 1, Bram 1, Elsa 1.
+- **Ending tiers:** good 7, bittersweet 2, bad 11.
+- **NeoVi's fate:** none 9, betrayer 6, martyr 3, participant 1, survivor 1. Romances at the end: 2 in all.
+- **Kumiko:** helped the cast 43 times; told someone her real name in 8 seasons; a romance with someone in 3; punished: re-education 2, participant 1, humiliation 1.
+- **Season length:** median 16.0 days (shortest 7, longest 35).
+- **How seasons ended:** CROWNED BY WHIM 5, THE LAST BATTLE 4, THE WINNERS 4, THE SHOW SURRENDERS 2, THE LAST ONE STANDING 2, THE RECKONING 1, NOBODY LEFT 1, TEREVI IS SHUT DOWN 1.
+- **Deaths per season:** 11.4 on average. Causes: murdered 72, executed after the trial 71, escaped the island 20, wrongly executed 17, killed 16, died in the final battle 9, died in the Reckoning 8, executed by TereVi's whim 6.
+- **Trials:** 91 in all, 71 right verdicts.
+- **Newcomers:** 5.5 per season on average; 24 of the survivors were newcomers.
+- **Rafts launched:** 1 (believed 1). Rescue countdowns started: 1.
+- **Ways out at the end:** the furthest route reached 71% on average (best 100%).
+- **Who walked out alive (seasons):** Vixen 5, Seul 5, Chloe 3, Teo 3, Ayden 3, Mara 3, Bram 3, June 3, Elsa 2, Felix 2, Ilya 2, Dario 2, Omar 1, Rosa 1, Cail 1, Nadia 1, Noah 1, Hana 1.
 
 | Season | Days | Ending | Tier | Survivors | Deaths | Newcomers | Trials (right) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 12 | THE WINNERS | good | Dario, Mara, Szymon | 8 | 3 | 3 (1) |
-| 2 | 33 | THE LAST BATTLE: LENA STANDS | bad | Lena | 22 | 15 | 9 (7) |
-| 3 | 43 | THE WINNERS | good | Lucas, Priya | 26 | 20 | 10 (9) |
-| 4 | 19 | TEREVI IS SHUT DOWN | good | Cail, Chloe, Hana, Rosa | 12 | 8 | 6 (6) |
-| 5 | 7 | THE WINNERS | good | Ayden, Chloe, Vixen | 5 | 0 | 2 (1) |
-| 6 | 12 | THE LAST BATTLE: SHINTARO STANDS | bad | Shintaro | 11 | 4 | 4 (2) |
-| 7 | 7 | THE WINNERS | good | Ayden, Szymon, Vixen | 5 | 0 | 2 (1) |
-| 8 | 7 | THE WINNERS | good | Ayden, Shintaro, Szymon | 5 | 0 | 2 (1) |
-| 9 | 7 | THE LAST BATTLE: AYDEN STANDS | bad | Ayden | 7 | 0 | 2 (1) |
-| 10 | 13 | NOBODY LEFT | bad | none | 12 | 4 | 3 (3) |
-| 11 | 24 | THE WINNERS | good | Bram, Ilya, Nadia | 14 | 9 | 6 (4) |
-| 12 | 12 | THE WINNERS | good | Dario, June, Seul | 9 | 4 | 4 (3) |
-| 13 | 31 | THE SHOW SURRENDERS | good | Dario, Hana, June, Nadia | 13 | 9 | 5 (5) |
-| 14 | 7 | THE LAST BATTLE: SEUL STANDS | bad | Seul | 7 | 0 | 2 (1) |
-| 15 | 20 | THE LAST BATTLE: ILYA STANDS | bad | Ilya | 15 | 8 | 6 (5) |
-| 16 | 14 | THE WINNERS | good | Szymon, Vixen | 6 | 0 | 3 (3) |
-| 17 | 28 | THE LAST BATTLE: ELSA STANDS | bad | Elsa | 17 | 10 | 7 (6) |
-| 18 | 19 | CROWNED BY WHIM: JUNE | bad | June | 13 | 6 | 5 (3) |
-| 19 | 14 | THE LAST BATTLE: ILYA STANDS | bad | Ilya | 9 | 2 | 4 (4) |
-| 20 | 13 | NOBODY LEFT | bad | none | 9 | 1 | 3 (3) |
+| 1 | 28 | THE LAST BATTLE: ELSA STANDS | bad | Elsa | 19 | 12 | 9 (9) |
+| 2 | 24 | THE SHOW SURRENDERS | good | Chloe, Felix, Ilya, Omar, Rosa, Teo, Vixen | 11 | 10 | 5 (5) |
+| 3 | 14 | CROWNED BY WHIM: SEUL | bad | Seul | 9 | 2 | 4 (4) |
+| 4 | 32 | CROWNED BY WHIM: TEO | bad | Teo | 15 | 7 | 6 (6) |
+| 5 | 10 | THE SHOW SURRENDERS | good | Ayden, Cail, Ilya, Mara, Seul, Vixen | 4 | 2 | 2 (2) |
+| 6 | 21 | THE LAST ONE STANDING | bittersweet | Bram | 13 | 6 | 6 (4) |
+| 7 | 12 | THE WINNERS | good | Ayden, June, Vixen | 8 | 3 | 3 (2) |
+| 8 | 14 | CROWNED BY WHIM: MARA | bad | Mara | 9 | 2 | 4 (4) |
+| 9 | 35 | CROWNED BY WHIM: DARIO | bad | Dario | 21 | 14 | 8 (3) |
+| 10 | 7 | THE RECKONING | bad | none | 8 | 0 | 0 (0) |
+| 11 | 12 | THE LAST BATTLE: JUNE STANDS | bad | June | 9 | 2 | 3 (2) |
+| 12 | 26 | NOBODY LEFT | bad | none | 17 | 9 | 6 (4) |
+| 13 | 7 | THE WINNERS | good | Chloe, Seul, Vixen | 5 | 0 | 2 (1) |
+| 14 | 24 | THE LAST BATTLE: BRAM STANDS | bad | Bram | 17 | 10 | 6 (4) |
+| 15 | 7 | CROWNED BY WHIM: VIXEN | bad | Vixen | 7 | 0 | 2 (0) |
+| 16 | 27 | THE WINNERS | good | Bram, Elsa, Nadia | 15 | 10 | 7 (6) |
+| 17 | 12 | THE LAST ONE STANDING | bittersweet | Noah | 9 | 2 | 4 (3) |
+| 18 | 12 | THE WINNERS | good | Chloe, Dario, Seul | 8 | 3 | 3 (1) |
+| 19 | 21 | THE LAST BATTLE: SEUL STANDS | bad | Seul | 15 | 8 | 6 (6) |
+| 20 | 18 | TEREVI IS SHUT DOWN | good | Ayden, Felix, Hana, June, Mara, Teo | 10 | 8 | 5 (5) |
 
-## Notes on this run (2026-10-18, phase 7b step 3: the raft and the rescue)
+## Notes on this run (2026-10-18, phase 7b step 4: NeoVi as Kumiko)
 
 These notes are written by hand and are not regenerated.
 
-- The raft is now small (two or three), launches as a live scene, and does not end the show. The crew's journey is rolled off-screen each dawn.
-- 5 rafts launched over 40 seasons; 3 crews were believed, which started a rescue countdown, and 3 seasons ended in a rescue (all with enough people alive, so good). A believed broadcast of the truth also starts a countdown now, rather than ending the show at once.
-- Each route has its own pace (the raft quickest, the bomb slowest). The bomb threat and the raid still end seasons too.
-- Tiers: 52% good, 0% bittersweet, 48% bad, against 40/30/30. Bittersweet endings come only from a lone survivor, a late rescue or a raft crew outliving the island, and none happened here. Step 7 (balance) is where the mix gets tuned.
+- NeoVi now visits one door a night, feelings grow both ways, and she confides once trust is mutual. She told someone her real name in 25 of 40 seasons and fell in love with someone in 17.
+- She helped the cast 166 times in all (a part, the locks, a camera, covering for someone). Caught helping, TereVi re-educated her 13 times, humiliated her on air 6 times and made her a contestant 4 times. Kumiko then plays as a participant; she walked out alive in 2 of those 4 seasons, and no newcomers came after her.
+- Tiers: 50% good, 8% bittersweet, 42% bad, against 40/30/30. Step 7 (balance) tunes the mix.
 
-## One season, told by its saga (violent seed 3: THE WINNERS, day 43)
+## One season, told by its saga (violent seed 9: CROWNED BY WHIM: DARIO, day 35)
 
 - Day 1: TereVi revealed the truth on Day 1: the killing game is real.
-- Day 6: The house collapsed into a killing spree.
-- Day 8: Vixen was found guilty and executed.
-- Day 13: Seul was found guilty and executed.
-- Day 15: Shintaro was found guilty and executed.
-- Day 17: NeoVi's arc ended: martyr.
-- Day 21: Ayden was found guilty and executed.
-- Day 24: Mara was found guilty and executed. Dario was exposed as the killer's alibi, but TereVi tries only one culprit: whoever struck the blow.
-- Day 26: Bram betrayed Felix.
-- Day 26: Bram was found guilty and executed.
-- Day 32: Kenji was found guilty and executed.
-- Day 34: The house collapsed into a killing spree.
-- Day 35: Hana betrayed Teo.
-- Day 37: Hana was found guilty and executed.
-- Day 41: Nadia betrayed Elsa.
-- Day 41: Elsa was found guilty and executed. Nadia was exposed as the killer's alibi, but TereVi tries only one culprit: whoever struck the blow.
-- Day 43: The cast voted wrongly: innocent Anton was executed and Nadia, the real culprit, escapes the island.
-- Day 43: The cast tried to build a raft: it worked.
+- Day 5: The cast voted wrongly: innocent Chloe was executed and Seul, the real culprit, escapes the island.
+- Day 8: The cast voted wrongly: innocent Mara was executed and Cail, the real culprit, escapes the island.
+- Day 13: NeoVi's arc ended: martyr.
+- Day 14: Szymon betrayed Ilya.
+- Day 14: Szymon betrayed Vixen.
+- Day 14: June betrayed Szymon.
+- Day 15: Ilya was found guilty and executed. Szymon was exposed as the killer's cleanup, but TereVi tries only one culprit: whoever struck the blow.
+- Day 20: Vixen betrayed Szymon.
+- Day 20: Szymon was found guilty and executed.
+- Day 26: The cast could not agree. Hana, the culprit, escapes the island.
+- Day 28: Teo was found guilty and executed.
+- Day 30: The cast voted wrongly: innocent Felix was executed and Vixen, the real culprit, escapes the island.
+- Day 35: Elsa betrayed Priya.
+- Day 35: The cast could not agree. Priya, the culprit, escapes the island.
 
-Deaths in order: day 6 Noah (murdered); day 6 Cail (murdered); day 8 Vixen (executed after the trial); day 11 Szymon (killed); day 13 Seul (executed after the trial); day 13 Ilya (killed); day 15 Shintaro (executed after the trial); day 20 Chloe (murdered); day 21 Ayden (executed after the trial); day 22 June (murdered); day 24 Mara (executed after the trial); day 25 Dario (murdered); day 26 Bram (executed after the trial); day 31 Felix (murdered); day 32 Kenji (executed after the trial); day 35 Omar (murdered); day 35 Teo (murdered); day 37 Hana (executed after the trial); day 40 Ravi (murdered); day 41 Elsa (executed after the trial); day 41 Rosa (killed); day 43 Anton (wrongly executed); day 43 Nadia (escaped the island); day 43 Emil (escaped on a raft); day 43 Malik (escaped on a raft); day 43 Lena (escaped on a raft).
+Deaths in order: day 3 Shintaro (murdered); day 5 Chloe (wrongly executed); day 5 Seul (escaped the island); day 6 Noah (was poisoned); day 8 Mara (wrongly executed); day 8 Cail (escaped the island); day 14 Ayden (murdered); day 15 Ilya (executed after the trial); day 19 Rosa (murdered); day 20 Szymon (executed after the trial); day 24 June (murdered); day 26 Hana (escaped the island); day 27 Bram (killed); day 28 Teo (executed after the trial); day 28 Nadia (murdered); day 30 Felix (wrongly executed); day 30 Vixen (escaped the island); day 33 Omar (murdered); day 35 Priya (escaped the island); day 35 Elsa (executed by TereVi's whim); day 35 Kenji (executed by TereVi's whim).

@@ -185,6 +185,9 @@ class NightMixin:
             self.voice_convos(tick, hour)
             self.sim_talk(tick)
             self.reaction_pass(tick, hour)
+        if hour == NIGHT_BLOCKS[1] and not s.get("case"):
+            self.neovi_visit(tick)                                   # kumiko.py
+            self.neovi_choice(tick)
         # what woke the house up for the next block
         noise = {}
         for e in tick["events"]:

@@ -66,7 +66,7 @@ def one_season(job):
     pool = list(NEWCOMERS)
     while day <= MAX_DAYS and not w.state.get("over") and w.agents:
         w.state["day"] = day
-        if (day - 1) % w.state.get("week_len", 7) == 0 and w.state.get("vacancies"):
+        if (day - 1) % w.state.get("week_len", 7) == 0 and w.state.get("vacancies") and not w.state.get("no_newcomers"):
             for v in list(w.state["vacancies"]):                       # a new week: the producer fills every empty place, as the viewer requires
                 spec = next((x for x in pool if x["gender"] == v["gender"]), None)
                 if spec:
@@ -86,6 +86,8 @@ def one_season(job):
     nv = (w.state.get("npcs") or {}).get("neovi") or {}
     return {"violent": violent, "seed": seed, "ending": over["kind"], "title": over.get("title"), "day": over.get("day", day), "tier": over.get("tier", "unfinished"),
             "neovi": ((nv.get("arc") or {}).get("fate") or "none"), "romances": sum(1 for b in w.state.get("bonds", []) if b.get("kind") == "romance"),
+            "nv": {"helped": nv.get("helped", 0), "punished": [p["kind"] for p in nv.get("punished", [])], "named": sum(1 for v in (nv.get("told") or {}).values() if "name" in v),
+                   "lover": bool(nv.get("lovers"))},
             "survivors": sorted(c for c, a in w.state["agents"].items() if a.get("status", "alive") == "alive"),
             "graveyard": [{"id": g["id"], "day": g["day"], "how": g["how"]} for g in w.state.get("graveyard", [])],
             "trials": trials, "finales": finales, "saga": list(w.state.get("saga", [])), "names": names, "arrivals": arrivals,
@@ -120,6 +122,9 @@ def markdown(seasons):
         tt = Counter(s["tier"] for s in ss)
         out.append("- **Ending tiers:** " + ", ".join(f"{t} {tt.get(t, 0)}" for t in ("good", "bittersweet", "bad")) + ".")
         out.append("- **NeoVi's fate:** " + ", ".join(f"{k} {n}" for k, n in Counter(s["neovi"] for s in ss).most_common()) + f". Romances at the end: {sum(s['romances'] for s in ss)} in all.")
+        pun = Counter(k for s in ss for k in s["nv"]["punished"])
+        out.append(f"- **Kumiko:** helped the cast {sum(s['nv']['helped'] for s in ss)} times; told someone her real name in {sum(1 for s in ss if s['nv']['named'])} seasons; "
+                   f"a romance with someone in {sum(1 for s in ss if s['nv']['lover'])}; punished: " + (", ".join(f"{k} {n}" for k, n in pun.most_common()) or "never") + ".")
         out.append(f"- **Season length:** median {statistics.median(days)} days (shortest {min(days)}, longest {max(days)}).")
         out.append("- **How seasons ended:** " + ", ".join(f"{k} {n}" for k, n in ends.most_common()) + ".")
         out.append(f"- **Deaths per season:** {round(sum(len(s['graveyard']) for s in ss) / len(ss), 1)} on average. Causes: "

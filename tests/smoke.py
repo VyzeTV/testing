@@ -5808,6 +5808,95 @@ for c in sorted(w.agents)[2:]:
 r.run_rescue(12)
 check("rescue that comes after most have died is bittersweet", w.state["over"]["kind"] == "rescue_late" and w.state["over"]["tier"] == "bittersweet")
 
+# ---- NeoVi as a person: Kumiko Akimoto (kumiko.py)
+from murder.world import BEDROOMS as BEDROOMS_  # noqa: E402
+from murder.looks import looks_of  # noqa: E402
+w, r, _ = fresh(260)
+w.state["revealed"] = True
+nv_ = w.state["npcs"]["neovi"]
+fan = sorted(w.agents)[0]
+nv_["aff"][fan] = 7
+w.agents[fan]["nv_aff"] = 7
+r.day = 5
+tk_ = r.new_tick(25)
+got_ = [r.neovi_visit(tk_) for _ in range(6)]
+check("at night NeoVi stops at the door of the one she feels most for, and feelings grow both ways",
+      all(g and g["who"] == fan for g in got_) and r.nv_feel(fan) > 7 - 1 and nv_["aff"][fan] >= 8, str(got_[:2]))
+check("with mutual trust she confides, and sometimes tells her real name",
+      any(g.get("confided") for g in got_) and any(e["type"] == "neovi" for e in tk_["events"]))
+nv_["told"] = {}
+r.rng.seed(1)
+for _ in range(20):
+    r.neovi_confide(tk_, fan)
+check("her real name, Kumiko Akimoto, is told once and remembered", nv_["told"][fan].count("name") == 1
+      and any("Kumiko Akimoto" in m for m in w.agents[fan]["memory"]["recent"] + w.agents[fan]["memory"]["notes"] + [str(w.agents[fan]["memory"])]))
+w.agents[fan]["nv_aff"] = 10
+nv_["aff"][fan] = 10
+r.mind(fan)["facets"]["romantic"] = 80
+for _ in range(30):
+    if r.neovi_lover():
+        break
+    r.neovi_visit(tk_)
+check("a slow romance can grow with someone she trusts deeply", r.neovi_lover() == fan)
+r.neovi_visit(tk_)
+check("a lover's night is implied, never shown", any("cameras are not allowed to see" in e["text"] for e in tk_["events"]))
+w, r, _ = fresh(261)
+w.state["revealed"] = True
+nv_ = w.state["npcs"]["neovi"]
+ally_ = sorted(w.agents)[1]
+nv_["aff"][ally_] = 9
+nv_["fear"] = 0
+r.neovi_arc()["stage"] = 3
+kinds_ = Counter()
+for _ in range(30):
+    if not r.neovi_maid():
+        break
+    nv_.update(fear=0, sanity=70)
+    nv_["aff"][ally_] = 9
+    kinds_[r.neovi_choice(r.new_tick(25))] += 1
+check("a fond, unafraid NeoVi mostly helps (and may get caught)", kinds_["help"] + kinds_["caught"] >= kinds_["obey"] and not kinds_["betray"], str(kinds_))
+w, r, _ = fresh(262)
+w.state["revealed"] = True
+nv_ = w.state["npcs"]["neovi"]
+nv_["fear"] = 10
+nv_["sanity"] = 20
+kinds_ = Counter(r.neovi_choice(r.new_tick(25)) for _ in range(40))
+check("a frightened, broken NeoVi with no friends betrays or obeys, never helps", kinds_["betray"] > 0 and not kinds_["help"], str(kinds_))
+w, r, _ = fresh(263)
+w.state["revealed"] = True
+nv_ = w.state["npcs"]["neovi"]
+w.state["escape"]["routes"]["raft"]["parts"] = {"materials": 4}
+nv_["warned"] = "raft"
+tk_ = r.new_tick(25)
+used_ = r.escape_counter(tk_, "raft", strong=True)
+check("a warning from NeoVi spoils TereVi's counter: the parts are kept and nobody is punished",
+      used_ == ["lockdown"] and w.state["escape"]["routes"]["raft"]["parts"]["materials"] == 4 and "warned" not in nv_)
+w, r, _ = fresh(264)
+w.state["revealed"] = True
+nv_ = w.state["npcs"]["neovi"]
+san0_ = nv_.setdefault("sanity", 70)
+class _Roll:
+    def __init__(self, v): self.v = v
+    def random(self): return self.v
+    def __getattr__(self, k): return getattr(r.__dict__["_rng0"], k)
+r._rng0 = r.rng
+r.rng = _Roll(0.3)
+r.neovi_caught(r.new_tick(25), sorted(w.agents)[0])
+check("caught helping, she can be re-educated: her sanity drops hard and her feelings are pushed back",
+      nv_["punished"][-1]["kind"] == "re-education" and nv_["sanity"] <= san0_ - 25)
+r.rng = _Roll(0.0)
+before_ = len(w.agents)
+r.neovi_caught(r.new_tick(25), sorted(w.agents)[0])
+check("or TereVi makes her a contestant under her real name, in a bedroom of her own",
+      "kumiko" in w.agents and len(w.agents) == before_ + 1 and w.state["cast"]["kumiko"]["name"] == "Kumiko Akimoto"
+      and w.state["cast"]["kumiko"]["home"] in BEDROOMS_ and not r.neovi_maid() and nv_["arc"]["fate"] == "participant")
+r.rng = r._rng0
+check("after that no newcomers can arrive", w.state["no_newcomers"])
+r.ensure_wardrobe()
+check("Kumiko has her own looks and clothes", looks_of("kumiko", w.state["cast"]["kumiko"])["eyes"] == "red eyes" and "clothes_kumiko" in w.state["custom_items"])
+r.run_tick(12)
+check("Kumiko plays a day as a contestant", "kumiko" in w.state["agents"])
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

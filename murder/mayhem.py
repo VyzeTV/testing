@@ -432,7 +432,7 @@ class MayhemMixin:
         arc["fate"] = fate
         text = self.make_broadcast("neovi_end", {"fate": fate, "ally": ally})
         tick["broadcasts"].append({"speaker": "neovi", "kind": "neovi", "text": text})
-        caring = [c for c in w.agents if nv["aff"].get(c, 0) >= 3 or w.agents[c]["aff"].get("neovi", 0) >= 3]
+        caring = [c for c in w.agents if nv["aff"].get(c, 0) >= 3 or self.nv_feel(c) >= 3]
         if fate == "martyr":
             for rid, step in BLIND_STEP.items():
                 plan = s["escape"]["routes"][rid]["plan"]
@@ -458,7 +458,7 @@ class MayhemMixin:
         else:
             for c in w.agents:
                 nv["aff"][c] = nv["aff"].get(c, 0) - 5
-                self.adjust_any_aff(c, "neovi", -5)
+                self.nv_feel_add(c, -5)
             top = max(ESCAPE_ROUTES, key=lambda r: self.route_pct(r))
             self.terevi_reinforce(tick, top, "NeoVi told her everything", strong=True)
             contrib = [c for c in s["escape"]["routes"][top]["contributors"] if c in w.agents]

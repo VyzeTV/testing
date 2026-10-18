@@ -79,6 +79,7 @@ class NeoViActiveMixin:
                         del nv["inv"][item]
                     a[key] = min(100, a[key] + amt)
                     self.adjust_any_aff("neovi", cid, 1)
+                    self.nv_feel_add(cid, 1)
                     self.log_event(tick, {"type": "give", "who": "neovi", "room": room, "vis": "public", "text": f"NeoVi {verb} for {self.nm(cid)}, saying nothing."},
                                    witnesses=[o for o in here if o != cid], actor=cid)
                     self.neovi_log.append(f"I looked after {self.nm(cid)}.")
@@ -181,6 +182,7 @@ class NeoViActiveMixin:
         gain = 3 if tags & {"food", "comfort", "drink"} else 2
         nv["aff"][cid] = min(10, nv["aff"].get(cid, 0) + gain)
         nv.setdefault("favors", {})[cid] = self.day
+        self.nv_feel_add(cid, 1)
         self.log_event(tick, {"type": "give", "who": cid, "room": a["room"], "vis": "public", "text": f"{self.nm(cid)} slips NeoVi the {w.item_name(item)}, quietly."},
                        witnesses=[o for o in w.occupants(a["room"]) if o != cid], actor=cid)
         w.remember(cid, f"{_hh(tick['hour'])} (private) NeoVi took the {w.item_name(item)} and did not meet your eye. She may look away today.")

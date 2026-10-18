@@ -98,7 +98,7 @@ class EscapeWorkMixin:
         nv = s["npcs"]["neovi"]
         cut = sum(rt.get("parts", {}).get(st, 0) for st in ("unjam", "blind", "launch")) >= 2           # feeds cut, drones fooled with gathered tools
         return (cut or self.blackout_until >= self.idx or rt.get("parts", {}).get("blind_aid", 0) > 0
-                or any(nv["aff"].get(c, 0) >= 6 for c in rt.get("contributors", []))
+                or self.neovi_maid() and any(nv["aff"].get(c, 0) >= 6 for c in rt.get("contributors", []))
                 or any(w.agents[c]["inv"].get("hacking_drive", 0) > 0 for c in rt.get("contributors", []) if c in w.agents))
 
     def escape_proof(self):
@@ -235,6 +235,12 @@ class EscapeWorkMixin:
         team = [c for c in rt.get("contributors", []) if c in w.agents]
         title = ESCAPE_ROUTES[rid]["title"].lower()
         kinds = ["confiscate", "lockdown"] + (["punish", "rumour"] if team else [])
+        nv = s["npcs"]["neovi"]
+        if nv.get("warned") == rid:                                   # Kumiko warned them (kumiko.py): the parts are moved, nobody is caught
+            nv.pop("warned")
+            kinds, strong = ["lockdown"], False
+            self.log_event(tick, {"type": "tease", "who": "terevi", "room": "foyer", "vis": "viewer",
+                                  "text": f"TereVi's raid on the way out ({title}) finds the hiding places empty. Someone warned them."})
         used = []
         for kind in self.rng.sample(kinds, 2 if strong else 1):
             if kind == "confiscate":

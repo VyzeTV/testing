@@ -115,6 +115,8 @@ class Game:
                 raise ValueError("Stop or finish the live day before adding a newcomer.")
         state = self.load_current()
         w = World(state)
+        if w.state.get("no_newcomers"):
+            raise ValueError("No newcomers can arrive: with NeoVi made a contestant, nobody is left to keep the house.")
         if not w.state["vacancies"]:
             raise ValueError("There are no vacancies: the island already has 8 participants.")
         if spec.get("ai"):
@@ -365,7 +367,7 @@ class Game:
         nxt = cur["day"]
         if day != nxt:
             raise ValueError(f"Only Day {nxt} can be played live next. Use replay for recorded days.")
-        if (day - 1) % cur.get("week_len", 7) == 0 and cur.get("vacancies"):
+        if (day - 1) % cur.get("week_len", 7) == 0 and cur.get("vacancies") and not cur.get("no_newcomers"):
             need = ", ".join(f"{sum(1 for v in cur['vacancies'] if v['gender'] == g)} {g}" for g in ("female", "male")
                              if any(v["gender"] == g for v in cur["vacancies"]))
             raise ValueError(f"A new week starts on Day {day}. Add newcomers first (needed: {need}).")

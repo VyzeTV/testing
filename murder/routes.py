@@ -81,7 +81,7 @@ class RoutesMixin:
         if rid and step and gain:
             nv = s["npcs"]["neovi"]
             plan = esc["routes"][rid]["plan"]
-            if step in ("unjam", "blind") and nv["aff"].get(cid, 0) >= 8:
+            if step in ("unjam", "blind") and self.neovi_maid() and nv["aff"].get(cid, 0) >= 8:
                 gain += 12
                 self.log_event(tick, {"type": "mercy", "who": "neovi", "room": nv["room"], "vis": "public",
                                       "text": "NeoVi quietly helps, looking at the floor: a camera feed that stays dark for a while."}, witnesses=[cid], actor=cid)
@@ -106,7 +106,7 @@ class RoutesMixin:
         w, s = self.world, self.s
         rt = s["escape"]["routes"][rid]
         nv = s["npcs"]["neovi"]
-        aid = any(nv["aff"].get(c, 0) >= 6 for c in team)
+        aid = self.neovi_maid() and any(nv["aff"].get(c, 0) >= 6 for c in team)
         att = rt["attempts"]
         hp = sum(w.agents[c]["hp"] for c in team) / max(1, len(team))
         san = sum(w.agents[c]["sanity"] for c in team) / max(1, len(team))
