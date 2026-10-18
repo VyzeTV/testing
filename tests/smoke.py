@@ -5027,7 +5027,7 @@ check("a mock week serves meals", "meal" in kinds_wk_, str(sorted(k for k in kin
 gate_kinds_ = set()
 import murder.llm as llm_  # noqa: E402
 mmp_ = llm_.LLM.mock_murder_prob
-for seed_, murders_ in ((41, True), (61, False)):                       # a murder brings a trial and a vigil; a week with none reaches the deadline: the last call
+for seed_, murders_ in ((43, True), (61, False)):                       # a murder brings a trial and a vigil; a week with none reaches the deadline: the last call
     llm_.LLM.mock_murder_prob = 0.08 if murders_ else 0.0
     wk_ = World(new_state(3))
     tg_ = []
@@ -5613,6 +5613,51 @@ w.agents["chloe"]["inv"].pop("acc_chloe", None)
 r.scratch(None, "chloe", "thorns in the garden")
 check("the prompts carry how someone looks right now: their own looks, what they wear, a missing accessory, visible marks",
       "lavender" in r.system_prompt("seul") and "without their usual red-framed glasses" in r.looks_line("chloe") and "scratches" in r.looks_line("chloe", short=True))
+
+# ---- the gatherings as live practices (scenes.py)
+def scene_ok_(t_, room_):
+    gs_ = [g for g in t_["talk"] if g.get("scene")]
+    P_ = t_.get("practice") or {}
+    ls_ = [l for g in gs_ for l in g["lines"]]
+    return (gs_ and P_.get("room") == room_ and all(g.get("live") for g in gs_) and ls_
+            and all(l.get("m") is not None and l["m"] >= P_["arrive"].get(l["speaker"], 0) for l in ls_)), ls_
+w, r, _ = fresh(219)
+for c in w.agents:
+    w.agents[c]["room"] = "garden"
+calls0_ = r.llm.usage["calls"]
+t_ = r.run_presentations(9)
+r.emit(t_)
+ok_, ls_ = scene_ok_(t_, "dining_hall")
+check("the introductions are a live practice: everyone walks to the Dining Hall and introduces themselves on the clock",
+      ok_ and {l["speaker"] for l in ls_ if l.get("move") == "introduce"} >= set(w.agents) and len((t_.get("live") or {}).get("tracks") or {}) >= len(w.agents) - 1, str(ls_[:3]))
+t_ = r.run_reveal(10)
+r.emit(t_)
+ok_, ls_ = scene_ok_(t_, "dining_hall")
+check("the reveal: everyone reacts by temperament and TereVi answers at most two challenges", ok_ and len({l["speaker"] for l in ls_ if l["speaker"] in w.agents}) >= len(w.agents) - 1
+      and sum(1 for l in ls_ if l["speaker"] == "terevi") <= 2 and r.llm.usage["calls"] - calls0_ <= 6, str([l["move"] for l in ls_]))
+w, r, _ = fresh(220)
+w.state["revealed"] = True
+ids = sorted(w.agents)
+w.agents[ids[0]]["sanity"] = 10
+r.mind(ids[0])["facets"]["altruism"] = 90
+r.rng = _Fixed(0.01, r.rng)
+beats_, vols_, strk_ = r.lastcall_beats(ids)
+r.rng = r.rng.b
+check("at the last call the engine decides who volunteers (the most broken or selfless) and who means to strike", vols_ == [ids[0]] and len(strk_) == 1 and strk_[0][0] != strk_[0][1]
+      and any(b["move"] == "volunteer" and b["speaker"] == ids[0] for b in beats_))
+w, r, _ = fresh(221)
+ids = sorted(w.agents)
+w.state["revealed"] = True
+dead_ = ids[0]
+w.agents[ids[1]]["aff"][dead_] = 6
+w.end_agent(dead_, "dead", "murdered")
+r.note_loss(dead_)
+r.s["aftermath"]["since"] = (r.day - 1, 10)
+t_ = r.run_vigil(12)
+r.emit(t_)
+ok_, ls_ = scene_ok_(t_, "lounge")
+check("the remembrance: each survivor speaks of the dead, someone lights a candle, nobody says the same line twice", ok_ and any(l.get("move") == "candle" for l in ls_)
+      and any(l["speaker"] == ids[1] and l.get("move") == "fond" for l in ls_) and len({l["text"] for l in ls_}) >= len(ls_) - 1, str([(l["speaker"], l["text"]) for l in ls_][:4]))
 
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]

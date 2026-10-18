@@ -115,7 +115,7 @@ class AftermathMixin:
         self.log_event(tick, {"type": "vigil", "who": ids[0], "room": ROOM, "vis": "public",
                               "text": f"The survivors gather to remember {names}."}, witnesses=ids)
         self.neovi_attend(tick, ROOM)
-        self.run_conversations(tick, {ROOM: ids}, {}, hour, mode="vigil")
+        self.run_scene_live(tick, "vigil", ROOM, ids, hour, self.vigil_beats(ids, dead))       # the engine decides, the model voices (scenes.py)
         for cid in ids:
             a = w.agents[cid]
             loved = any(a["aff"].get(v, 0) >= 3 for v in dead) or any(x.get("id") in dead and x.get("close") for x in a["memory"].get("lost", []))

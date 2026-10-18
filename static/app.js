@@ -900,11 +900,12 @@ function showLine(g, l) {
   if (!isAct) speak(l.speaker, l.text);
   return ms;
 }
-// A trial on the live map has no free-time acts: who is where comes from the walk in.
+// A scene on the live map (a trial, a gathering) has no free-time acts: who is where comes from the walk in.
 function practiceActs(t) {
   const P = t.practice; if (!P || !P.arrive) return null;
   const out = {}, dur = t.live.dur;
-  for (const [id, m] of Object.entries(P.arrive)) out[id] = [[0, Math.ceil(m), "walk", "Heading to the class trial", P.room], [Math.ceil(m), dur, "trial", "At the class trial", P.room]];
+  const lbl = P.label || "the class trial";
+  for (const [id, m] of Object.entries(P.arrive)) out[id] = [[0, Math.ceil(m), "walk", "Heading to " + lbl, P.room], [Math.ceil(m), dur, "scene", "At " + lbl, P.room]];
   return out;
 }
 async function playWindow(t, tok, late) {

@@ -509,12 +509,12 @@ class ClaimTrialMixin:
                 out[cid] = float(self.sim_go(tick, cid, 0.0) or 0.0)
         return out
 
-    def stage_trial_live(self, tick, arrivals):
-        """Put every trial line on the clock after people have arrived (nobody speaks before they are there), then the side business:
-        whispers between allies (overheard by whoever is close), and now and then someone slipping out for a moment."""
+    def stage_trial_live(self, tick, arrivals, room="voting_grounds", label="the class trial", whisper=None):
+        """Put every line of a staged scene (the trial, or a gathering in scenes.py) on the clock after people have arrived (nobody speaks before
+        they are there), then the side business: whispers between allies (overheard by whoever is close), and now and then someone slipping out."""
         sm = self.sim_turn(tick)
-        room = "voting_grounds"
-        groups = [g for g in tick.get("talk") or [] if g.get("segment") and g.get("room") == room]
+        trial = room == "voting_grounds"
+        groups = [g for g in tick.get("talk") or [] if (g.get("segment") or g.get("scene")) and g.get("room") == room]
         n = sum(len(g["lines"]) for g in groups)
         if not n:
             return
@@ -524,7 +524,7 @@ class ClaimTrialMixin:
         spoken = {}
         for g in groups:
             g["live"], g["m"] = True, round(m, 1)
-            g.setdefault("ended", "trial")
+            g.setdefault("ended", "trial" if trial else "scene")
             g.setdefault("joined", [])
             g.setdefault("left", [])
             g["members"] = sorted({l["speaker"] for l in g["lines"]})
@@ -534,14 +534,14 @@ class ClaimTrialMixin:
                 spoken.setdefault(ln["speaker"], []).append(ln["m"])
                 m += step * (0.5 if ln.get("move") == "cry" else 1.0)
             m += step
-        self.trial_whispers(tick, t0, min(m, sm.dur - 4), spoken)
-        self.trial_slip_out(tick, t0, min(m, sm.dur - 10), spoken)
-        tick["practice"] = {"room": room, "t0": round(t0, 1), "end": round(min(m, sm.dur), 1), "arrive": {c: round(v, 1) for c, v in sorted(arrivals.items())}}
+        self.trial_whispers(tick, t0, min(m, sm.dur - 4), spoken, room, whisper)
+        self.trial_slip_out(tick, t0, min(m, sm.dur - 10), spoken, room, label)
+        tick["practice"] = {"room": room, "label": label, "t0": round(t0, 1), "end": round(min(m, sm.dur), 1), "arrive": {c: round(v, 1) for c, v in sorted(arrivals.items())}}
 
-    def trial_whispers(self, tick, t0, t1, spoken):
+    def trial_whispers(self, tick, t0, t1, spoken, room="voting_grounds", whisper=None):
         w = self.world
-        room = "voting_grounds"
-        ids = sorted(w.agents)
+        ids = sorted(w.occupants(room)) if room != "voting_grounds" else sorted(w.agents)
+        ids = [c for c in ids if c in w.agents]
         pairs = []
         for a in ids:
             b = max((o for o in ids if o != a), key=lambda o: (w.agents[a]["aff"].get(o, 0), o), default=None)
@@ -552,9 +552,10 @@ class ClaimTrialMixin:
             if t1 - t0 < 4:
                 break
             x = round(t0 + self.rng.random() * (t1 - t0 - 2), 2)
-            sus = self.suspicion.get(a)
-            lines = [{"speaker": a, "kind": "say", "text": f"(whispering) It's {self.nm(sus)}, isn't it?" if sus else "(whispering) What do you think?", "m": x, "room": room, "move": "whisper"},
-                     {"speaker": b, "kind": "say", "text": "(whispering) Not now. Later.", "m": round(x + 0.6, 2), "room": room, "move": "whisper"}]
+            sus = self.suspicion.get(a) if room == "voting_grounds" else None
+            first, reply = whisper or ((f"It's {self.nm(sus)}, isn't it?" if sus else "What do you think?"), "Not now. Later.")
+            lines = [{"speaker": a, "kind": "say", "text": f"(whispering) {first}", "m": x, "room": room, "move": "whisper"},
+                     {"speaker": b, "kind": "say", "text": f"(whispering) {reply}", "m": round(x + 0.6, 2), "room": room, "move": "whisper"}]
             conv = {"members": [a, b], "room": room, "seen_by": set(), "wary": True}
             beats = [{"who": l["speaker"], "m": l["m"], "loud": "whisper", "room": room, "move": "confide"} for l in lines]
             self.overhear(tick, conv, beats, notice=False)
@@ -563,30 +564,30 @@ class ClaimTrialMixin:
                     l["heard"] = bt["heard"]
                     for o, lvl in bt["heard"].items():
                         if lvl == "full":
-                            w.remember(o, f"At the trial you overheard {self.nm(l['speaker'])} whisper: {l['text'][12:]}")
+                            w.remember(o, f"You overheard {self.nm(l['speaker'])} whisper: {l['text'][12:]}")
             tick["talk"].append({"room": room, "lines": lines, "live": True, "m": x, "members": [a, b], "whisper": True, "ended": "whisper", "joined": [], "left": []})
 
-    def trial_slip_out(self, tick, t0, t1, spoken):
+    def trial_slip_out(self, tick, t0, t1, spoken, room="voting_grounds", label="the class trial"):
         """The most rattled person who is not on the spot steps out for a few minutes and comes back."""
         w = self.world
         sm = self.sim_turn(tick)
         if t1 - t0 < 12 or self.rng.random() > 0.35:
             return None
-        top = max(self.suspicion.values(), key=lambda x: list(self.suspicion.values()).count(x)) if self.suspicion else None
-        for cid in sorted(w.agents, key=lambda c: -(self.mind(c)["stress"] if self.mind_on() else 0)):
+        top = max(self.suspicion.values(), key=lambda x: list(self.suspicion.values()).count(x)) if self.suspicion and room == "voting_grounds" else None
+        for cid in sorted((c for c in w.agents if w.agents[c]["room"] == room), key=lambda c: -(self.mind(c)["stress"] if self.mind_on() else 0)):
             if cid == top or cid not in sm.tracks:
                 continue
             x = round(t0 + self.rng.random() * (t1 - t0 - 10), 2)
             if any(x - 1 <= m <= x + 9 for m in spoken.get(cid, [])):
                 continue
-            exits = sorted(e["room"] for e in w.adjacent(cid, "voting_grounds") if e["ok"])
+            exits = sorted(e["room"] for e in w.adjacent(cid, room) if e["ok"])
             if not exits:
                 return None
             out = exits[0]
             sm.go_room(cid, out, x, salt=5, force=True)
-            back = sm.go_room(cid, "voting_grounds", x + 5.0, salt=6, force=True)
-            self.log_event(tick, {"type": "practice", "who": cid, "room": "voting_grounds", "vis": "viewer", "m": x, "text": f"{self.nm(cid)} slips out of the trial for a moment."})
-            self.log_event(tick, {"type": "practice", "who": cid, "room": "voting_grounds", "vis": "viewer", "m": round(float(back or x + 6), 1), "text": f"{self.nm(cid)} comes back in."})
+            back = sm.go_room(cid, room, x + 5.0, salt=6, force=True)
+            self.log_event(tick, {"type": "practice", "who": cid, "room": room, "vis": "viewer", "m": x, "text": f"{self.nm(cid)} slips out of {label} for a moment."})
+            self.log_event(tick, {"type": "practice", "who": cid, "room": room, "vis": "viewer", "m": round(float(back or x + 6), 1), "text": f"{self.nm(cid)} comes back in."})
             return cid
         return None
 

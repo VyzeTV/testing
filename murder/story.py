@@ -514,7 +514,7 @@ class StoryMixin:
             a["activity"] = "At the introductions"
             w.remember(cid, f"{_hh(hour)} The introductions began in the Dining Hall. TereVi: {text[:200]}")
         self.neovi_attend(tick, room)
-        self.run_conversations(tick, {room: ids + ["terevi"]}, {}, hour, mode="intro")
+        self.run_scene_live(tick, "intro", room, ids, hour, self.intro_beats(ids))           # the engine decides, the model voices (scenes.py)
         self.intro_done = True
         self.day_notable.append("The cast introduced themselves to each other in the Dining Hall.")
         return tick
@@ -549,7 +549,7 @@ class StoryMixin:
         self.neovi_attend(tick, room)
         self.fx(tick, "flash", room)
         self.fx(tick, "shake", room)
-        self.run_conversations(tick, {room: ids + ["terevi"]}, {}, hour, mode="reveal")
+        self.run_scene_live(tick, "reveal", room, ids, hour, self.reveal_beats(tick, ids))
         self.day_notable.append("TereVi revealed the truth: the show is real, nobody leaves, and the weekly deadline is deadly.")
         self.saga("TereVi revealed the truth on Day 1: the killing game is real.")
         tick["events"].append({"type": "system_notable", "who": "terevi", "room": room, "vis": "public",
@@ -583,11 +583,8 @@ class StoryMixin:
             a["activity"] = "The last call"
             w.remember(cid, f"{_hh(hour)} TereVi gathered everyone for the last call: two hours to the deadline and nobody has died. {text[:200]}")
         self.neovi_attend(tick, room)
-        self.run_conversations(tick, {room: ids + ["terevi"]}, {}, hour, mode="lastcall")
-        fx = self.last_effects.get(room) or {}
-        vols = [v for v in (fx.get("volunteers") or []) if isinstance(v, str) and v in w.agents]
-        strikers = [(x.get("by"), x.get("target")) for x in (fx.get("strikers") or []) if isinstance(x, dict)
-                    and x.get("by") in w.agents and x.get("target") in w.agents and x.get("by") != x.get("target")]
+        beats, vols, strikers = self.lastcall_beats(ids)                                    # who volunteers, who strikes: the engine decides (scenes.py)
+        self.run_scene_live(tick, "lastcall", room, ids, hour, beats)
         if vols:
             v = vols[0]
             a = w.agents[v]
