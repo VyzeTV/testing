@@ -5154,6 +5154,50 @@ for _ in range(40):
     r.mind_wear(c_)
 check("it never sinks below 25", r.mind(c_)["set"] == 25.0)
 
+# ---- phase 6: secret meetings and snooping at night
+w, r, _ = fresh(193)
+ids = sorted(w.agents)
+w.state["revealed"] = True
+w.state["deadline_day"] = r.day + 3
+for c in ids:
+    w.agents[c]["hunger"] = w.agents[c]["thirst"] = 0
+    r.body(c)["bladder"] = 0
+w.state["bonds"] = [{"a": ids[0], "b": ids[1], "kind": "romance"}]
+base_ = r.rng
+r.rng = _Fixed(0.0, base_)
+extra_ = r.night_extra([])
+r.rng = base_
+mt_ = (w.state.get("meets") or [None])[0]
+check("at bedtime lovers (or allies, or a plotter and an accomplice) arrange a secret meeting and both stay up", mt_ and {mt_["a"], mt_["b"]} == {ids[0], ids[1]} and {ids[0], ids[1]} <= set(extra_))
+r.run_bedtime()
+w.state["meets"] = [dict(mt_, block=23, done=False)] if mt_ else []
+nb_ = r.run_night_block(23)
+check("they go to the quiet room in the night and talk", any(e["type"] == "meet" for e in nb_["events"]) and any(set(ch["members"]) == {ids[0], ids[1]} for ch in nb_.get("free_chats") or []),
+      str([e["text"] for e in nb_["events"] if e["type"] in ("meet", "move")][:4]))
+
+w, r, _ = fresh(194)
+ids = sorted(w.agents)
+sp_, tg_ = ids[0], ids[1]
+w.state["revealed"] = True
+r.believe(sp_, {"k": "lied", "s": tg_, "n": "lied about the kitchen", "src": "inferred", "c": 0.9, "t0": r.abs_now()})
+check("someone you caught lying is who you snoop on", r.snoop_target(sp_) == tg_)
+home_ = w.cast[tg_]["home"]
+w.agents[sp_]["room"] = w.agents[tg_]["room"] = home_
+w.agents[tg_]["asleep"] = True
+knife_ = sharp()
+w.agents[tg_]["inv"][knife_] = 1
+w.agents[sp_]["snoop"] = {"on": tg_, "day": r.day}
+r.rng = _Fixed(0.99, r.rng)
+tk_ = r.new_tick(25, phase="night")
+found_ = r.do_snoop(tk_, sp_, 10.0)
+check("going through a sleeper's things finds what they keep, and it becomes a belief (and a suspicion)", knife_ in (found_ or []) and any(b["k"] == "has" and b["o"] == knife_ for b in r.beliefs(sp_))
+      and tg_ in r.suspects(sp_) and w.agents[tg_].get("asleep"))
+w.agents[sp_]["snoop"] = {"on": tg_, "day": r.day}
+r.rng = _Fixed(0.0, r.rng.b)
+r.do_snoop(tk_, sp_, 20.0)
+check("a sleeper may wake and catch the snooper at it", not w.agents[tg_].get("asleep") and any(b["k"] == "did" and b["s"] == sp_ and b["o"] == "snoop" for b in r.beliefs(tg_))
+      and any(e["type"] == "snoop_caught" for e in tk_["events"]))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

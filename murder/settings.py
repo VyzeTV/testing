@@ -16,7 +16,7 @@ SETTINGS = [
     ("experiment_quota", "Escape attempts per day", "Pacing", 0, 2, 0.1, 1.0, "Scales the daily quota of escape experiments (about 3 at 1.0)."),
     ("drain_mult", "Everyday sanity drain", "Sanity", 0, 2, 0.1, 1.0, "How fast each quiet hour wears people down. 0 = no drain."),
     ("dread_mult", "Deadline dread", "Sanity", 0, 2, 0.1, 1.0, "How hard the approaching deadline hits everyone's sanity."),
-    ("wear", "Captivity wear", "Sanity", 0, 10, 0.5, 3.0, "How far everyone's resting sanity sinks each night on the island (the level they recover towards). 0 = none; about 4 brings a week's survivors to around 60."),
+    ("wear", "Captivity wear", "Sanity", 0, 10, 0.5, 2.5, "How far everyone's resting sanity sinks each night on the island (the level they recover towards). 0 = none; the default brings a week's survivors to around 60."),
     ("calm_days", "Calm window after a death", "Sanity", 0, 3, 1, 1, "Days after a closed case with no drain, dread or new quarrels. 0 = none."),
     ("vigil_gain", "Remembrance lift", "Sanity", 0, 12, 1, 6, "Sanity everyone regains at the remembrance after a death (+3 if they loved the dead)."),
     ("lock_fear", "Locking doors at night", "Night", 0, 2, 0.1, 1.0, "How readily frightened people bolt their doors."),

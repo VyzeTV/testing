@@ -6,20 +6,22 @@ The mock backend scripts what characters say and decide, so these numbers show h
 
 | Metric | Default | Violent mock cast |
 | --- | --- | --- |
-| Model calls per day | 81.0 | 78.1 |
+| Model calls per day | 82.3 | 82.6 |
 | Deaths per week | 3.0 | 4.2 |
-| How the weeks ended | still going 4 | still going 4 |
-| Deaths by cause | executed after the trial 4, murdered 4, died in an accident 1, killed 1, wrongly executed 1, escaped the island 1 | murdered 9, executed after the trial 6, killed 1, escaped the island 1 |
-| Trials (all weeks) | 5 | 7 |
-| Verdicts right / wrong / none | 4 / 1 / 0 | 6 / 0 / 1 |
-| Average sanity of survivors at the end of the week | 60.9 | 59.7 |
-| Median sanity at the end of each week | 66 / 62.0 / 60.5 / 66 | 66.5 / 66 / 62 / 59 |
-| Aimless share of free-time activities | 0.18 | 0.16 |
-| Meal attendance (share of the living) | 0.7 | 0.65 |
-| Calm meals (share) | 0.68 | 0.62 |
-| Night blocks where everyone sleeps (share) | 0.62 | 0.56 |
-| People awake per night block | 0.64 | 0.8 |
-| Exhausted at dawn (share of the living) | 0.02 | 0.06 |
+| How the weeks ended | still going 4 | sole 1, still going 3 |
+| Deaths by cause | murdered 5, executed after the trial 3, died in an accident 2, wrongly executed 1, escaped the island 1 | murdered 7, executed after the trial 4, escaped the island 2, executed by TereVi's whim 2, killed 1, wrongly executed 1 |
+| Trials (all weeks) | 4 | 6 |
+| Verdicts right / wrong / none | 3 / 1 / 0 | 4 / 1 / 1 |
+| Average sanity of survivors at the end of the week | 64.2 | 57.9 |
+| Median sanity at the end of each week | 66.0 / 62.0 / 67.5 / 67.0 | 62 / 56 / 56 / 61.0 |
+| Aimless share of free-time activities | 0.18 | 0.17 |
+| Meal attendance (share of the living) | 0.71 | 0.67 |
+| Calm meals (share) | 0.6 | 0.67 |
+| Night blocks where everyone sleeps (share) | 0.43 | 0.36 |
+| People awake per night block | 1.27 | 1.46 |
+| Exhausted at dawn (share of the living) | 0.07 | 0.1 |
 | Beliefs per survivor at the end | 80.0 | 80.0 |
 | False beliefs (share) | 0.0 | 0.0 |
-| Lies caught: real / honest people wrongly caught | 1 / 0 | 12 / 0 |
+| Lies caught: real / honest people wrongly caught | 0 / 0 | 6 / 0 |
+| Secret meetings per week | 4.0 | 1.5 |
+| Snooping per week / snoopers caught (all weeks) | 2.2 / 1 | 2.5 / 2 |

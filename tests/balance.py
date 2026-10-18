@@ -61,6 +61,9 @@ def run_week(seed, violent):
                     if a.get("status", "alive") == "alive":
                         o["dawn_people"] += 1
                         o["dawn_exhausted"] += any(c.get("id") == "exhausted" for c in a.get("conds") or [])
+            for e in t.get("events") or []:
+                if e.get("type") in ("meet", "snoop", "snoop_caught"):
+                    o[e["type"]] += 1
             tr = t.get("trial")
             if tr:
                 o["trials"] += 1
@@ -106,6 +109,8 @@ def summarize(label, weeks):
         "beliefs_per_survivor": r("beliefs", "believers", 1),
         "false_belief_share": r("beliefs_false", "beliefs", 3),
         "lies_caught_real_false": [t["lies_real"], t["lies_false"]],
+        "secret_meetings_per_week": round(t["meet"] / n, 1),
+        "snoops_per_week_caught": [round(t["snoop"] / n, 1), t["snoop_caught"]],
     }
 
 
@@ -115,7 +120,8 @@ ROWS = [("Model calls per day", "calls_per_day"), ("Deaths per week", "deaths_pe
         ("Meal attendance (share of the living)", "meal_attendance"), ("Calm meals (share)", "calm_meal_share"),
         ("Night blocks where everyone sleeps (share)", "quiet_night_share"), ("People awake per night block", "awake_per_night_block"),
         ("Exhausted at dawn (share of the living)", "exhausted_at_dawn"), ("Beliefs per survivor at the end", "beliefs_per_survivor"),
-        ("False beliefs (share)", "false_belief_share"), ("Lies caught: real / honest people wrongly caught", "lies_caught_real_false")]
+        ("False beliefs (share)", "false_belief_share"), ("Lies caught: real / honest people wrongly caught", "lies_caught_real_false"),
+        ("Secret meetings per week", "secret_meetings_per_week"), ("Snooping per week / snoopers caught (all weeks)", "snoops_per_week_caught")]
 
 
 def fmt(v):

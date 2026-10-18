@@ -113,6 +113,7 @@ class SocialMixin:
         """Whom `cid` suspects, strongest first: hooks they hold a suspect for, the case evidence they have noted, people they hate during a case."""
         w, s = self.world, self.s
         out = list(self.caught_liars(cid))                          # someone caught lying to them comes first
+        out += [b["s"] for b in self.beliefs(cid) if b["k"] == "has" and b["s"] in w.agents]      # then someone they know keeps a weapon
         for h in s.get("hooks", []):
             if not h.get("closed") and h.get("suspect", {}).get(cid) in w.agents:
                 out.append(h["suspect"][cid])

@@ -66,7 +66,8 @@ class NightMixin:
                 owls.append(cid)
             elif (a.get("hunger", 0) >= 75 or a.get("thirst", 0) >= 70) and self.rng.random() < 0.5:
                 owls.append(cid)                                         # a trip to the kitchen first
-        return [c for c in owls if not w.agents[c].get("out") and w.agents[c]["room"] not in ("cold_store", "voting_grounds")]
+        owls = [c for c in owls if not w.agents[c].get("out") and w.agents[c]["room"] not in ("cold_store", "voting_grounds")]
+        return owls + self.night_extra(owls)                         # secret meetings and snoopers
 
     def bed_down(self, tick, owls):
         """Everyone goes to their bed and falls asleep, except the owls."""
@@ -146,6 +147,7 @@ class NightMixin:
                 why = self.wake_reason(cid, hour)
                 if why:
                     self.rouse(tick, cid, why)
+        self.wake_for_meets(tick, hour)
         s["_night_noise"] = {}
         awake = [c for c in sorted(w.agents) if not w.agents[c].get("asleep") and not w.agents[c].get("out")]
         decisions, intents, attacks = {}, {}, []

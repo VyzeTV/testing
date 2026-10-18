@@ -63,6 +63,7 @@ ACTS = {
     "mirror":   ("at the mirror", 15, [], ["mirror"], "checks themselves in the mirror"),
     "nap":      ("napping", 60, [], ["bed"], "lies down"),
     "sleep":    ("asleep", 120, [], ["bed"], "goes back to bed"),
+    "snoop":    ("snooping around", 30, [], [], "searches the room quietly"),
     "tinker":   ("making something", 45, [], ["workbench", "table"], "tinkers with something"),
     "look":     ("looking around", 30, [], [], "looks around"),
     "explore":  ("exploring", 30, [], [], "has a look around"),
@@ -83,7 +84,7 @@ IDLE_ACTS = {"look", "explore", "stroll", "gather", "stay", "sit", "walk", "juke
 PRIVATE_ROOMS = {"blue_room", "green_room", "yellow_room", "red_room", "violet_room", "orange_room", "grey_room", "white_room", "master_suite"}
 MAX_CHATS = 3
 NIGHT_ACTS = {"eat", "drink", "snack", "wash", "bathroom", "read", "sit", "look", "explore", "stargaze", "radio", "tinker", "mirror", "confess", "chat", "gather", "company",
-              "stalk", "flee", "rescue", "fight", "warn", "sleep"}                                  # what people do in a sleeping house (nothing loud)
+              "stalk", "flee", "rescue", "fight", "warn", "sleep", "snoop"}                                  # what people do in a sleeping house (nothing loud)
 MAIN_DUR = {"experiment": 90, "craft": 45, "rest": 60, "search": 30, "spy": 45, "treat": 30, "frisk": 30, "stash": 30, "retrieve": 30, "build": 45, "hide": 45, "lock": 15,
             "unlock": 15, "barricade": 30, "give": 15, "take": 15, "use": 15, "drop": 15, "wear": 15, "stay": 15, "attack": 15, "knock": 15, "pick": 30, "break": 30}
 
@@ -508,6 +509,7 @@ class FreeTimeMixin:
             # the house is asleep: back to bed sooner or later, nothing loud in the meantime
             late = max(0, (int(hour) - 23)) / 2
             urgent = max(max(b["bladder"] - 45, 0) / 25, hungry * 1.4, thirsty * 1.2)          # nobody sleeps on a full bladder or an empty stomach
+            self.night_options(tick, cid, hour, m, add, sc)            # secret meetings and snooping
             add(0.9 + (100 - mi["rest"]) / 45 + 0.3 * late + 0.02 * m - (0.6 if a["sanity"] < 25 else 0) - 1.5 * urgent, "sleep", room=home, why="back to bed")
             sc = [x for x in sc if x[1] in NIGHT_ACTS]
         if m >= FINALE and not night:
@@ -843,6 +845,8 @@ class FreeTimeMixin:
             a["thirst"] = max(0, a.get("thirst", 0) - 15)
         elif act == "confess":
             self.booth_visit(tick, cid, m)
+        elif act == "snoop":
+            self.do_snoop(tick, cid, m)
         elif act == "sleep":
             a["asleep"], a["activity"], a["slept_at"] = True, "Asleep", m
         elif act == "drink":
