@@ -133,6 +133,9 @@ class RoutesMixin:
         rt["attempts"] += 1
         tick = self.new_tick(hour)
         tick["type"] = "finale"
+        live = rid in ("shutdown", "ultimatum")
+        if live:
+            self.begin_practice(tick)                                # the raid and the standoff play on the live map (finales.py)
         team = self.finale_team(rid)
         site = r["room"]
         for cid in team:
@@ -146,9 +149,14 @@ class RoutesMixin:
         nroom = s["npcs"]["neovi"]["room"]
         tick["moves"]["neovi"] = {"from": nroom, "path": [nroom], "to": nroom}
         self.finale_route = rid
-        self.run_conversations(tick, {site: team + ["terevi"]}, {}, hour, mode="finale")
-        p, aid = self.finale_odds(rid, team)
-        ok = self.rng.random() < p
+        if live:
+            p, aid = self.finale_odds(rid, team)
+            ok, self._finale_outcome = self.live_finale(tick, rid, team, hour)
+        else:
+            self._finale_outcome = None
+            self.run_conversations(tick, {site: team + ["terevi"]}, {}, hour, mode="finale")
+            p, aid = self.finale_odds(rid, team)
+            ok = self.rng.random() < p
         text = self.make_broadcast("finale", {"route": rid, "ok": ok, "team": team, "aid": aid})
         tick["broadcasts"].append({"speaker": "terevi", "kind": "finale", "text": text})
         getattr(self, f"finale_{rid}")(tick, team, ok, text, hour)
@@ -195,8 +203,12 @@ class RoutesMixin:
         else:
             plan["approach"] = min(plan["approach"], 40)
             plan["means"] = min(plan["means"], 50)
-            res = "The Core Vault fights back: the turrets wake, the doors slam, and TereVi laughs through the speakers. The attempt collapses."
-            for cid in list(team):
+            how = getattr(self, "_finale_outcome", None)
+            res = {"sealed in": "TereVi seals the hatch on the raid. Hours later NeoVi lets them out, filthy and shaking.",
+                   "betrayed": "One of the raiders runs for the alarm. The vault floods with light and the raid falls apart.",
+                   "a death in the vault": "The vault's guns find their mark. The raid ends with a body on the steps."}.get(
+                how, "The Core Vault fights back: the turrets wake, the doors slam, and TereVi laughs through the speakers. The attempt collapses.")
+            for cid in list(team) if how in (None, "the core held") else []:
                 if cid in w.agents:
                     self.stat(tick, cid, "hp", -self.rng.randint(10, 28), "the vault's defences", lethal="cut down in the Core Vault")
                     self.stat(tick, cid, "sanity", -6, "the vault's defences")
@@ -247,10 +259,19 @@ class RoutesMixin:
         if ok:
             self._end_season(tick, "ultimatum", "THE SHOW SURRENDERS", text)
             res = "TereVi blinks first. The doors unlock and the boats' chains drop away: the show is over."
+        elif getattr(self, "_finale_outcome", None) in ("backed down", "betrayed"):
+            plan["plant"] = 0
+            plan["trigger"] = 0
+            res = ("The trigger is in TereVi's hands now. NeoVi carries the charges away, one by one." if self._finale_outcome == "betrayed"
+                   else "They back down. NeoVi disarms the charges while TereVi hums a little tune.")
+            self.force_tease = "The cast threatened to blow up your island and folded. Mock them for it."
         else:
             plan["plant"] = 0
             plan["explosives"] = min(plan["explosives"], 30)
             res = "TereVi calls the bluff. The charge goes off in the Generator Shed in a roar of flame and the whole island goes dark."
+            for r2, st2 in (("shutdown", "blind"), ("transmit", "unjam")):
+                p2 = s["escape"]["routes"][r2]["plan"]
+                p2[st2] = min(100, p2[st2] + 30)                     # her cameras and jammers are down for a while
             self.blackout_until = self.idx + 2
             self.env_explosion(tick, "generator_shed")
             for cid in list(team):

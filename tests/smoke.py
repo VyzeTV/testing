@@ -5713,6 +5713,41 @@ for _ in range(20):
     r2_.escape_work(r2_.new_tick(10), sorted(w2_.agents)[1], 10)
 check("without what a step needs, work stops at half way", max(w2_.state["escape"]["routes"][r2_.escape_route_for(sorted(w2_.agents)[1]) or "raft"]["plan"].values()) <= 50)
 
+# ---- phase 7b step 2: the raid and the standoff as live scenes (finales.py)
+def finale_(seed, rid, patch=None):
+    w_, r_, _ = fresh(seed)
+    w_.state["revealed"] = True
+    w_.state["found_edges"].append("SP-5")
+    for st in w_.state["escape"]["routes"][rid]["plan"]:
+        w_.state["escape"]["routes"][rid]["plan"][st] = 100
+    if patch:
+        patch(r_)
+    t_ = r_.run_finale(rid, 23)
+    r_.emit(t_)
+    return w_, r_, t_
+outs_ = set()
+for sd_ in range(227, 237):
+    w, r, t_ = finale_(sd_, "shutdown")
+    outs_.add(r._finale_outcome)
+    if sd_ == 227:
+        ls_ = [l for g in t_["talk"] if g.get("scene") for l in g["lines"]]
+        check("the raid on the core is a live scene: the team walks to the Core Vault and the lines run on the clock",
+              (t_.get("practice") or {}).get("room") == "core_vault" and ls_ and all(l.get("m") is not None for l in ls_), str(t_.get("practice")))
+check("the raid can succeed or fail, and success shuts TereVi down", "shut down" in outs_ and len(outs_) >= 2, str(outs_))
+outs_ = set()
+for sd_ in range(237, 252):
+    w, r, t_ = finale_(sd_, "ultimatum")
+    outs_.add(r._finale_outcome)
+check("the standoff ends in a surrender, a fold or a real blast", "surrender" in outs_ and len(outs_) >= 2, str(outs_))
+class _Turn(_Fixed):
+    def choice(self, seq):
+        return "turn" if "turn" in seq else self.b.choice(seq)
+def traitor_(r_):
+    r_.turned = lambda cid, team: True
+    r_.rng = _Turn(0.99, r_.rng)
+w, r, t_ = finale_(252, "shutdown", traitor_)
+check("TereVi can turn a raider, who runs for the alarm: the raid fails", r._finale_outcome == "betrayed" and not w.state.get("over"), str(r._finale_outcome))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

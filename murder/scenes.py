@@ -18,18 +18,24 @@ SceneMixin is mixed into DayRunner (engine.py).
 """
 from .data_cast import HOSTS
 
-TITLES = {"intro": "THE INTRODUCTIONS", "reveal": "THE TRUTH", "lastcall": "THE LAST CALL", "vigil": "THE REMEMBRANCE"}
-LABELS = {"intro": "the introductions", "reveal": "TereVi's announcement", "lastcall": "the last call", "vigil": "the remembrance"}
+TITLES = {"intro": "THE INTRODUCTIONS", "reveal": "THE TRUTH", "lastcall": "THE LAST CALL", "vigil": "THE REMEMBRANCE",
+          "shutdown": "THE RAID ON THE CORE", "ultimatum": "THE STANDOFF"}
+LABELS = {"intro": "the introductions", "reveal": "TereVi's announcement", "lastcall": "the last call", "vigil": "the remembrance",
+          "shutdown": "the raid on the core", "ultimatum": "the standoff"}
 CONTEXT = {"intro": "The cast meet each other for the first time in the Dining Hall, believing this is a reality show.",
            "reveal": "TereVi has just told them the show is real: nobody leaves, and if nobody dies by the deadline, everyone dies.",
            "lastcall": "Two hours to the deadline and nobody has died. TereVi has gathered everyone.",
-           "vigil": "The survivors gather to remember the dead."}
+           "vigil": "The survivors gather to remember the dead.",
+           "shutdown": "A small team creeps down beneath the Lighthouse to destroy TereVi's core while she may be watching.",
+           "ultimatum": "A team holds a bomb trigger at the Generator Shed and makes demands of TereVi, who bluffs, bargains and tempts."}
 WHISPERS = {"intro": [("What do you make of them?", "Too early to tell."), ("That one's trouble. I can feel it.", "Shh. They'll hear you."),
                       ("Is it just me, or is this place weird?", "It's not just you.")],
             "reveal": [("Are you okay?", "Stay close to me."), ("Do you believe her?", "I don't know what to believe."), ("We stick together. Promise me.", "I promise.")],
             "lastcall": [("If it comes to it... stay away from the lights.", "I know."), ("Who do you think will do it?", "Don't say that."),
                          ("Whatever happens, it wasn't you. Okay?", "Okay.")],
-            "vigil": [("Are you holding up?", "Not really."), ("I can't stop shaking.", "Me neither."), ("Do you think it's over?", "It's never over here.")]}
+            "vigil": [("Are you holding up?", "Not really."), ("I can't stop shaking.", "Me neither."), ("Do you think it's over?", "It's never over here.")],
+            "shutdown": [("If this goes wrong...", "It won't. Keep moving."), ("Did you hear that?", "Don't stop.")],
+            "ultimatum": [("Would you really press it?", "I don't know."), ("She's stalling.", "Then we wait her out.")]}
 
 
 class SceneMixin:
