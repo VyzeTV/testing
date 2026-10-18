@@ -18,6 +18,7 @@ A Danganronpa-style killing-game simulation. **The engine decides what happens; 
      - Viewer quiet-night skip (ask / auto / watch) and a GM "Skip quiet night" button.
 - **Phase 5 is done**: the code-health step (hash-seed determinism, the duplicate-method test, old-save conversion via `session.resume_hour`, `viewer_check.js` now plays into a night; the trial is not reached in the browser check) and **belief bases** (`beliefs.py`; see `docs/GAME_DESIGN.md` section 6, "Beliefs"). Still open from phase 5's plan: night uses of beliefs (snooping, secret meetings; moved into phase 6) and a real-model day. A real day needs no API key: the default `cli` backend uses the `claude` command and the user's subscription (about 90 calls a day), so ask the user before running one.
 - **Phase 6 is done**: night snooping and secret meetings (`nightlife.py`), the murder planner (`planner.py`), fights in blows with hit locations (`combat.py`), hands, pockets and item capabilities (`carry.py`), and captivity wear tuning sanity to about 60 at the end of a week (`mind.mind_wear`, dial `wear`). Not done from its list: worn items (gloves against prints, a coat that hides blood, a bag), item combinations in the planner (a rope and the balcony, pills and a bath), and showing the wounds in the autopsy and trial (they are stored in `case["wounds"]` and `case["wound_text"]` for phase 7).
+- After phase 6: evidence rules (`evidence.py`: no TereVi footage for the cast, NeoVi stills, personal cameras; TereVi's structured Case File `case["cf"]` updated by `file_learn`, clues by `update_clue`), silencing (gags, hand over the mouth, drowning; `combat.py`), and more planner schemes (lure, trap, drown, subdue first). Lethality is deliberately low; with it, a default mock week sometimes reaches the reckoning.
 - **Next: phase 7**, the claim-based trial.
 - Later phases (see the plan doc):
   - 6: affordances and a murder planner, plus fights in blows, carrying slots, hit locations and a small catalogue of distinct items (listed under "Phase 6 additions").
@@ -26,7 +27,7 @@ A Danganronpa-style killing-game simulation. **The engine decides what happens; 
 
 ## Running and checking
 
-- Tests (mock LLM, no network): `python tests/smoke.py` (882 checks, about 45 seconds; must end `N/N passed`) and `python tests/baseline.py` (mock calls a day; keep it at or below about 91.7. It is about 89 now).
+- Tests (mock LLM, no network): `python tests/smoke.py` (897 checks, about 45 seconds; must end `N/N passed`) and `python tests/baseline.py` (mock calls a day; keep it at or below about 91.7. It is about 90 now: close to the ceiling).
 - Balance numbers: `python tests/balance.py --write` (about 30 seconds) writes `docs/BALANCE.md`: deaths and how weeks end, trials and verdicts, sanity, idle time, meals, nights, beliefs and lies caught. Report them at every phase gate.
 - Browser check: `MC_DATA_DIR=<scratch dir> python server.py &` then `node tests/viewer_check.js` (expects `frozen: 0`, `errors: []`). Use a fresh data dir: a leftover session or an old server on port 8766 gives misleading results. Stop the server with `pkill -f "[s]erver.py"` in its own shell call (an unbracketed pattern kills the shell itself).
 - Playwright and Chromium are preinstalled (`/opt/node22/lib/node_modules/playwright`).
