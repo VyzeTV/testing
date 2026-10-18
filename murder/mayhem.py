@@ -280,7 +280,7 @@ class MayhemMixin:
     def terevi_mood(self):
         s = self.s
         anger = min(1.0, s["escape"]["progress"] / 100 + 0.1 * sum(s.get("adapt", {}).get("hardness", {}).values()))
-        weights = {"battle": 0.35 + 0.4 * anger, "crown": 0.35 + 0.2 * (1 - anger), "capricious": 0.2}
+        weights = {"battle": 0.4 + 0.3 * anger, "crown": 0.4 + 0.2 * (1 - anger), "capricious": 0.12}
         tot = sum(weights.values())
         r = self.rng.random() * tot
         for k, v in weights.items():
@@ -430,6 +430,7 @@ class MayhemMixin:
         else:
             fate = "survivor"
         arc["fate"] = fate
+        arc["fate_day"] = self.day
         text = self.make_broadcast("neovi_end", {"fate": fate, "ally": ally})
         tick["broadcasts"].append({"speaker": "neovi", "kind": "neovi", "text": text})
         caring = [c for c in w.agents if nv["aff"].get(c, 0) >= 3 or self.nv_feel(c) >= 3]

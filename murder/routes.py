@@ -111,7 +111,7 @@ class RoutesMixin:
         hp = sum(w.agents[c]["hp"] for c in team) / max(1, len(team))
         san = sum(w.agents[c]["sanity"] for c in team) / max(1, len(team))
         skill = sum(1 for c in team if any(k in w.cast[c]["role"].lower() for k in ("hack", "engineer", "tech", "explor", "student")))
-        base = {"transmit": 0.35, "shutdown": 0.40, "raft": 0.50, "ultimatum": 0.45}[rid]
+        base = {"transmit": 0.45, "shutdown": 0.50, "raft": 0.55, "ultimatum": 0.55}[rid]
         p = base + (0.1 if len(team) >= 2 else 0) + 0.06 * min(2, skill) - 0.05 * att
         if rid in ("transmit", "shutdown") and aid:
             p += 0.15
@@ -122,7 +122,7 @@ class RoutesMixin:
                 p -= 0.3
             if any(w.agents[c]["inv"].get("life_jacket", 0) for c in team):
                 p += 0.1
-        p -= 0.25 * max(0, 55 - san) / 55 + 0.2 * max(0, 55 - hp) / 55 + 0.07 * self.adapt_level(rid)
+        p -= 0.25 * max(0, 55 - san) / 55 + 0.2 * max(0, 55 - hp) / 55 + 0.07 * self.adapt_level(rid) + self.__dict__.get("_desperate", 0.0)
         return max(0.15, min(0.85, p)), aid
 
     def run_finale(self, rid, hour):
@@ -170,8 +170,13 @@ class RoutesMixin:
     def _end_season(self, tick, kind, title, text, ids=None):
         ids = ids if ids is not None else list(self.world.agents)
         tier = ending_tier(kind, ids)
-        self.s["over"] = {"kind": kind, "day": self.day, "title": title, "text": text, "tier": tier}
-        tick["ending"] = {"kind": kind, "title": title, "text": text, "ids": ids, "tier": tier}
+        costs = self.ending_costs(kind, ids)                      # a win that cost too much is bittersweet (endings.py)
+        if tier == "good" and costs:
+            tier = "bittersweet"
+        self.s["over"] = {"kind": kind, "day": self.day, "title": title, "text": text, "tier": tier, "costs": costs}
+        eps = self.make_epilogues(tick, kind, ids)
+        self.s["over"]["epilogues"] = eps
+        tick["ending"] = {"kind": kind, "title": title, "text": text, "ids": ids, "tier": tier, "costs": costs, "epilogues": eps}
 
     def finale_transmit(self, tick, team, ok, text, hour):
         w, s = self.world, self.s
@@ -197,6 +202,7 @@ class RoutesMixin:
         w, s = self.world, self.s
         plan = s["escape"]["routes"]["shutdown"]["plan"]
         if ok:
+            self.parting_shot(tick, "shutdown", team)
             self._end_season(tick, "shutdown", "TEREVI IS SHUT DOWN", text)
             self.fx(tick, "dark")
             res = "The core goes dark. TereVi's voice stretches into static and dies. The doors unlock across the island."
@@ -250,6 +256,7 @@ class RoutesMixin:
         w, s = self.world, self.s
         plan = s["escape"]["routes"]["ultimatum"]["plan"]
         if ok:
+            self.parting_shot(tick, "ultimatum", team)
             self._end_season(tick, "ultimatum", "THE SHOW SURRENDERS", text)
             res = "TereVi blinks first. The doors unlock and the boats' chains drop away: the show is over."
         elif getattr(self, "_finale_outcome", None) in ("backed down", "betrayed"):

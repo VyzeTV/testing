@@ -183,6 +183,7 @@ class OutsideMixin:
         tick = self.new_tick(hour)
         tick["type"] = "rescue"
         r = s["rescue"]
+        self.rescue_loss(tick)                                     # the island may keep one (endings.py)
         alive = list(w.agents)
         out = [c for crew in self.outside()["crews"] for c in crew["alive"] if crew["stage"] in ("believed", "ashore", "sea")]
         enough = len(alive) >= max(3, (r.get("alive_then", 6) + 1) // 2)

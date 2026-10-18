@@ -6067,6 +6067,53 @@ n0_ = len(w.state["vacancies"])
 check("an escapee can be carried back by the sea, a participant again", r.raft_returns(r.new_tick(31), crew_) and x_ in w.agents and len(w.state["vacancies"]) == n0_ - 1
       and crew_["stage"] == "returned")
 
+# ---- endings: the price of winning, the parting shot, the last stand and the epilogues (endings.py)
+w, r, _ = fresh(290)
+w.state["revealed"] = True
+tk_ = r.new_tick(14)
+r._end_season(tk_, "shutdown", "TEREVI IS SHUT DOWN", "x")
+check("a clean win is a good ending, with an epilogue for every survivor", w.state["over"]["tier"] == "good" and not w.state["over"]["costs"]
+      and len(w.state["over"]["epilogues"]) >= len(w.agents) and all(e["text"] for e in w.state["over"]["epilogues"]))
+w, r, _ = fresh(291)
+w.state["revealed"] = True
+r.tuning_get = lambda: {"parting_shot": 10}
+team_ = sorted(w.agents)[:2]
+dead_ = r.parting_shot(r.new_tick(14), "shutdown", team_)
+r._end_season(r.new_tick(14), "shutdown", "TEREVI IS SHUT DOWN", "x")
+check("TereVi's parting shot takes someone with her, and the win becomes bittersweet", dead_ and all(d not in w.agents for d in dead_)
+      and w.state["over"]["tier"] == "bittersweet" and any("TereVi took" in c for c in w.state["over"]["costs"]), str(dead_))
+w, r, _ = fresh(292)
+w.state["revealed"] = True
+ids_ = sorted(w.agents)
+for c in ids_[2:]:
+    w.end_agent(c, "dead", "murdered")
+r._end_season(r.new_tick(14), "winners", "THE WINNERS", "x", ids=ids_[:2])
+check("crowned winners of a killing game are a bittersweet ending", w.state["over"]["tier"] == "bittersweet")
+w, r, _ = fresh(293)
+w.state["revealed"] = True
+a_, b_ = sorted(w.agents)[:2]
+w.state["bonds"] = [{"a": a_, "b": b_, "kind": "romance", "since": 3}]
+w.agents[a_]["aff"][b_] = w.agents[b_]["aff"][a_] = 9
+r._end_season(r.new_tick(14), "ultimatum", "THE SHOW SURRENDERS", "x")
+ep_ = {e["id"]: e["text"] for e in w.state["over"]["epilogues"]}
+check("lovers who walk out together share one fate in their epilogues", r.nm(b_) in ep_[a_] and r.nm(a_) in ep_[b_])
+w, r, _ = fresh(294)
+w.state["revealed"] = True
+for k_ in w.state["escape"]["routes"]["raft"]["plan"]:
+    w.state["escape"]["routes"]["raft"]["plan"][k_] = 80
+for c in sorted(w.agents)[3:]:
+    w.end_agent(c, "dead", "murdered")
+check("with only a few left, a way out that is far along gets a last-stand attempt, once", r.last_stand_route() == "raft" and r._desperate > 0
+      and r.last_stand_route() is None)
+w, r, _ = fresh(295)
+w.state["revealed"] = True
+n0_ = len(w.agents)
+r.rng.seed(1)
+lost_ = None
+for _ in range(20):
+    lost_ = lost_ or r.rescue_loss(r.new_tick(12))
+check("the rescue can leave someone behind", lost_ and len(w.agents) == n0_ - 1 and w.state["_left_behind"] == lost_)
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

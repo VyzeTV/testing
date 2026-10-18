@@ -329,3 +329,7 @@ table.tel { font-size: 12px; border-collapse: collapse; margin: 4px 0 10px; } ta
 #segcard.free { border-color: #ffd36b; } #segcard .st { font-size: 22px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; } #segcard .ss { color: var(--muted); font-size: 13px; margin-top: 3px; }
 @keyframes segin { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 #feed .segment { border-left: 3px solid var(--accent); padding: 4px 8px; margin: 8px 0; background: rgba(60, 220, 200, .07); }
+
+.epilogues { text-align: left; max-height: 46vh; overflow-y: auto; margin: 10px 0; }
+.epilogues .epi { display: flex; gap: 10px; align-items: flex-start; margin: 8px 0; font-size: 13px; line-height: 1.4; }
+.epilogues .epi img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--c, #888); flex: none; }

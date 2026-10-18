@@ -750,6 +750,8 @@ function showSeasonEnd(en) {
   const tier = { good: "A good ending", bittersweet: "A bittersweet ending", bad: "A bad ending" }[en.tier] || "";
   $("#overlayCard").innerHTML = `<div class="recapcard"><div class="ep">${truth ? "The season ends" : "The season is over"}${tier ? " · " + tier : ""}</div><h2>${esc(en.title)}</h2>
     <div>${faces}</div><p>${esc(en.text)}</p>
+    ${en.costs && en.costs.length ? `<p class="warn">At a price: ${en.costs.map(esc).join("; ")}.</p>` : ""}
+    ${(en.epilogues || []).length ? `<div class="epilogues"><div class="ep">Afterwards</div>${en.epilogues.map((e) => `<div class="epi"><img src="portraits/${e.id}.png" onerror="this.style.visibility='hidden'" style="--c:${info(e.id).color}"><div><b style="color:${info(e.id).color}">${esc(info(e.id).name || e.id)}</b><br>${esc(e.text)}</div></div>`).join("")}</div>` : ""}
     <p class="warn">${({ truth: "The world is listening. Rescue is on its way.", shutdown: "TereVi is gone and the doors stand open.", ultimatum: "TereVi gave in: the show is over.", raft: "The last of them sailed away.", reckoning: "Nobody died before the deadline, so everyone did." })[en.kind] || ""} Start a new game to play another season.</p></div>
     <div class="actions"><button id="ovClose">Close</button><button id="ovNext" class="primary">New game</button></div>`;
   $("#overlay").style.display = "flex";
