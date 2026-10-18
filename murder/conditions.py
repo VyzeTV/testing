@@ -36,6 +36,7 @@ COND = {
     "lost_fingers": ("lost some fingers", "injury", None, {"atk": 0.1, "phys": 0.08}),
     "lost_eye": ("lost an eye", "injury", None, {"sharp": 0.2, "atk": 0.05}),
     "lost_foot": ("lost a foot", "injury", None, {"move": 0.45, "phys": 0.1, "noisy": 0.2}),
+    "scratched": ("fresh scratches", "injury", (8, 14), {}),
 }
 PERMANENT = {"lost_hand", "lost_fingers", "lost_eye", "lost_foot", "deranged"}
 HEAL_DAYS = {"broken_arm": 6, "broken_leg": 8, "whiplash": 3, "concussion": 2, "weak": 3, "burned": 4}
@@ -92,7 +93,7 @@ class ConditionMixin:
         txt = {"bleeding": f"{name} is bleeding", "broken_arm": f"{name} breaks their arm", "broken_leg": f"{name} breaks their leg", "whiplash": f"{name} suffers whiplash",
                "concussion": f"{name} has a concussion", "burned": f"{name} is burned", "lost_hand": f"{name} loses a hand", "lost_fingers": f"{name} loses some fingers",
                "lost_eye": f"{name} loses an eye", "lost_foot": f"{name} loses a foot", "poisoned": f"{name} has been poisoned", "blinded": f"{name} is blinded",
-               "panicking": f"{name} panics", "deranged": f"{name} has lost their grip on reality", "infected": f"{name}'s wound is infected"}.get(cond, f"{name} is {COND[cond][0]}")
+               "panicking": f"{name} panics", "deranged": f"{name} has lost their grip on reality", "infected": f"{name}'s wound is infected", "scratched": f"{name} has fresh scratches on their hands"}.get(cond, f"{name} is {COND[cond][0]}")
         if tick is not None:
             self.log_event(tick, {"type": "condition", "who": cid, "room": a["room"], "vis": "public" if cond in ("bleeding", "broken_arm", "broken_leg", "burned", "lost_hand", "lost_foot", "lost_eye", "panicking", "blinded") else "viewer",
                                   "text": txt + (f" ({why})" if why else "") + "."}, witnesses=[o for o in w.occupants(a["room"]) if o != cid and o in w.agents] if cond in ("bleeding", "broken_arm", "broken_leg", "burned", "panicking") else None, actor=cid)

@@ -1,7 +1,7 @@
 """Gear a careful killer uses: gloves, a coat, a bag, a holster.
 
-Gloves (work, oven or rubber gloves) leave no fingerprints on a weapon; without them, the weapon at the scene carries prints (smudged, or
-clear enough to match, as the clue-clarity dial decides). A coat (raincoat, trench coat, jacket, a bedsheet cloak) takes the blood instead of
+Gloves (work, oven or rubber gloves) keep a bare hand off the weapon: the handle shows a fabric weave instead of a bloody handprint, and the
+gloves are stained (marks.py; nobody on the island can read fingerprints). A coat (raincoat, trench coat, jacket, a bedsheet cloak) takes the blood instead of
 the clothes underneath: the stained coat is the evidence, to be got rid of. A bag (tote or duffel bag) hides up to three medium things that
 would otherwise be seen in the hand, though drawing from it takes a moment. A holster hides one medium weapon and it comes out at once.
 GearMixin is mixed into DayRunner (engine.py); `carry.py` asks it what is stowed.
@@ -35,18 +35,6 @@ class GearMixin:
             for k in meds[:BAG_HOLDS]:
                 out[k] = "bag"
         return out
-
-    def prints_text(self, culprit, weapon):
-        """What the weapon at the scene shows: no prints if they wore gloves; otherwise prints, matched to them or not yet."""
-        w = self.world
-        if not culprit or not weapon:
-            return ""
-        gl = self.gloves_of(culprit)
-        if gl:
-            return " No fingerprints anywhere on it, only faint smudges of fabric: whoever used it wore gloves."
-        if self.rng.random() < 0.35 + 0.4 * min(1.0, self.tune("clue_clarity")):
-            return f" Clear fingerprints on the handle: {self.nm(culprit)}'s."
-        return " Fingerprints on the handle, too smudged to match yet."
 
     def coat_takes_blood(self, cid):
         """The killer's coat takes the blood instead of their clothes: the coat becomes the stained evidence. Returns the stained coat id, or None."""

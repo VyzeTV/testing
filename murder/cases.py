@@ -176,6 +176,7 @@ class CaseMixin:
             wname = w.item_name(weapon) if weapon else "bare hands"
             if res["scratched"]:
                 a["scratched"] = self.day                                  # marks a sharp eye can find
+                self.scratch(tick, cid, f"{self.nm(t)} clawed at them")
             tick.setdefault("fights", []).append({"by": cid, "on": t, "room": room, "outcome": res["outcome"], "blows": res["blows"]})
             instig = self.find_instigator(cid, t)
             dark = self.blackout_until >= self.idx          # in the dark nobody without a light sees who did it
@@ -204,9 +205,10 @@ class CaseMixin:
                                staged=staged, instigator=instig, intended=intended, framed=framed)
                 if s.get("case"):
                     s["case"]["wounds"] = res["wounds"]
-                    s["case"]["wound_text"] = self.wound_summary(res["wounds"])
-                    self.file_set(s["case"], "wounds", s["case"]["wound_text"])
                     s["case"]["killer_scratched"] = bool(res["scratched"])
+                    seen_, _ = self.read_wounds(s["case"])
+                    s["case"]["wound_text"] = self.wound_summary(res["wounds"]) + "".join(" " + x for x in seen_)
+                    self.file_set(s["case"], "wounds", s["case"]["wound_text"])
                 also = d.get("also")
                 if also in w.agents and also not in (cid, t) and w.agents[also]["room"] == room and s.get("case") and not s.get("spree"):
                     self.double_kill(tick, s["case"], cid, also, kind, wname, hour)
@@ -384,8 +386,10 @@ class CaseMixin:
             pool = s["room_items"].setdefault(room, {})
             pool[weapon] = pool.get(weapon, 0) + 1
             clues.append({"room": room, "scene": True, "found_by": [], "kind": "weapon",
-                          "text": f"A {w.item_name(weapon)}, freshly stained, lies near the body." + self.provenance_text(weapon, culprit) + self.prints_text(culprit, weapon)})
-            case["prints"] = None if not culprit or self.gloves_of(culprit) else culprit
+                          "text": f"A {w.item_name(weapon)}, freshly stained, lies near the body." + self.provenance_text(weapon, culprit) + self.hand_mark_text(culprit, weapon)})
+            case["handmark"] = self.build_of(culprit)["hand"] if culprit and "bloody handprint" in clues[-1]["text"] else None
+            if culprit and self.gloves_of(culprit):
+                self.gloves_take_blood(culprit)
             if culprit and w.agents[culprit]["inv"].get(weapon, 0) > 0:
                 w.drop(culprit, weapon, 1)
         if culprit:

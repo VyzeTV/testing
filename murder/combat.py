@@ -90,7 +90,7 @@ class FightMixin:
             if self.rng.random() < min(0.97, p):
                 dmg = int(DMG[(kind, part)] * (0.8 + 0.4 * self.rng.random()))
                 blow.update(hit=True, dmg=dmg)
-                wounds.append({"part": part, "kind": kind})
+                wounds.append({"part": part, "kind": kind, **self.blow_marks(cid, t, part)})
                 hp -= dmg
             blows.append(blow)
             if hp <= 0:

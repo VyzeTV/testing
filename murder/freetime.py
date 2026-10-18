@@ -902,6 +902,8 @@ class FreeTimeMixin:
             self.mind_relief(cid, "privacy", 6)
             if act == "sit":
                 self.mind_relief(cid, "rest", 8)
+            if act == "tend" and self.rng.random() < 0.25:
+                self.scratch(tick, cid, "thorns in the garden")
             if act == "radio" and self.revealed and self.rng.random() < 0.25:
                 w.remember(cid, f"{(tick['hour'] * 60 + m) // 60:02d}:{(tick['hour'] * 60 + m) % 60:02d} (heard) a burst of static on the radio, and under it something that might have been a voice.")
         elif act == "nap":

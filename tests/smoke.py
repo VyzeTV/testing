@@ -5388,11 +5388,13 @@ def kill_(gear):
     return w_, r_, i_
 w2_, r2_, i2_ = kill_({"work_gloves": 1, "trench_coat": 1})
 wc_ = next((c for c in w2_.state["case"]["clues"] if c["kind"] == "weapon"), None)
-check("gloves leave no fingerprints on the weapon", w2_.state["case"].get("prints") is None and (wc_ is None or "wore gloves" in wc_["text"]))
+check("gloves leave no handprint on the weapon, only a fabric weave, and the gloves are stained", w2_.state["case"].get("handmark") is None and (wc_ is None or "wore gloves" in wc_["text"])
+      and (wc_ is None or "stained_work_gloves" in w2_.agents[i2_[0]]["inv"] or any("stained_work_gloves" in x for x in w2_.state["room_items"].values())))
 check("a coat takes the blood instead of the clothes underneath", "stained_trench_coat" in w2_.agents[i2_[0]]["inv"] and "stained" not in r2_.tags(r2_.worn(i2_[0]) or "x"))
 w3_, r3_, i3_ = kill_({})
 wc3_ = next((c for c in w3_.state["case"]["clues"] if c["kind"] == "weapon"), None)
-check("without gloves the weapon carries prints", w3_.state["case"].get("prints") == i3_[0] and (wc3_ is None or "ingerprints" in wc3_["text"]))
+check("without gloves the handle shows a bloody handprint of the killer's hand size (or a smear), never fingerprints", (wc3_ is None or ("ingerprint" not in wc3_["text"]
+      and ("handprint" in wc3_["text"] or "smeared" in wc3_["text"]))) and w3_.state["case"].get("handmark") in (None, r3_.build_of(i3_[0])["hand"]))
 
 w, r, _ = fresh(204)
 ids = sorted(w.agents)
@@ -5530,6 +5532,39 @@ check("allies whisper at the trial; a whisper is a live side conversation on the
 w, r, _ = fresh(213)
 check("being seen with a weapon counts at the trial only if it fits the case: the weapon itself most, the same kind a little, anything else not at all",
       r.weapon_match("kitchen_knife", "kitchen_knife") > r.weapon_match("scissors", "kitchen_knife") > 0 and r.weapon_match("baseball_bat", "kitchen_knife") == 0)
+
+# ---- phase 7: wounds and marks read by eye (no prints, no lab)
+w, r, _ = fresh(214)
+ids = sorted(w.agents)
+rh_ = next(c for c in ids if r.build_of(c)["handed"] == "right")
+sides_ = [r.blow_marks(rh_, ids[0] if ids[0] != rh_ else ids[1], "head")["side"] for _ in range(60)]
+check("a right-handed attacker facing the victim lands most blows on the victim's left side", sides_.count("left") >= 40, str(sides_.count("left")))
+cs_ = {"victim": ids[1], "killer": ids[0], "killer_scratched": True,
+       "wounds": [{"part": "head", "kind": "blunt", "side": "left", "above": True}, {"part": "head", "kind": "blunt", "side": "left", "above": True}, {"part": "arm", "kind": "blunt", "side": "left", "above": False}]}
+said_, inf_ = r.read_wounds(cs_)
+check("the body tells what an eye can see: which hand, from above, defensive wounds, skin under the nails", inf_.get("handed") == "right" and inf_.get("taller") is True
+      and inf_.get("scratched") and any("forearms" in x for x in said_) and not any("print" in x for x in said_), str(said_))
+txt_ = "".join(r.hand_mark_text(ids[0], "kitchen_knife") for _ in range(20))
+check("a weapon shows a handprint's size or a smear, never fingerprints anyone could match", "ingerprint" not in txt_ and ("handprint" in txt_ or "smeared" in txt_))
+
+def marks_(w_, r_, i_, case_):
+    case_["killer_scratched"] = True
+    case_["marks"] = {"handed": r_.build_of(i_[0])["handed"], "scratched": True}
+    for c in case_["clues"]:
+        if c["kind"] == "scene":
+            c["found_by"] = [i_[2]]
+    r_.scratch(None, i_[0], "the victim clawed at them")
+    r_.scratch(None, i_[3], "thorns in the garden")
+    w_.agents[i_[2]]["aff"][i_[3]] = -3
+    r_.mind(i_[2])["facets"]["courage"] = 95
+    r_.believe(i_[4], {"k": "at", "s": i_[3], "r": "garden", "t0": r_.abs_now() - 2, "t1": r_.abs_now() - 1, "src": "seen", "c": 0.9, "true": True})
+w, r, ids, case_, tr, _ = trial_case_(215, marks_)
+mv_ = [(l["speaker"], l.get("move"), l["text"]) for g in tr["talk"] if g.get("segment") for l in g["lines"]]
+ct_ = tr.get("claim_trial") or {}
+check("at the trial the body is compared by eye: who uses that hand, whose hands are scratched", any(m == "compare" and "hand" in t for _, m, t in mv_)
+      and any(m == "compare" and "scratches" in t and r.nm(ids[0]) in t for _, m, t in mv_), str([t for _, m, t in mv_ if m == "compare"]))
+check("scratches from the garden's thorns are explained when someone saw them there; the killer's story is not backed up",
+      any(s_ == ids[3] and "Thorns" in t for s_, _, t in mv_) and ct_["meter"][ids[0]] > ct_["meter"][ids[3]], str(ct_.get("meter")))
 
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]

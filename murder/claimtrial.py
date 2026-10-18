@@ -6,7 +6,7 @@ the holder dares to raise it is a WILLINGNESS roll (courage, how they feel about
 someone). A proven lie halves the liar's CREDIBILITY. The culprit answers a challenge with the LIE PLANNER: a new story that fits what they think
 the room knows; when none fits they are CORNERED (indignant, tearful, silent or lashing out, by temperament) and never confess.
 
-Facts on the table move a public SUSPICION METER per suspect: a contradiction, a clue that names someone (prints on the weapon, stained clothes, a
+Facts on the table move a public SUSPICION METER per suspect: a contradiction, a clue that names someone (a handprint on the weapon, stained clothes, a
 planted item), being seen near the scene, a caught lie; a corroborated alibi or a frame flaw lowers it. The sequences:
   open debate   everyone's alibi, the clues presented, the objections raised
   hot seat      the most suspected stands in the middle: attackers present facts, a defender counters, the accused answers
@@ -58,8 +58,6 @@ class ClaimTrialMixin:
             named = [p for p in ids if self.nm(p) in c.get("text", "")]
             kind = c.get("kind") or "clue"
             wt = CLUE_WEIGHT.get(kind, 1.2)
-            if kind == "weapon" and "Clear fingerprints" in c.get("text", ""):
-                wt = 4.0
             text = c.get("text", "")
             for p in named:
                 sign = 1.0
@@ -87,7 +85,47 @@ class ClaimTrialMixin:
                 text = f"I saw it happen. It was {self.nm(case['killer'])}." if not seen_it else f"I saw it too. It was {self.nm(case['killer'])}."
                 facts.append({"by": wit, "about": case["killer"], "kind": "witness", "w": 6.0, "text": text, "true": True})
                 seen_it += 1
-        return facts
+        return facts + self.mark_facts(case, ids)
+
+    def compare_marks(self, beats, marks, case, ids, killer, raise_fact, push):
+        """What the body and the weapon show, compared by eye: hands on the table, who uses which hand, who is taller, whose hands are scratched."""
+        if not marks:
+            return
+        def names(ps, by):
+            ns = [self.nm(p) for p in ps if p != by] + (["me"] if by in ps else [])
+            return ", ".join(ns[:-1]) + (" and " if len(ns) > 1 else "") + ns[-1] if ns else "nobody"
+        inf = case.get("marks") or {}
+        for key in ("hand", "handed", "taller"):
+            group = [f for f in marks if f["mark"] == key]
+            if not group:
+                continue
+            by = group[0]["by"]
+            for f in group:
+                raise_fact(f, beats, quiet=True)
+            fit = [f["about"] for f in group if f["fits"]]
+            if key == "hand":
+                size = inf.get("hand") or case.get("handmark")
+                self.trial_beat(beats, by, "Everyone, put your hands on the table.", "compare")
+                self.trial_beat(beats, by, f"The mark was left by a {size} hand. That's {names(fit, by)}." if fit else f"The mark was left by a {size} hand. Nobody here has one... so who?", "compare")
+            elif key == "handed":
+                self.trial_beat(beats, by, f"Whoever did it used their {inf['handed']} hand. That's {names(fit, by)}.", "compare")
+            else:
+                self.trial_beat(beats, by, f"The blows came from {'above' if inf['taller'] else 'level'}. That fits {names(fit, by)}.", "compare")
+        for f in [f for f in marks if f["mark"] == "scratched"]:
+            p = f["about"]
+            if not raise_fact(f, beats, quiet=True):
+                continue
+            self.trial_beat(beats, f["by"], f"Look at {self.nm(p)}'s hands. Fresh scratches. The victim had skin under their nails.", "compare")
+            thorns, seen = self.thorn_alibi(p, ids)
+            if p == killer and not thorns:
+                self.trial_beat(beats, p, "Thorns. From the garden. That's all.", "deny")
+                push(p, 0.5 if not seen else -0.5)                    # a story nobody can back up
+            elif thorns:
+                self.trial_beat(beats, p, "Thorns! I was tending the garden." + (" Ask anyone who saw me there." if seen else ""), "deny")
+                push(p, -2.0 if seen else -0.8)
+            else:
+                self.trial_beat(beats, p, "That's old. It has nothing to do with this.", "deny")
+                push(p, -0.5)
 
     def weapon_match(self, item, weapon):
         """How much being seen with `item` says about a death by `weapon`: the weapon itself counts, the same kind of weapon a little, anything else not at all."""
@@ -321,6 +359,7 @@ class ClaimTrialMixin:
         for f in sorted([f for f in facts if f["kind"] == "witness"], key=lambda f: -f["w"]):
             raise_fact(f, beats)
         raise_sightings([f for f in facts if f["kind"] == "near_scene"], beats)
+        self.compare_marks(beats, [f for f in facts if f["kind"] == "mark"], case, ids, killer, raise_fact, push)
         self.update_trial_suspicion(ids, meter, facts, killer, case)
         self.publish_segment(tick, hour, "debate", n, beats, meter)
 
@@ -606,9 +645,10 @@ class ClaimTrialMixin:
         pick = lambda kinds: next((f for f in raised if f["kind"] in kinds), None)
         steps = [
             ("opportunity", pick(("near_scene", "witness")), f"{self.nm(lead)} was near the {w.room_name(case['room'])} around {int(t % 24):02d}:00."),
-            ("weapon", next((f for f in raised if f["kind"] in ("clue", "has") and ("knife" in f["text"].lower() or "weapon" in f["text"].lower() or "prints" in f["text"].lower() or f["kind"] == "has")), None),
+            ("weapon", next((f for f in raised if f["kind"] in ("clue", "has") and ("knife" in f["text"].lower() or "weapon" in f["text"].lower() or "handprint" in f["text"].lower() or f["kind"] == "has")), None),
              f"They had the means: {(pick(('has',)) or {}).get('text', 'the weapon')}"),
-            ("the deed", pick(("witness",)) or (pick(("clue",)) if case.get("weapon") else None), f"They killed {self.nm(case['victim'])} there."),
+            ("the deed", pick(("witness",)) or next((f for f in raised if f["kind"] == "mark" and f["mark"] == "scratched"), None) or (pick(("clue",)) if case.get("weapon") else None),
+             f"They killed {self.nm(case['victim'])} there" + (", and the scratches on their hands are where the victim fought back." if any(f["kind"] == "mark" and f["mark"] == "scratched" for f in raised) else ".")),
             ("the cover-up", True if lies.get(lead) else None, f"Then {self.nm(lead)} lied about where they were, and we caught the lie."),
         ]
         self.trial_beat(beats, accuser, f"Let me tell you what happened, from the start.", "climax_open")
