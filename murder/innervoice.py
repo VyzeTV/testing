@@ -26,12 +26,15 @@ LINES = {
     "hungry": ["I'd kill for a sandwich. Poor choice of words.", "When did I last eat?"],
     "tired": ["If I close my eyes for one second...", "Sleep. I remember sleep."],
     "hurt": ["{x}. Still stings.", "Can't stop replaying it: {x}.", "Let it go. ...Nope. {x}."],
-    "fear": ["Every creak is someone on the stairs.", "Who's next? Don't answer that.", "Keep your back to the wall."],
+    "fear": ["Every creak is someone on the stairs.", "Who's next? Don't answer that.", "Keep your back to the wall.", "Sleep with the chair under the door handle. Again.",
+             "Count the people at breakfast. Count them again.", "Somebody here has already decided. Who?", "Don't eat anything you didn't open yourself.",
+             "If I scream, would anyone even come?", "Smile for the cameras. Smile, smile, smile."],
     "undecided": ["Left or right. Left. No. Right? ...Left.", "Should I say something? I should say something. Should I?"],
     "catlike": ["That sunbeam is mine.", "If I sit very still, nobody will notice me."],
     "no_talent": ["Everyone here is famous for something. What am I for?", "They all have a thing. I fold towels."],
     "low": ["The walls are breathing. They're definitely breathing.", "Count the doors. Count them again.", "Somebody keeps saying my name."],
-    "calm": ["Okay. Today is okay.", "Breathe in. Breathe out.", "Nobody died today. Yet."],
+    "calm": ["Okay. Today is okay.", "Breathe in. Breathe out.", "Nobody died today. Yet.", "I could murder a coffee. Bad choice of words.",
+             "The view is gorgeous. Shame about the homicide.", "Five stars for the pool. Minus several for the killing."],
 }
 HAL = {
     "ghost": "{x} walking down the corridor, as if nothing happened",
@@ -71,7 +74,7 @@ class InnerVoiceMixin:
             soft.append(("tired", None))
         if a.get("hunger", 0) >= 60:
             soft.append(("hungry", None))
-        worst = min((t for t in m["thoughts"] if t["w"] <= -4), key=lambda t: (t["w"] * t["t"] / t["t0"], t["c"]), default=None)
+        worst = min((t for t in m["thoughts"] if t["w"] <= -4 and t["c"] not in ("events", "")), key=lambda t: (t["w"] * t["t"] / t["t0"], t["c"]), default=None)
         if worst:
             soft.append(("hurt", worst["c"]))
         for tr in ("undecided", "catlike", "no_talent"):
@@ -85,7 +88,8 @@ class InnerVoiceMixin:
 
     def inner_text(self, cid, topic, about):
         if topic == "hal":
-            return self.inner_rng.choice(["Did I just see {t}? I did. I did.", "{t}. Nobody else saw it. Why did nobody else see it?"]).format(t=about["n"].split(": ", 1)[-1])
+            what = about.get("what") or about["n"]
+            return self.inner_rng.choice(["Did I just see {t}? I did. I did.", "{t}. Nobody else saw it. Why did nobody else see it?"]).format(t=what)
         x = self.nm(about) if about in self.world.cast else (about or "")
         if topic == "hurt":
             x = x[:1].upper() + x[1:]
@@ -236,11 +240,12 @@ class InnerVoiceMixin:
         else:
             x = self._dislike(cid, [o for o in others if w.agents[o]["room"] != a["room"]] or others)
             b = {"k": "at", "s": x, "r": a["room"], "t0": now, "t1": now, "n": HAL["sight"].format(x=self.nm(x), r=w.room_name(a["room"]))}
-        b.update(src="seen", c=0.85, t0=b.get("t0", now), true=False, hal=True, fresh=True, kind=kind, about=x, san=a["sanity"])
+        what = HAL[kind].format(x=self.nm(x), r=w.room_name(a["room"])) if kind != "voice" else "TereVi in the walls, whispering that " + self.nm(x) + " is coming for me"
+        b.update(src="seen", c=0.85, t0=b.get("t0", now), true=False, hal=True, fresh=True, kind=kind, about=x, san=a["sanity"], what=what)
         n = b["n"]
         got = self.believe(cid, b)
         if got is not None:
-            got.update(hal=True, fresh=True, n=n, kind=kind, san=a["sanity"])
+            got.update(hal=True, fresh=True, n=n, kind=kind, san=a["sanity"], what=what)
         self.stat(tick, cid, "sanity", -1, "seeing things")
         w.remember(cid, f"(private) You are sure of it: {n.replace('they saw ', 'you saw ').replace('they heard ', 'you heard ')}.")
         self.log_event(tick, {"type": "drive", "who": cid, "room": a["room"], "vis": "gm",
@@ -263,6 +268,7 @@ class InnerVoiceMixin:
             return None
         t = self.case_time(case)
         self.believe(cid, {"k": "at", "s": x, "r": case["room"], "t0": t, "t1": t, "src": "seen", "c": 0.7, "true": False, "hal": True, "fresh": True, "san": w.agents[cid]["sanity"],
+                           "what": f"{self.nm(x)} near the {w.room_name(case['room'])} when it happened",
                            "n": f"{self.nm(x)} near the {w.room_name(case['room'])} when it happened"})
         done.append(cid)
         self._mstat("false_memories")

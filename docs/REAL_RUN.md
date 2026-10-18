@@ -121,3 +121,35 @@ After Noah was murdered and Vixen executed for it:
 - **Seul**: Vixen was my ally. I actually trusted her. Hard lesson, no respawn.
 - **Shintaro**: Part of me still wishes to mourn Vixen. Is that wrong, I wonder? Even Brutus had his Caesar.
 - **Chloe** lights a candle, for Noah and for Vixen.
+
+# A second real-model run: the tone (2026-10-18, phase 7b step 6)
+
+Two days (day 5 and day 6) with the new tone guide, `gore` 2 and `flirt_level` 2, voiced through the `claude` command: 188 calls, about 94 a day. Staged: Szymon and Vixen as lovers, Ayden in love with Szymon, Shintaro at 18 sanity, and Seul already striking at Chloe. Seul strangled Chloe in the Foyer at 03:00; the trial was due on day 7 and is not in the run. Nothing explicit anywhere. The lovers' night together did not come up (a 30% roll that night, and none while a case is open). Excerpts, lightly trimmed.
+
+## TereVi runs a game show
+> Good morning, my darlings! Day Five, and the studio audience that isn't here is already on its feet! Round and round the ROULETTE goes, clack, clack, clack, and it lands on... NEVER ALONE, ALWAYS PAIRED! Today, nobody walks solo. Stay in a room with company, or NeoVi gets to play with her taser. She's been so patient.
+
+> *DING DONG DING DONG!* A BODY HAS BEEN DISCOVERED! Chloe is dead, my darlings, and the ratings are exquisite! ... Name the right person and they die. Guess wrong, and an innocent pays while the culprit walks free. No pressure!
+
+## Gallows humour and petty feuds
+- **Chloe**: At least the sponsors will finally get their money's worth out of us.
+- **Shintaro**: You hum when you're frightened, Noah. You've hummed since you walked in. Nobody asked you to play.
+- **Seul**: Stop apologising, Chloe. It's embarrassing for everyone.
+- *Szymon picks a steak knife off the table and turns it slowly in his hand.*
+- **Cail**: Szymon, put that down, babe. You're scaring me.
+- **Vixen**: Your scarf's coming loose again. Are you always this loud? **Szymon**: Only around brilliant people, Vix.
+
+## The body (gore 2, the engine's own words)
+> Ayden finds Chloe in the Foyer: Chloe lies twisted on the floor, bruises like a necklace around the throat, the tongue swollen and the eyes bulging.
+
+## The booth
+- **Seul** (the killer): Chloe was my main. Without her the team's just lag. I keep reaching for her like a respawn that never loads. Yeah, I miss her. Don't clip that.
+- **Szymon**: Ladies and gentlemen, Szymon is scared out of his mind. No jokes. Every night I count the doors, and every morning I'm still here. Kurwa.
+- **Ayden**: Chloe is the light I keep framing, even when she isn't looking. Don't tell her yet.
+
+## The inner voice
+- *(Shintaro mutters)* Somebody keeps saying my name.
+- *(Seul thinks, before the murder)* Not yet. Soon. Chloe, you lucky thing.
+- *(Shintaro, after the murder, a false memory)* Seul near the Foyer when it happened. Nobody else saw it. Why did nobody else see it?
+
+After this run: a hallucination's thought no longer reads "Did I just see I saw...", generic causes ("events") no longer become thoughts, and the fear and calm thoughts have more lines. Once, the model invented a cast member ("You saw me smile at Mara") who is in no prompt.
