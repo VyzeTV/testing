@@ -654,7 +654,7 @@ class FreeTimeMixin:
             score, o, why = best
             add(score + 0.2, "chat", room=w.agents[o]["room"], why=why, partner=o)
 
-    INTENT_WORDS = ("secret", "hiding", "hide", "plan", "kill", "lie", "lying", "suspect", "suspic", "betray", "blackmail", "confront", "warn", "alliance", "ally", "trust", "evidence", "clue", "escape", "radio", "raft")
+    INTENT_WORDS = ("secret", "hiding", "hide", "plan", "kill", "lie", "lying", "suspect", "suspic", "betray", "blackmail", "confront", "warn", "alliance", "ally", "trust", "evidence", "clue", "escape", "radio", "raft", "apologise", "protect", "keep an eye", "thank", "what is really going on")
 
     def chat_tags(self, cid, o):
         """Why a conversation between these two matters to the story: a plot, bad blood, something one of them knows about the other, a loose end, a spark, a purpose."""

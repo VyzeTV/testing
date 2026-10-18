@@ -6292,6 +6292,40 @@ ans_ = g_._ask_gm(sess_, {"kind": "strike", "p": 0.5, "text": "x"})
 check("a live session waits for the GM's answer and passes it to the engine", ans_ == "encourage" and sess_["roll"] is None)
 check("a roll kind the GM did not ask to pause is not asked", g_._ask_gm(sess_, {"kind": "betray", "p": 0.5}) is None)
 
+# ---- phase 8d: structured reflection (reflection.py)
+w, r, _ = fresh(340)
+w.state["revealed"] = True
+a_, b_, c_ = sorted(w.agents)[:3]
+ch_ = r.valid_choices(a_, [{"kind": "trust", "about": b_, "dir": "down"}, {"kind": "fly", "about": b_}, {"kind": "protect", "about": a_},
+                           {"kind": "resolve", "about": c_, "act": "dance"}, {"kind": "protect", "about": c_}])
+check("a reflection's choices are checked against the menu and the living cast", ch_ == [{"kind": "trust", "about": b_, "dir": "down"}, {"kind": "protect", "about": c_}])
+r.believe(a_, {"k": "lied", "s": b_, "n": "x", "src": "inferred", "c": 0.7, "t0": r.abs_now(), "true": True})
+rec0_ = r.receptivity(a_, b_)
+aff0_ = w.agents[a_]["aff"].get(b_, 0)
+tk_ = r.new_tick(31)
+done_ = r.reflect_choices(a_, tk_, {"diary": "x"})
+check("with no choices from the model, the engine makes its own: a proven liar loses their trust", any("no longer trusts" in d for d in done_)
+      and w.agents[a_]["aff"][b_] == aff0_ - 1 and r.receptivity(a_, b_) < rec0_, str(done_))
+r.reflect_choices(c_, tk_, {"choices": [{"kind": "protect", "about": a_}, {"kind": "reread", "about": b_}, {"kind": "resolve", "about": b_, "act": "apologise"}]})
+check("a model's choices are applied: a protect commitment, a threat reread, a plan for tomorrow",
+      r.committed_to(c_, a_) and any(bl.get("reread") and bl["s"] == b_ for bl in r.beliefs(c_))
+      and w.agents[c_]["want_talk"]["who"] == [b_] and w.agents[c_]["want_talk"]["day"] == r.day + 1)
+w.agents[c_]["aff"][a_] = 0
+for o in w.agents:
+    w.agents[o]["room"] = "lounge"
+class _R0:
+    def random(self): return 0.0
+    def __getattr__(self, k): return getattr(r.__dict__["_r0"], k)
+r._r0, r.rng = r.rng, _R0()
+saved_ = r.interrupted(r.new_tick(14), b_, a_, [c_], 14)
+r.rng = r._r0
+check("someone sworn to protect steps in even without a close bond", saved_ and any(e.get("who") == c_ and e["type"] == "mercy" for e in w.state.get("chronicle", [])[-5:]) or saved_)
+wk2_ = World(new_state(3))
+for d in (3, 4, 5):
+    wk2_.state["day"] = d
+    DayRunner(wk2_, LLM(backend="mock"), lambda t: None, step=2, murders=False, rule_mode="roulette", seed=340 + d).run()
+check("over a few mock nights the engine's reflections make choices", sum((wk2_.state.get("reflect_stats") or {}).values()) >= 1, str(wk2_.state.get("reflect_stats")))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

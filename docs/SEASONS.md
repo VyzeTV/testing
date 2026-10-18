@@ -2,95 +2,95 @@
 
 40 seasons played from Day 1 until the show ended, with every empty place filled by a newcomer at the start of each week (20 per configuration: the default mock cast and a violent one, as in `tests/balance.py`). Regenerate with `python tests/season.py --write` (a few minutes). For curiosity, not a gate.
 
-**Ending tiers, all seasons:** good 16 (40%), bittersweet 12 (30%), bad 12 (30%). Target: good 40%, bittersweet 30%, bad 30% (plan doc, phase 7b).
+**Ending tiers, all seasons:** good 16 (40%), bittersweet 11 (28%), bad 13 (32%). Target: good 40%, bittersweet 30%, bad 30% (plan doc, phase 7b).
 
 ## Default
 
-- **Ending tiers:** good 8, bittersweet 4, bad 8.
-- **NeoVi's fate:** none 10, martyr 5, betrayer 2, participant 2, survivor 1. Romances at the end: 7 in all.
-- **Kumiko:** helped the cast 58 times; told someone her real name in 10 seasons; a romance with someone in 5; punished: re-education 4, humiliation 3, participant 1.
-- **Minds:** 2250 thoughts shown; 63 beliefs warped by fear, 33 hallucinations, 15 false memories of a crime scene, 17 seen through later; acted on: 1 paranoid plots, 11 hid; 1 plotters overheard muttering; 9 trials heard testimony from a broken mind.
-- **Rare turns:** took blame 2, killer helps 1, confession 1.
-- **Love life:** 58 nights together, 2 affairs (1 found out), 5 pangs of jealousy.
-- **Wins at a price** (good endings made bittersweet): only the last few of a killing game walked out 2, one survivor or fewer walked out of the house 2, someone never came out of the house 1, NeoVi gave her life for it 1.
-- **Killers the show let go:** 15; 1 tried to help from outside (believed 0, dismissed 0), the rest kept quiet or gave up.
-- **NeoVi joined the cast** after the fourth trial in 1 seasons, as a punishment in 1. Seasons that ran the full 28 days: 3.
-- **Stories that formed** (story sifting): enemies alone 210, secret held 198, plot 100, triangle 72, near freedom 71, silent witness 53, plot suspected 36, betrayed protector 13, grudge 11, unrequited 9, alliance strain 8, lovers breaking 7, contradiction fear 7.
-- **Season length:** median 13.5 days (shortest 5, longest 28).
-- **How seasons ended:** THE LAST BATTLE 7, THE SHOW SURRENDERS 6, RESCUE 3, THE WINNERS 1, THE LAST ONE STANDING 1, TEREVI IS SHUT DOWN 1, THE RECKONING 1.
-- **Deaths per season:** 7.7 on average. Causes: murdered 33, escaped on a raft 26, executed after the trial 24, escaped the island 15, wrongly executed 14, died in the final battle 12, killed 11, died in an accident 9.
-- **Trials:** 39 in all, 24 right verdicts.
-- **Newcomers:** 2.9 per season on average; 29 of the survivors were newcomers.
-- **Rafts launched:** 13 (sea 5, believed 4, ashore 3, silenced 1). Rescue countdowns started: 5.
-- **Ways out at the end:** the furthest route reached 75% on average (best 100%).
-- **Who walked out alive (seasons):** Cail 8, Ilya 7, Mara 7, Dario 6, June 5, Ayden 5, Chloe 5, Vixen 5, Noah 4, Shintaro 4, Bram 3, Seul 3, Szymon 3, Kumiko 1, Rosa 1.
+- **Ending tiers:** good 12, bittersweet 2, bad 6.
+- **NeoVi's fate:** none 13, betrayer 4, survivor 2, martyr 1. Romances at the end: 15 in all.
+- **Kumiko:** helped the cast 24 times; told someone her real name in 7 seasons; a romance with someone in 2; punished: humiliation 1, re-education 1.
+- **Minds:** 1572 thoughts shown; 29 beliefs warped by fear, 10 hallucinations, 7 false memories of a crime scene, 4 seen through later; acted on: 1 paranoid plots, 6 hid; 4 plotters overheard muttering; 3 trials heard testimony from a broken mind.
+- **Rare turns:** took blame 2, neovi defects 1, raft returned 1, hallucination kill 1, killer helps 1.
+- **Love life:** 54 nights together, 2 affairs (1 found out), 7 pangs of jealousy.
+- **Wins at a price** (good endings made bittersweet): TereVi took someone with her 1, only the last few of a killing game walked out 1.
+- **Killers the show let go:** 9; 1 tried to help from outside (believed 0, dismissed 0), the rest kept quiet or gave up.
+- **NeoVi joined the cast** after the fourth trial in 0 seasons, as a punishment in 0. Seasons that ran the full 28 days: 0.
+- **Stories that formed** (story sifting): secret held 176, enemies alone 145, plot 65, triangle 61, near freedom 45, plot suspected 28, betrayed protector 24, silent witness 20, grudge 12, contradiction fear 6, lovers breaking 3, alliance strain 2, unrequited 1.
+- **Season length:** median 10.5 days (shortest 4, longest 21).
+- **How seasons ended:** THE SHOW SURRENDERS 7, TEREVI IS SHUT DOWN 3, RESCUE 3, THE LAST BATTLE 3, THE RECKONING 2, NOBODY LEFT 1, THE WINNERS 1.
+- **Deaths per season:** 5.2 on average. Causes: murdered 24, executed after the trial 16, died in the Reckoning 14, escaped on a raft 10, wrongly executed 9, escaped the island 9, died in the final battle 8, died in an accident 7.
+- **Trials:** 25 in all, 16 right verdicts.
+- **Newcomers:** 1.6 per season on average; 25 of the survivors were newcomers.
+- **Rafts launched:** 6 (ashore 2, believed 2, returned 1, sea 1). Rescue countdowns started: 5.
+- **Ways out at the end:** the furthest route reached 86% on average (best 100%).
+- **Who walked out alive (seasons):** Szymon 10, Vixen 9, Cail 9, Seul 9, Shintaro 8, Noah 7, Ilya 6, Ayden 6, Mara 5, Chloe 5, June 4, Dario 3, Hana 3, Bram 2, Rosa 2.
 
 | Season | Days | Ending | Tier | Survivors | Deaths | Newcomers | Trials (right) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 28 | THE LAST BATTLE: JUNE STANDS | bad | June | 13 | 6 | 3 (3) |
-| 2 | 12 | THE LAST BATTLE: CAIL STANDS | bad | Cail | 7 | 0 | 2 (1) |
-| 3 | 16 | THE WINNERS | bittersweet | Ilya, June, Mara | 8 | 3 | 2 (0) |
-| 4 | 16 | THE SHOW SURRENDERS | good | Bram, Cail, Dario, Ilya, Mara | 7 | 4 | 2 (1) |
-| 5 | 5 | THE SHOW SURRENDERS | good | Ayden, Cail, Chloe, Noah, Seul, Shintaro, Szymon, Vixen | 0 | 0 | 0 (0) |
-| 6 | 10 | THE SHOW SURRENDERS | good | Chloe, Shintaro, Szymon, Vixen | 4 | 0 | 2 (2) |
-| 7 | 28 | THE LAST BATTLE: KUMIKO STANDS | bad | Kumiko | 12 | 4 | 4 (4) |
-| 8 | 28 | THE LAST BATTLE: DARIO STANDS | bad | Dario | 14 | 7 | 3 (2) |
-| 9 | 9 | RESCUE | bittersweet | Ayden, Bram, Chloe, Dario, Ilya, Mara, Vixen | 5 | 4 | 1 (1) |
-| 10 | 13 | THE LAST ONE STANDING | bittersweet | Chloe | 10 | 3 | 3 (1) |
-| 11 | 23 | THE SHOW SURRENDERS | bittersweet | June | 15 | 7 | 5 (2) |
-| 12 | 25 | THE LAST BATTLE: JUNE STANDS | bad | June | 12 | 5 | 3 (3) |
-| 13 | 14 | TEREVI IS SHUT DOWN | good | Cail, Dario, Ilya, Mara | 7 | 3 | 2 (1) |
-| 14 | 11 | THE LAST BATTLE: CAIL STANDS | bad | Cail | 7 | 0 | 1 (0) |
-| 15 | 11 | RESCUE | good | Ayden, Dario, Ilya, Mara, Noah, Seul | 5 | 3 | 0 (0) |
-| 16 | 8 | THE SHOW SURRENDERS | good | Cail, Ilya, Mara, Noah, Shintaro | 5 | 2 | 1 (0) |
-| 17 | 14 | THE RECKONING | bad | none | 8 | 0 | 1 (1) |
+| 1 | 14 | TEREVI IS SHUT DOWN | good | Ilya, June, Mara, Noah, Shintaro, Vixen | 5 | 3 | 2 (1) |
+| 2 | 8 | TEREVI IS SHUT DOWN | good | Cail, Chloe, Noah, Seul, Vixen | 3 | 0 | 1 (0) |
+| 3 | 11 | THE SHOW SURRENDERS | good | Bram, Cail, Chloe, Dario, Ilya, Mara, Seul, Szymon | 4 | 4 | 1 (1) |
+| 4 | 4 | TEREVI IS SHUT DOWN | good | Ayden, Cail, Chloe, Noah, Seul, Shintaro, Szymon, Vixen | 0 | 0 | 0 (0) |
+| 5 | 20 | THE SHOW SURRENDERS | good | Dario, Hana, Ilya, June, Rosa, Szymon | 8 | 6 | 2 (0) |
+| 6 | 16 | RESCUE | good | Ayden, Hana, Ilya, June, Mara, Rosa, Shintaro, Szymon | 5 | 5 | 2 (2) |
+| 7 | 7 | THE SHOW SURRENDERS | good | Noah, Shintaro, Szymon, Vixen | 4 | 0 | 2 (2) |
+| 8 | 7 | THE RECKONING | bad | none | 8 | 0 | 0 (0) |
+| 9 | 6 | THE SHOW SURRENDERS | good | Ayden, Cail, Chloe, Noah, Seul, Shintaro, Szymon, Vixen | 0 | 0 | 0 (0) |
+| 10 | 7 | THE RECKONING | bad | none | 8 | 0 | 0 (0) |
+| 11 | 10 | THE LAST BATTLE: SHINTARO STANDS | bad | Shintaro | 7 | 0 | 2 (1) |
+| 12 | 20 | THE LAST BATTLE: MARA STANDS | bad | Mara | 9 | 2 | 2 (2) |
+| 13 | 21 | RESCUE | good | Bram, Dario, Hana, Ilya, June, Szymon, Vixen | 7 | 6 | 3 (3) |
+| 14 | 13 | THE LAST BATTLE: SEUL STANDS | bad | Seul | 7 | 0 | 1 (0) |
+| 15 | 13 | NOBODY LEFT | bad | none | 8 | 0 | 2 (2) |
+| 16 | 12 | RESCUE | good | Cail, Ilya, Mara, Vixen | 6 | 2 | 1 (1) |
+| 17 | 9 | THE SHOW SURRENDERS | bittersweet | Ayden, Cail, Noah, Seul, Szymon | 6 | 3 | 1 (0) |
 | 18 | 5 | THE SHOW SURRENDERS | good | Ayden, Cail, Chloe, Noah, Seul, Shintaro, Szymon, Vixen | 0 | 0 | 0 (0) |
-| 19 | 22 | RESCUE | good | Ayden, Bram, Dario, Ilya, June, Mara, Rosa, Vixen | 7 | 7 | 3 (2) |
-| 20 | 9 | THE LAST BATTLE: CAIL STANDS | bad | Cail | 7 | 0 | 1 (0) |
+| 19 | 7 | THE SHOW SURRENDERS | good | Ayden, Cail, Seul, Shintaro, Szymon | 3 | 0 | 1 (0) |
+| 20 | 13 | THE WINNERS | bittersweet | Cail, Seul, Vixen | 5 | 0 | 2 (1) |
 
 ## Violent mock cast
 
-- **Ending tiers:** good 8, bittersweet 8, bad 4.
-- **NeoVi's fate:** none 8, participant 6, betrayer 3, martyr 3. Romances at the end: 12 in all.
-- **Kumiko:** helped the cast 29 times; told someone her real name in 8 seasons; a romance with someone in 0; punished: humiliation 1, participant 1.
-- **Minds:** 1800 thoughts shown; 45 beliefs warped by fear, 18 hallucinations, 12 false memories of a crime scene, 6 seen through later; acted on: 0 paranoid plots, 12 hid; 3 plotters overheard muttering; 11 trials heard testimony from a broken mind.
-- **Rare turns:** took blame 4, confession 4, killer helps 3, killer believed 1, neovi defects 1.
-- **Love life:** 40 nights together, 3 affairs (3 found out), 6 pangs of jealousy.
-- **Wins at a price** (good endings made bittersweet): only the last few of a killing game walked out 6, NeoVi gave her life for it 2, one survivor or fewer walked out of the house 2, TereVi took someone with her 1.
-- **Killers the show let go:** 14; 3 tried to help from outside (believed 1, dismissed 0), the rest kept quiet or gave up.
-- **NeoVi joined the cast** after the fourth trial in 5 seasons, as a punishment in 1. Seasons that ran the full 28 days: 0.
-- **Stories that formed** (story sifting): plot 139, secret held 116, triangle 105, enemies alone 76, silent witness 70, near freedom 69, plot suspected 50, betrayed protector 22, grudge 19, unrequited 10, contradiction fear 9, alliance strain 5, lovers breaking 1.
-- **Season length:** median 13.5 days (shortest 6, longest 26).
-- **How seasons ended:** THE WINNERS 4, THE SHOW SURRENDERS 4, TEREVI IS SHUT DOWN 4, CROWNED BY WHIM 2, THE LAST BATTLE 2, RESCUE 2, THE LAST ONE STANDING 2.
-- **Deaths per season:** 8.4 on average. Causes: murdered 58, executed after the trial 49, escaped on a raft 15, escaped the island 14, wrongly executed 13, killed 10, executed by TereVi's whim 3, died in an accident 3.
-- **Trials:** 63 in all, 49 right verdicts.
-- **Newcomers:** 3.1 per season on average; 25 of the survivors were newcomers.
-- **Rafts launched:** 7 (sea 5, believed 2). Rescue countdowns started: 4.
-- **Ways out at the end:** the furthest route reached 70% on average (best 100%).
-- **Who walked out alive (seasons):** Dario 7, Vixen 7, Ilya 6, Cail 6, Seul 5, Ayden 4, Mara 4, Chloe 4, Shintaro 3, June 2, Kumiko 2, Szymon 2, Teo 2, Noah 2, Nadia 1, Rosa 1, Bram 1, Hana 1.
+- **Ending tiers:** good 4, bittersweet 9, bad 7.
+- **NeoVi's fate:** participant 8, none 7, betrayer 4, martyr 1. Romances at the end: 7 in all.
+- **Kumiko:** helped the cast 26 times; told someone her real name in 4 seasons; a romance with someone in 2; punished: humiliation 6, re-education 1.
+- **Minds:** 1763 thoughts shown; 38 beliefs warped by fear, 45 hallucinations, 8 false memories of a crime scene, 13 seen through later; acted on: 4 paranoid plots, 12 hid; 2 plotters overheard muttering; 6 trials heard testimony from a broken mind.
+- **Rare turns:** neovi defects 3, confession 2, death pact 1, took blame 1, killer helps 1.
+- **Love life:** 27 nights together, 2 affairs (1 found out), 2 pangs of jealousy.
+- **Wins at a price** (good endings made bittersweet): only the last few of a killing game walked out 4, TereVi took someone with her 1, one survivor or fewer walked out of the house 1.
+- **Killers the show let go:** 11; 1 tried to help from outside (believed 0, dismissed 0), the rest kept quiet or gave up.
+- **NeoVi joined the cast** after the fourth trial in 8 seasons, as a punishment in 0. Seasons that ran the full 28 days: 0.
+- **Stories that formed** (story sifting): plot 140, secret held 92, triangle 89, near freedom 82, enemies alone 71, silent witness 69, plot suspected 60, betrayed protector 23, grudge 14, contradiction fear 8, unrequited 7, alliance strain 3, lovers breaking 2.
+- **Season length:** median 13.0 days (shortest 6, longest 24).
+- **How seasons ended:** THE SHOW SURRENDERS 4, ONLY THE RAFT GOT AWAY 4, THE LAST BATTLE 4, THE WINNERS 3, NOBODY LEFT 2, TEREVI IS SHUT DOWN 1, CROWNED BY WHIM 1, THE LAST ONE STANDING 1.
+- **Deaths per season:** 9.6 on average. Causes: executed after the trial 58, murdered 56, killed 16, escaped on a raft 13, died in the final battle 11, escaped the island 11, died in an accident 10, wrongly executed 10.
+- **Trials:** 69 in all, 58 right verdicts.
+- **Newcomers:** 3.1 per season on average; 20 of the survivors were newcomers.
+- **Rafts launched:** 8 (sea 7, lost 1). Rescue countdowns started: 0.
+- **Ways out at the end:** the furthest route reached 60% on average (best 100%).
+- **Who walked out alive (seasons):** Mara 7, Ilya 4, Cail 3, Dario 3, Hana 3, Chloe 3, Shintaro 3, June 2, Noah 2, Szymon 2, Vixen 2, Kumiko 2, Felix 1, Seul 1, Ayden 1.
 
 | Season | Days | Ending | Tier | Survivors | Deaths | Newcomers | Trials (right) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 12 | THE WINNERS | bittersweet | Dario, Ilya, Seul | 7 | 2 | 2 (1) |
-| 2 | 20 | THE SHOW SURRENDERS | good | Ayden, Dario, June, Kumiko, Mara, Seul, Vixen | 8 | 6 | 4 (4) |
-| 3 | 23 | CROWNED BY WHIM: DARIO | bad | Dario | 15 | 7 | 6 (4) |
-| 4 | 11 | CROWNED BY WHIM: ILYA | bad | Ilya | 9 | 2 | 2 (2) |
-| 5 | 26 | THE WINNERS | bittersweet | Nadia, Rosa | 14 | 7 | 6 (4) |
-| 6 | 7 | THE LAST BATTLE: CHLOE STANDS | bad | Chloe | 7 | 0 | 3 (3) |
-| 7 | 10 | RESCUE | good | Dario, Ilya, Shintaro, Vixen | 6 | 2 | 1 (1) |
-| 8 | 25 | TEREVI IS SHUT DOWN | good | Dario, Kumiko | 13 | 6 | 6 (5) |
-| 9 | 15 | THE SHOW SURRENDERS | bittersweet | Bram, Dario, Hana, June, Mara, Szymon, Teo, Vixen | 7 | 7 | 3 (3) |
-| 10 | 14 | TEREVI IS SHUT DOWN | bittersweet | Cail, Chloe | 8 | 2 | 3 (2) |
-| 11 | 7 | THE SHOW SURRENDERS | good | Ayden, Chloe, Noah, Seul, Shintaro, Vixen | 2 | 0 | 1 (1) |
-| 12 | 11 | THE WINNERS | bittersweet | Ayden, Cail | 8 | 2 | 3 (3) |
-| 13 | 14 | RESCUE | good | Cail, Ilya, Mara, Noah | 6 | 2 | 2 (2) |
-| 14 | 14 | THE WINNERS | bittersweet | Mara, Seul | 8 | 2 | 3 (3) |
-| 15 | 7 | THE LAST BATTLE: VIXEN STANDS | bad | Vixen | 7 | 0 | 1 (0) |
-| 16 | 18 | TEREVI IS SHUT DOWN | good | Cail, Shintaro | 10 | 3 | 4 (2) |
-| 17 | 13 | THE LAST ONE STANDING | bittersweet | Ilya | 9 | 2 | 3 (2) |
-| 18 | 6 | THE SHOW SURRENDERS | good | Ayden, Cail, Chloe, Seul, Szymon, Vixen | 2 | 0 | 1 (1) |
-| 19 | 11 | TEREVI IS SHUT DOWN | good | Cail, Dario, Ilya, Vixen | 7 | 3 | 3 (2) |
-| 20 | 26 | THE LAST ONE STANDING | bittersweet | Teo | 16 | 8 | 6 (4) |
+| 1 | 10 | THE SHOW SURRENDERS | bittersweet | Cail, Dario, Hana, June, Mara | 8 | 5 | 2 (2) |
+| 2 | 13 | ONLY THE RAFT GOT AWAY | bittersweet | none | 8 | 0 | 3 (3) |
+| 3 | 24 | THE WINNERS | bittersweet | Felix, Hana | 16 | 9 | 5 (5) |
+| 4 | 13 | THE LAST BATTLE: MARA STANDS | bad | Mara | 9 | 2 | 3 (3) |
+| 5 | 6 | THE LAST BATTLE: NOAH STANDS | bad | Noah | 7 | 0 | 2 (1) |
+| 6 | 11 | THE LAST BATTLE: CHLOE STANDS | bad | Chloe | 9 | 2 | 2 (1) |
+| 7 | 8 | THE SHOW SURRENDERS | good | Chloe, Dario, Ilya, June, Mara, Shintaro | 6 | 4 | 3 (3) |
+| 8 | 6 | THE SHOW SURRENDERS | good | Cail, Noah, Seul, Shintaro, Szymon, Vixen | 2 | 0 | 1 (1) |
+| 9 | 14 | NOBODY LEFT | bad | none | 10 | 2 | 3 (3) |
+| 10 | 12 | TEREVI IS SHUT DOWN | good | Mara, Szymon, Vixen | 7 | 2 | 3 (2) |
+| 11 | 12 | ONLY THE RAFT GOT AWAY | bittersweet | none | 8 | 0 | 3 (3) |
+| 12 | 14 | ONLY THE RAFT GOT AWAY | bittersweet | none | 13 | 4 | 5 (3) |
+| 13 | 18 | ONLY THE RAFT GOT AWAY | bittersweet | none | 13 | 4 | 5 (5) |
+| 14 | 13 | THE LAST BATTLE: ILYA STANDS | bad | Ilya | 13 | 5 | 4 (3) |
+| 15 | 9 | THE SHOW SURRENDERS | good | Ayden, Cail, Chloe, Ilya, Mara, Shintaro | 4 | 2 | 2 (2) |
+| 16 | 22 | NOBODY LEFT | bad | none | 16 | 7 | 7 (5) |
+| 17 | 22 | THE WINNERS | bittersweet | Hana, Kumiko | 13 | 6 | 4 (3) |
+| 18 | 21 | CROWNED BY WHIM: KUMIKO | bad | Kumiko | 11 | 3 | 4 (3) |
+| 19 | 18 | THE WINNERS | bittersweet | Dario, Ilya, Mara | 10 | 4 | 5 (5) |
+| 20 | 12 | THE LAST ONE STANDING | bittersweet | Mara | 9 | 2 | 3 (2) |
 
 ## Notes on this run (2026-10-18, phase 7b final touches)
 
@@ -133,36 +133,37 @@ These notes are written by hand and are not regenerated.
 - She helped the cast 166 times in all (a part, the locks, a camera, covering for someone). Caught helping, TereVi re-educated her 13 times, humiliated her on air 6 times and made her a contestant 4 times. Kumiko then plays as a participant; she walked out alive in 2 of those 4 seasons, and no newcomers came after her.
 - Tiers: 50% good, 8% bittersweet, 42% bad, against 40/30/30. Step 7 (balance) tunes the mix.
 
-## One season, told by its saga (violent seed 20: THE LAST ONE STANDING, day 26)
+## One season, told by its saga (violent seed 16: NOBODY LEFT, day 22)
 
 - Day 1: TereVi revealed the truth on Day 1: the killing game is real.
-- Day 5: Szymon betrayed Shintaro.
-- Day 5: Shintaro was found guilty and executed.
-- Day 7: Szymon betrayed Vixen.
-- Day 7: Szymon was found guilty and executed.
-- Day 7: The cast tried to build a raft: it failed.
-- Day 7: Chloe's death was announced: no trial, the deadline is lifted.
-- Day 7: With only 3 left, they try the build a raft before it is ready.
-- Day 7: The cast tried to build a raft: it failed.
-- Day 8: Seul's death was announced: no trial, the deadline is lifted.
-- Day 10: Ayden betrayed Vixen.
-- Day 11: Ayden was found guilty and executed.
-- Day 15: The cast voted wrongly: innocent Dario was executed and Mara, the real culprit, escapes the island.
+- Day 5: The cast voted wrongly: innocent Shintaro was executed and Ayden, the real culprit, escapes the island.
+- Day 9: Vixen betrayed Szymon.
+- Day 9: Szymon was found guilty and executed.
+- Day 11: Cail betrayed Seul.
+- Day 11: Vixen was found guilty and executed.
+- Day 11: NeoVi's arc ended: martyr.
+- Day 15: Seul was found guilty and executed.
 - Day 15: TereVi made NeoVi a contestant: Kumiko Akimoto. No newcomers will come after her.
-- Day 18: Kumiko was found guilty and executed.
-- Day 26: The cast voted wrongly: innocent Rosa was executed and Bram, the real culprit, escapes the island.
+- Day 17: Kumiko was found guilty and executed.
+- Day 18: Bram betrayed Teo.
+- Day 19: June betrayed Cail.
+- Day 19: Cail betrayed Ilya.
+- Day 20: Bram was found guilty and executed.
+- Day 20: With only 3 left, they try the shut terevi down before it is ready.
+- Day 20: The cast tried to shut terevi down: it failed.
+- Day 20: June's death was announced: no trial, the deadline is lifted.
+- Day 22: The cast could not agree. Cail, the culprit, escapes the island.
 
-Deaths in order: day 3 Cail (murdered); day 5 Shintaro (executed after the trial); day 5 Noah (murdered); day 7 Szymon (executed after the trial); day 7 Chloe (died in an accident); day 7 Seul (died in an accident); day 10 Vixen (murdered); day 11 Ayden (executed after the trial); day 13 Ilya (murdered); day 15 Dario (wrongly executed); day 15 Mara (escaped the island); day 16 June (murdered); day 18 Kumiko (executed after the trial); day 24 Hana (murdered); day 26 Rosa (wrongly executed); day 26 Bram (escaped the island).
+Deaths in order: day 3 Chloe (murdered); day 5 Shintaro (wrongly executed); day 5 Ayden (escaped the island); day 8 Mara (murdered); day 9 Szymon (executed after the trial); day 10 Noah (killed); day 11 Vixen (executed after the trial); day 13 Dario (murdered); day 15 Seul (executed after the trial); day 15 Hana (murdered); day 17 Kumiko (executed after the trial); day 18 Teo (murdered); day 20 Bram (executed after the trial); day 20 June (died in an accident); day 20 Ilya (murdered); day 22 Cail (escaped the island).
 
-## Epilogues from one season (default seed 15: RESCUE, good)
+## Epilogues from one season (default seed 18: THE SHOW SURRENDERS, good)
 
-- **Seul**: Seul walks off the island steadier than anyone expected. Seul is godparent to Dario's first child. Nobody at the christening asks why they both flinch at the doorbell. Seul never talks about the day they decided Cail must die.
-- **Noah**: Noah walks out into the daylight and, for a long moment, just stands in it. Noah and Mara meet every year on the day they got out. They mostly talk about anything else. Nobody outside ever learns what Noah did on the island. Noah does, every night.
-- **Ayden**: Ayden gives the officers a full statement, calmly, in order, and then throws up in a bin. Ayden and Noah have a group chat with one other member. The other member is a picture of the island, with a rude caption. Ayden never talks about the day they decided Chloe must die.
-- **Ilya**: Ilya sleeps for fourteen hours on the boat and wakes up hungry, which feels like a miracle. Ilya is godparent to Noah's first child. Nobody at the christening asks why they both flinch at the doorbell. Ilya turns down every interview. The one they finally give is three words long.
-- **Dario**: Dario is the one who carries the others' bags to the boat, and does not stop moving until the island is out of sight. Dario and Ayden have a group chat with one other member. The other member is a picture of the island, with a rude caption. Dario's next project is about the island. It does very well, and Dario hates every minute of it.
-- **Mara**: Mara sleeps for fourteen hours on the boat and wakes up hungry, which feels like a miracle. Mara is always the one who books the table with Noah, and always the one who leaves first. Mara starts a podcast about true crime and quits after one episode, because it turns out it is not entertaining at all.
-- **Szymon**: Szymon sleeps for fourteen hours on the boat and wakes up hungry, which feels like a miracle. Szymon and Shintaro never speak again. They once end up at the same awards show and sit very, very far apart. Szymon quits being an urban explorer altogether and gets a job where nobody films anything.
-- **Shintaro**: Shintaro walks out into the daylight and, for a long moment, just stands in it. Shintaro buys a house with no basement, no pool and no cameras, and is happy in it, mostly.
-- **Vixen**: Vixen walks off the island steadier than anyone expected. Vixen tells one interviewer about Noah, who caught them going through their things on night 2. Noah's lawyers are in touch by morning. Vixen never talks about the day they decided Noah must die.
-- **NeoVi**: Kumiko Akimoto walks out behind the others, out of uniform for the first time in years, and takes Ayden's hand at the gate. She gets a small flat with a window that catches the afternoon sun, and a cat, and makes every decision herself, slowly.
+- **Szymon**: Szymon walks off the island steadier than anyone expected. Szymon and Shintaro have a group chat with one other member. The other member is a picture of the island, with a rude caption. Szymon's next project is about the island. It does very well, and Szymon hates every minute of it.
+- **Seul**: Seul is the one who carries the others' bags to the boat, and does not stop moving until the island is out of sight. Seul and Noah move in together within a month, which everyone says is too fast, and which is the only thing about the last year that has felt right. Seul quits being a competitive gamer altogether and gets a job where nobody films anything.
+- **Vixen**: Vixen sleeps for fourteen hours on the boat and wakes up hungry, which feels like a miracle. Vixen sues Noah over something said on the island. Both lose. Vixen gets fan mail from people who thought it was all scripted. Vixen answers every single one with the same photo of the island.
+- **Noah**: Noah walks out into the daylight and, for a long moment, just stands in it. Noah still keeps a spare key to Seul's door, and uses it. Noah never talks about the day they decided Ayden must die.
+- **Ayden**: Ayden gives the officers a full statement, calmly, in order, and then throws up in a bin. Ayden and Noah never speak again. They once end up at the same awards show and sit very, very far apart. Ayden starts a podcast about true crime and quits after one episode, because it turns out it is not entertaining at all.
+- **Shintaro**: Shintaro walks off the island steadier than anyone expected. Shintaro is always the one who books the table with Szymon, and always the one who leaves first. Shintaro turns down every interview. The one they finally give is three words long.
+- **Chloe**: Chloe walks off the island steadier than anyone expected. Chloe and Szymon never speak again. They once end up at the same awards show and sit very, very far apart. Chloe writes a memoir. The publisher cuts the island chapters for being 'too much'. Chloe laughs for the first time in months.
+- **Cail**: Cail is the one who carries the others' bags to the boat, and does not stop moving until the island is out of sight. Cail and Shintaro meet every year on the day they got out. They mostly talk about anything else. Cail buys a house with no basement, no pool and no cameras, and is happy in it, mostly.
+- **NeoVi**: Kumiko Akimoto walks out behind the others, out of uniform, and gives the first officer her real name. She gets a small flat, a cat, and a job where nobody tells her what to clean.

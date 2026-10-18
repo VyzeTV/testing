@@ -560,8 +560,9 @@ class ChaosMixin:
                 f"What they lived through today:\n" + "\n".join(mem["recent"][-20:]) + "\n"
                 + (self.lost_lines(cid) + "\n" if a["memory"].get("lost") else "")
                 + ("Their mind is breaking: a turn toward nihilist or avenger is very plausible. " if lvl >= 3 else "")
-                + f"Write the diary entry (first person, plain, max 60 words), and decide whether today changed what they want. Drive options: {options}. "
-                  'Reply as JSON: {"diary": "...", "drive": "keep or a drive id", "target": "<person id or empty>", "arc": "<one sentence on how they are changing>"}')
+                + f"Write the diary entry (first person, plain, max 60 words), and decide whether today changed what they want. Drive options: {options}."
+                + self.reflect_menu(cid) + " "
+                  'Reply as JSON: {"diary": "...", "drive": "keep or a drive id", "target": "<person id or empty>", "arc": "<one sentence on how they are changing>", "choices": []}')
         return sysm, user, {"events": mem["recent"], "ids": list(w.agents.keys()), "cid": cid}
 
     def reflect_apply(self, cid, tick, r, err=None):

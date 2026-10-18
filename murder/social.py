@@ -64,6 +64,8 @@ class SocialMixin:
             r -= 0.12
         if any(x["a"] == t and x["b"] == a and x["kind"] in ("wronged", "betrayed") for x in self.s.get("ties", [])):
             r -= 0.15
+        if a in (ta.get("distrust") or {}):
+            r -= 0.15                                                  # they decided not to trust them (reflection.py)
         return _clamp(r)
 
     # ------------------------------------------------------------------ where people were (for testimonies)

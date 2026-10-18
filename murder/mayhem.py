@@ -523,10 +523,11 @@ class MayhemMixin:
     def interrupted(self, tick, cid, t, here, hour):
         """Someone who loves the victim may throw themselves between them and the attacker."""
         w = self.world
-        prot = [o for o in here if o in w.agents and w.agents[o]["aff"].get(t, 0) >= 5 and w.agents[o]["aff"].get(cid, 0) > -9 and w.agents[o]["hp"] > 20]
-        if not prot or self.rng.random() >= 0.3 + 0.12 * (len(prot) - 1):
+        prot = [o for o in here if o in w.agents and (w.agents[o]["aff"].get(t, 0) >= 5 or self.committed_to(o, t)) and w.agents[o]["aff"].get(cid, 0) > -9 and w.agents[o]["hp"] > 20]
+        sworn = any(self.committed_to(o, t) for o in prot)              # someone who resolved to protect them (reflection.py)
+        if not prot or self.rng.random() >= 0.3 + 0.12 * (len(prot) - 1) + (0.25 if sworn else 0):
             return False
-        o = max(prot, key=lambda x: w.agents[x]["aff"].get(t, 0))
+        o = max(prot, key=lambda x: (self.committed_to(x, t), w.agents[x]["aff"].get(t, 0), x))
         name, tname, oname = self.nm(cid), self.nm(t), self.nm(o)
         room = w.agents[cid]["room"]
         self.log_event(tick, {"type": "mercy", "who": o, "room": room, "vis": "public",
