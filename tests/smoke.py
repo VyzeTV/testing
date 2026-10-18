@@ -56,7 +56,9 @@ c = w.state["case"]
 check("case has scene+ledger clues", {"scene", "ledger"} <= {x["kind"] for x in c["clues"]})
 r.announce_body(tick, 16)
 L.LLM.mock_vote_killer_prob = 1.0
+r.tuning_get = lambda: {"claim_trial": 0}                     # the old trial, where the model casts the votes
 tr = r.run_trial(10)
+r.tuning_get = lambda: {}
 check("trial runs at the voting grounds with segments", tr["segments"] and all(m["to"] == "voting_grounds" for m in list(tr["moves"].values())[:2]))
 check("trial convicts the killer when everyone votes right", tr["trial"]["found"])
 
@@ -5416,6 +5418,65 @@ r.resolve_attacks(r.new_tick(23), [(pk_, {"target": tv_, "method": r.scheme_meth
 cs_ = w.state.get("case") or {}
 check("a hanging is staged as a suicide (with the flaws a careful look finds) and the rope stays at the scene", cs_.get("killer") == pk_ and cs_.get("staged") == "suicide"
       and any(c["kind"] == "staging" for c in cs_.get("clues", [])) and w.state["room_items"].get(home_, {}).get("rope", 0) >= 1, str({k: cs_.get(k) for k in ("staged", "kind")}))
+
+# ---- phase 7: the claim-based trial
+def trial_case_(seed, setup):
+    w_, r_, _ = fresh(seed)
+    i_ = sorted(w_.agents)
+    k_, v_ = i_[0], i_[1]
+    w_.state["revealed"] = True
+    for c in i_:
+        w_.agents[c]["room"] = "garden"
+    w_.agents[k_]["room"] = w_.agents[v_]["room"] = "library"
+    tk_ = r_.new_tick(14)
+    r_.open_case(tk_, "murder", v_, culprit=k_, wkind="sharp", weapon=sharp(), room="library", hour=14, witnesses=[])
+    case_ = w_.state["case"]
+    setup(w_, r_, i_, case_)
+    r_.announce_body(r_.new_tick(15), 15)
+    calls0_ = r_.llm.usage["calls"]
+    tr_ = r_.run_trial(16)
+    return w_, r_, i_, case_, tr_, r_.llm.usage["calls"] - calls0_
+def seen_(w_, r_, i_, case_):
+    t_ = r_.case_time(case_)
+    for h in i_[2:6]:
+        r_.believe(h, {"k": "at", "s": i_[0], "r": "library", "t0": t_ - 0.25, "t1": t_ + 0.25, "src": "seen", "c": 0.9, "true": True})
+    for c in i_[2:]:
+        r_.self_at(c, "garden", t_)
+    r_.self_at(i_[0], "library", t_)
+w, r, ids, case_, tr, calls_ = trial_case_(205, seen_)
+kinds_ = [sg["kind"] for sg in tr["segments"]]
+check("the claim trial plays its sequences: an open debate, then hot seat, clash or brainstorm as the room calls for, and closing arguments", kinds_[0] == "debate" and kinds_[-1] == "closing", str(kinds_))
+check("the engine computes the votes (no model call per voter) and witnesses near the scene convict the killer", tr["trial"]["found"] and calls_ <= len(tr["segments"]) + 4, f"{calls_} calls, votes {tr['trial']['tally']}")
+check("the suspicion meter is public: every sequence shows it", all("meter" in sg for sg in tr["segments"]) and max(tr["segments"][-1]["meter"], key=tr["segments"][-1]["meter"].get) == ids[0])
+lines_ = [l for g in tr["talk"] if g.get("segment") for l in g["lines"]]
+check("everyone states where they were, and the lines are in the record", sum(1 for l in lines_ if l.get("move") == "alibi") >= len(ids) - 2)
+
+def lie_(w_, r_, i_, case_):
+    t_ = r_.case_time(case_)
+    w_.state["where_log"] = {i_[0]: [[r_.day, 14, "kitchen"], [r_.day, 12, "lounge"]]}
+    r_.self_at(i_[0], "library", t_)
+    for c in i_[2:]:
+        r_.self_at(c, "garden", t_)
+    for h in i_[2:5]:
+        r_.believe(h, {"k": "at", "s": i_[0], "r": "pool", "t0": t_ - 0.25, "t1": t_ + 0.25, "src": "seen", "c": 0.9, "true": True})
+    for c in i_[2:5]:
+        w_.agents[c]["aff"][i_[0]] = -3
+        r_.mind(c)["facets"]["courage"] = 90
+w, r, ids, case_, tr, _ = trial_case_(207, lie_)
+ct_ = tr.get("claim_trial") or {}
+moves_ = [l.get("move") for g in tr["talk"] if g.get("segment") for l in g["lines"]]
+check("a claim that contradicts what someone saw is a weak point: they object, the lie is proven and the liar's credibility halves",
+      "objection" in moves_ and ct_.get("lies_proven", {}).get(ids[0], 0) >= 1 and ct_["cred"][ids[0]] <= 0.5, str(ct_))
+check("the culprit answers with a new story from the lie planner, or is cornered, and never confesses", ("new_story" in moves_ or "cornered" in moves_)
+      and not any("I did it" in l["text"] or "I killed" in l["text"] for g in tr["talk"] for l in g.get("lines", []) if l["speaker"] == ids[0]))
+
+w, r, _ = fresh(208)
+ids = sorted(w.agents)
+w.agents[ids[0]]["aff"][ids[1]] = 8
+r.mind(ids[0])["facets"]["courage"] = 50
+hi_ = r.willingness(ids[2], ids[1], 0.9)
+lo_ = r.willingness(ids[0], ids[1], 0.9)
+check("people are less willing to speak against someone they love than against a stranger", lo_ < hi_, f"{lo_:.2f} vs {hi_:.2f}")
 
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]

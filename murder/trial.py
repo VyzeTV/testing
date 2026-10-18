@@ -344,8 +344,10 @@ class TrialMixin:
         self.neovi_attend(tick, TRIAL_ROOM)
         self.suspicion, self.theory, self.confused = {}, None, ""
         used, hot_done, duels, brain = 0, set(), 0, False
-        used += 1
-        self.trial_segment(tick, hour, "debate", used)
+        claim_votes = self.run_claim_trial(tick, hour, case) if self.tune("claim_trial") else None      # the engine decides, the model voices (claimtrial.py)
+        used = MAX_SEGMENTS if claim_votes is not None else used + 1
+        if claim_votes is None:
+            self.trial_segment(tick, hour, "debate", used)
         while used < MAX_SEGMENTS:
             if self.should_stop():
                 raise self.StopExc()
@@ -372,7 +374,7 @@ class TrialMixin:
             else:
                 self.trial_segment(tick, hour, "debate", used)
         top2 = [t_ for t_, _ in Counter(self.suspicion.values()).most_common(2)]
-        if top2 and not self.should_stop():
+        if top2 and not self.should_stop() and claim_votes is None:
             self.withhold_trial(tick, hour, top2)
             self.trial_betrayals(tick, hour, top2)
             self.trial_segment(tick, hour, "closing", used, subjects=top2)
@@ -403,10 +405,10 @@ class TrialMixin:
                 return {"voter": cid, "target": self.rng.choice(ctx["candidates"]), "reason": "(muddled, went with a gut feeling)"}, None
             return None, (self.system_prompt(cid), user, ctx)
 
-        prepared = {cid: vote_prompt(cid) for cid in ids}
-        answers = self.ask_parallel([(cid, lambda q=q: self.llm.vote(*q)) for cid, (done, q) in prepared.items() if q])
-        votes = []
-        for cid in ids:
+        prepared = {cid: vote_prompt(cid) for cid in ids} if claim_votes is None else {}
+        answers = self.ask_parallel([(cid, lambda q=q: self.llm.vote(*q)) for cid, (done, q) in prepared.items() if q]) if prepared else {}
+        votes = list(claim_votes or [])
+        for cid in (ids if claim_votes is None else []):
             done, q = prepared[cid]
             if done:
                 votes.append(done)

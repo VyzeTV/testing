@@ -1249,12 +1249,15 @@ function renderHosts(st) {
 }
 function renderTally(seg) {
   const el = $("#tally");
-  if (!seg || !seg.susp || !Object.keys(seg.susp).length) { el.style.display = "none"; return; }
+  if (!seg || ((!seg.susp || !Object.keys(seg.susp).length) && !Object.keys(seg.meter || {}).length)) { el.style.display = "none"; return; }
   const cnt = {};
   Object.values(seg.susp).forEach((t) => (cnt[t] = (cnt[t] || 0) + 1));
   const total = Object.values(cnt).reduce((a, b) => a + b, 0);
   const rows = Object.entries(cnt).sort((a, b) => b[1] - a[1]).map(([t, n]) => `<div class="trow"><img src="portraits/${t}.png" onerror="this.style.visibility='hidden'"><span>${esc(info(t).short || t)}</span><div class="tbar"><i style="width:${(n / total) * 100}%"></i></div><b>${n}</b></div>`).join("");
-  el.innerHTML = `<div class="tt">SUSPICION</div>${rows}${seg.theory ? `<div class="tth">Working theory: ${esc(seg.theory)}</div>` : ""}`;
+  // the claim trial's public suspicion meter: how hard the evidence on the table points at each person (claimtrial.py)
+  const mt = seg.meter || {}, mmax = Math.max(1, ...Object.values(mt));
+  const meter = Object.keys(mt).length ? `<div class="tt" style="margin-top:6px">EVIDENCE AGAINST</div>` + Object.entries(mt).slice(0, 5).map(([t, v]) => `<div class="trow"><img src="portraits/${t}.png" onerror="this.style.visibility='hidden'"><span>${esc(info(t).short || t)}</span><div class="tbar"><i style="width:${(v / mmax) * 100}%;background:#ff4d6d"></i></div><b>${v}</b></div>`).join("") : "";
+  el.innerHTML = `<div class="tt">SUSPICION</div>${rows}${meter}${seg.theory ? `<div class="tth">Working theory: ${esc(seg.theory)}</div>` : ""}`;
   el.style.display = "block";
 }
 function renderBoard() {
