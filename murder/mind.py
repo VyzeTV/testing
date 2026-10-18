@@ -145,6 +145,14 @@ class MindMixin:
         a["sanity"] = int(round(new))
         m["proj"] = float(a["sanity"])
 
+    def mind_wear(self, cid):
+        """Each night on the island lowers the level sanity recovers towards (never below 25); the hardy sink slower."""
+        if not self.mind_on() or not self.revealed:
+            return
+        m = self.mind(cid)
+        sv = 0.55 + self.facet(cid, "stress_vulnerability") / 100.0          # 0.6 .. 1.5
+        m["set"] = max(25.0, m["set"] - self.tune("wear") * sv)
+
     # ------------------------------------------------------------------ every turn
     def mind_tick(self, tick):
         if not self.mind_on():

@@ -4763,6 +4763,7 @@ ti_, tc_ = sorted(tw_.agents)[:2]
 tw_.state["where_log"] = {ti_: [[tw_.state["day"], 10, "library"]], tc_: [[tw_.state["day"], 10, "kitchen"], [tw_.state["day"], 8, "lounge"]]}
 tw_.state["case"] = {"killer": tc_, "victim": sorted(tw_.agents)[2], "room": "kitchen", "day": tw_.state["day"], "hour": 10, "announced": True}
 tr_.day = tw_.state["day"]
+tr_.self_at(ti_, "library", tw_.state["day"] * 24 + 10)          # where the innocent knows they were
 tm_i_, tm_c_ = tr_.testimony_for(ti_), tr_.testimony_for(tc_)
 check("asked where they were, an innocent tells the truth about the room they were in", "Library" in tm_i_["claim"] and not tm_i_["lie"])
 check("the culprit lies about it", tm_c_["lie"] and "Kitchen" not in tm_c_["claim"].split(",")[0])
@@ -5136,6 +5137,22 @@ for seed_ in (40, 60):
     told_ += sum(1 for a in wb_.agents.values() for b in a.get("beliefs", []) if b["src"] == "seen")
 llm_.LLM.mock_murder_prob = mmp_
 check("phase 5 gate: mock weeks build beliefs from what people see, and nobody telling the truth is ever caught 'lying'", told_ > 100 and false_ == 0, f"{told_} sightings, {false_} false catches")
+
+# ---- phase 6: captivity wears people down night by night
+w, r, _ = fresh(192)
+w.state["revealed"] = True
+c_ = sorted(w.agents)[0]
+set0_ = r.mind(c_)["set"]
+r.mind_wear(c_)
+check("each night on the island lowers the level sanity recovers towards", r.mind(c_)["set"] < set0_)
+r.tuning_get = lambda: {"wear": 0}
+set1_ = r.mind(c_)["set"]
+r.mind_wear(c_)
+check("the wear dial can switch it off", r.mind(c_)["set"] == set1_)
+r.tuning_get = lambda: {"wear": 10}
+for _ in range(40):
+    r.mind_wear(c_)
+check("it never sinks below 25", r.mind(c_)["set"] == 25.0)
 
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]

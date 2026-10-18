@@ -1890,6 +1890,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             s["_hour"] = DAWN_HOUR
         for cid, a in w.agents.items():
             self.night_rest(tick, cid)
+            self.mind_wear(cid)
             self.rouse(tick, cid)
             if self.revealed and self.worn(cid) and self.rng.random() < 0.5:
                 a["wearing"] = None                       # most people sleep in their underwear

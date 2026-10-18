@@ -61,8 +61,23 @@ class BeliefMixin:
             self.check_claim(cid, b)
         return b
 
+    def self_at(self, cid, room, t):
+        """Where `cid` was themselves (kept apart from the other beliefs, three days back, so testimony never runs out of it)."""
+        tr = self.world.agents[cid].setdefault("self_at", [])
+        if tr and tr[-1][2] == room and t <= tr[-1][1] + SIGHT_STEP / 60 + 0.01:
+            tr[-1][1] = max(tr[-1][1], t)
+        else:
+            tr.append([t, t, room])
+        while tr and tr[0][1] < t - 72:
+            tr.pop(0)
+
     def believed_at(self, cid, subj, t, slack=0.25):
         """Where `cid` believes `subj` was at absolute hour `t`: the surest matching belief, or None."""
+        if subj == cid:
+            for t0, t1, room in reversed(self.world.agents[cid].get("self_at") or []):
+                if t0 - slack <= t <= t1 + slack:
+                    return {"k": "at", "s": cid, "r": room, "t0": t0, "t1": t1, "src": "seen", "c": 1.0, "true": True}
+            return None
         best = None
         for b in self.beliefs(cid):
             if b["k"] == "at" and b["s"] == subj and b["t0"] - slack <= t <= b.get("t1", b["t0"]) + slack:
@@ -121,7 +136,7 @@ class BeliefMixin:
                     continue
                 light = self.light_of(room[o]) if room[o] in ROOMS else "lit"
                 t = round(base + m / 60, 2)
-                self.believe(o, {"k": "at", "s": o, "r": room[o], "t0": t, "t1": t, "src": "seen", "c": 1.0, "true": True})     # where they were themselves
+                self.self_at(o, room[o], t)
                 for c in obs:
                     if c == o or not pos[c] or not room[c] or w.agents[c].get("hiding"):
                         continue

@@ -91,19 +91,18 @@ class SocialMixin:
         if not case:
             return None
         day, hour = case.get("day", self.day), case.get("hour", 12)
+        hh = f"{int(hour) % 24:02d}:00"
         t = round(day * 24 + hour + case.get("m", 0.0) / 60, 2)
+        if cid == case.get("killer"):
+            pool = sorted({r for (d, h, r) in self.s.get("where_log", {}).get(cid, []) if d == day and r != case.get("room")}) or [w.cast[cid].get("home") or "garden"]
+            room = self.rng.choice(pool)
+            return {"claim": f"I was in the {w.room_name(room)} around {hh}, nowhere near the {w.room_name(case.get('room'))}.", "lie": True, "room": room, "t": t}
         mine = self.believed_at(cid, cid, t, slack=0.13)             # where they know they were (their own sighting)
         truth = mine["r"] if mine else None
         sm = self.__dict__.get("_sim")
         if not truth and sm is not None and cid in sm.tracks and (day, hour) == (self.day, self.s.get("_hour")):
             p = sm.pos_at(cid, case.get("m", 0.0))                    # it happened this turn: they know where they were a moment ago
             truth = sm.nav.room_at(*p) if p else None
-        truth = truth or self.whereabouts(cid, day, hour)
-        hh = f"{int(hour) % 24:02d}:00"
-        if cid == case.get("killer"):
-            pool = sorted({r for (d, h, r) in self.s.get("where_log", {}).get(cid, []) if d == day and r != case.get("room")}) or [w.cast[cid].get("home") or "garden"]
-            room = self.rng.choice(pool)
-            return {"claim": f"I was in the {w.room_name(room)} around {hh}, nowhere near the {w.room_name(case.get('room'))}.", "lie": True, "room": room, "t": t}
         if not truth:
             return {"claim": f"I honestly don't remember where I was around {hh}.", "lie": False}
         with_ = self.seen_with(cid, t, truth)[:2]                     # the people they actually saw there

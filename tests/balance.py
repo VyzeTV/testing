@@ -80,6 +80,7 @@ def run_week(seed, violent):
     o["lies_real"] += sum(1 for x in lies if x.get("true_lie"))
     o["lies_false"] += sum(1 for x in lies if not x.get("true_lie"))
     san = [a["sanity"] for a in w.agents.values()]
+    o["san_sum"], o["san_n"] = sum(san), len(san)
     return o, (statistics.median(san) if san else None)
 
 
@@ -95,6 +96,7 @@ def summarize(label, weeks):
         "deaths_by_cause": {k[4:]: v for k, v in sorted(t.items(), key=lambda kv: -kv[1]) if k.startswith("how:")},
         "trials": t["trials"], "verdicts_right_wrong_none": [t["right"], t["wrong"], t["trials"] - t["right"] - t["wrong"]],
         "sanity_median_end": [s for _, s in weeks],
+        "sanity_mean_end": round(statistics.mean([x["san_sum"] / x["san_n"] for x, _ in weeks if x["san_n"]]), 1) if any(x["san_n"] for x, _ in weeks) else None,
         "aimless_share": r("aimless", "segments"),
         "meal_attendance": r("meal_seats", "meal_people"),
         "calm_meal_share": r("meals_calm", "meals"),
@@ -109,7 +111,7 @@ def summarize(label, weeks):
 
 ROWS = [("Model calls per day", "calls_per_day"), ("Deaths per week", "deaths_per_week"), ("How the weeks ended", "how_weeks_ended"),
         ("Deaths by cause", "deaths_by_cause"), ("Trials (all weeks)", "trials"), ("Verdicts right / wrong / none", "verdicts_right_wrong_none"),
-        ("Median sanity at the end of each week", "sanity_median_end"), ("Aimless share of free-time activities", "aimless_share"),
+        ("Average sanity of survivors at the end of the week", "sanity_mean_end"), ("Median sanity at the end of each week", "sanity_median_end"), ("Aimless share of free-time activities", "aimless_share"),
         ("Meal attendance (share of the living)", "meal_attendance"), ("Calm meals (share)", "calm_meal_share"),
         ("Night blocks where everyone sleeps (share)", "quiet_night_share"), ("People awake per night block", "awake_per_night_block"),
         ("Exhausted at dawn (share of the living)", "exhausted_at_dawn"), ("Beliefs per survivor at the end", "beliefs_per_survivor"),
