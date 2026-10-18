@@ -6,7 +6,7 @@
 
 A season ends when the engine says so: the Reckoning (nobody died by a deadline), TereVi's endgame when three or fewer are left (she crowns
 them, makes them fight, or crowns one on a whim), a way out (the truth broadcast, TereVi shut down, the last raft, the show surrenders), or
-nobody left. Dead characters are not replaced (only the GM adds newcomers), so every season ends. Two configurations as in balance.py: the
+nobody left. As in the viewer, every empty place is filled with a newcomer when a new week starts (from a pool of producer sketches here). Two configurations as in balance.py: the
 default mock cast and a violent one. Runs in parallel; a few minutes. For curiosity, not a gate.
 """
 import json
@@ -21,7 +21,28 @@ os.environ.setdefault("MC_DATA_DIR", tempfile.mkdtemp())
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
-MAX_DAYS = 80
+MAX_DAYS = 120
+FIRST = {"female": ["Nadia", "Elsa", "Priya", "Lena", "Yuki", "Carmen", "Ines", "Zoe", "Tamsin", "Greta", "Ama", "Sofia"],
+         "male": ["Felix", "Omar", "Kenji", "Lucas", "Ravi", "Anton", "Malik", "Emil", "Tomas", "Joon", "Pavel", "Hugo"]}
+# Newcomers for the weekly refill, as a producer might sketch them (the viewer asks for them before a new week starts if anyone is missing).
+NEWCOMERS = [
+    {"name": "Mara Voss", "gender": "female", "role": "Stunt Driver", "persona": "Fearless, impatient and hot-headed; quick to anger and quick to forgive. Built a fan base crashing cars for movies.",
+     "speech": "Blunt and fast, swears casually.", "likes": "speed, engines", "dislikes": "cowards, waiting", "drive": "thrill"},
+    {"name": "Ilya Petrov", "gender": "male", "role": "Chess Grandmaster", "persona": "Calm, calculating and cold; patient to a fault, trusts nobody, plans every move. Never lost his temper on camera.",
+     "speech": "Measured and precise, few words.", "likes": "strategy, silence", "dislikes": "noise, chaos", "drive": "schemer"},
+    {"name": "June Okafor", "gender": "female", "role": "Nurse", "persona": "Gentle, caring and selfless; altruistic and brave in a crisis, loyal to anyone hurt. Went viral for a hospital vlog.",
+     "speech": "Warm and steady.", "likes": "helping, tea", "dislikes": "cruelty, lies", "drive": "protector"},
+    {"name": "Dario Quint", "gender": "male", "role": "Prank Streamer", "persona": "Loud, reckless and cruel in his jokes; vain, impulsive and attention-hungry. Banned from three platforms.",
+     "speech": "Shouty, laughs at his own jokes.", "likes": "pranks, attention", "dislikes": "being ignored", "drive": "thrill"},
+    {"name": "Hana Sato", "gender": "female", "role": "Detective Novelist", "persona": "Curious, sharp and suspicious; notices everything, trusts little, loves a puzzle. Writes bestselling mysteries.",
+     "speech": "Questions everything.", "likes": "mysteries, coffee", "dislikes": "sloppy thinking", "drive": "seeker"},
+    {"name": "Bram de Wit", "gender": "male", "role": "Mountain Guide", "persona": "Steady, brave and protective; gregarious and kind, a natural leader who keeps people calm in storms.",
+     "speech": "Plain and reassuring.", "likes": "climbing, campfires", "dislikes": "panic, bullies", "drive": "protector"},
+    {"name": "Rosa Lind", "gender": "female", "role": "Opera Singer", "persona": "Dramatic, vain and romantic; ambitious, jealous of rivals, holds grudges and craves the spotlight.",
+     "speech": "Grand and theatrical.", "likes": "applause, roses", "dislikes": "rivals, ugliness", "drive": "romantic"},
+    {"name": "Teo Marsh", "gender": "male", "role": "Ex-Soldier", "persona": "Quiet, disciplined and dangerous; cold under pressure, vengeful when betrayed, haunted by a war he never talks about.",
+     "speech": "Short, clipped sentences.", "likes": "order, routine", "dislikes": "liars, disorder", "drive": "survivor"},
+]
 
 
 def one_season(job):
@@ -41,9 +62,20 @@ def one_season(job):
         if t.get("type") == "finale" or (t.get("ending") and t["ending"]["kind"] in ("truth", "shutdown", "raft", "ultimatum")):
             finales.append({"day": t["day"], "ending": (t.get("ending") or {}).get("kind")})
 
-    day = 1
+    day, arrivals = 1, []
+    pool = list(NEWCOMERS)
     while day <= MAX_DAYS and not w.state.get("over") and w.agents:
         w.state["day"] = day
+        if (day - 1) % w.state.get("week_len", 7) == 0 and w.state.get("vacancies"):
+            for v in list(w.state["vacancies"]):                       # a new week: the producer fills every empty place, as the viewer requires
+                spec = next((x for x in pool if x["gender"] == v["gender"]), None)
+                if spec:
+                    pool.remove(spec)
+                else:                                                   # the sketches ran out: an old personality under a new name
+                    base = [x for x in NEWCOMERS if x["gender"] == v["gender"]][len(arrivals) % 4]
+                    first = FIRST[v["gender"]][len(arrivals) % len(FIRST[v["gender"]])]
+                    spec = dict(base, name=f"{first} {base['name'].split()[-1]}-{len(arrivals) + 1}")
+                arrivals.append({"id": w.add_newcomer(spec), "day": day})
         DayRunner(w, LLM(backend="mock"), keep, step=2, murders=True, rule_mode="roulette", seed=seed * 1000 + day).run()
         day = w.state.get("day", day) + (1 if w.state.get("day", day) == day else 0)
     over = w.state.get("over") or {"kind": "unfinished", "title": f"still going after {MAX_DAYS} days", "day": day}
@@ -51,7 +83,8 @@ def one_season(job):
     return {"violent": violent, "seed": seed, "ending": over["kind"], "title": over.get("title"), "day": over.get("day", day),
             "survivors": sorted(c for c, a in w.state["agents"].items() if a.get("status", "alive") == "alive"),
             "graveyard": [{"id": g["id"], "day": g["day"], "how": g["how"]} for g in w.state.get("graveyard", [])],
-            "trials": trials, "finales": finales, "saga": list(w.state.get("saga", [])), "names": names}
+            "trials": trials, "finales": finales, "saga": list(w.state.get("saga", [])), "names": names, "arrivals": arrivals,
+            "escape": {rid: int(round(sum(r["plan"].values()) / len(r["plan"]))) for rid, r in (w.state.get("escape") or {}).get("routes", {}).items()}}
 
 
 def collect(n):
@@ -62,7 +95,7 @@ def collect(n):
 
 def markdown(seasons):
     out = ["# Whole mock seasons\n",
-           f"{len(seasons)} seasons played from Day 1 until the show ended ({len(seasons) // 2} per configuration: the default mock cast and a violent one, as in "
+           f"{len(seasons)} seasons played from Day 1 until the show ended, with every empty place filled by a newcomer at the start of each week ({len(seasons) // 2} per configuration: the default mock cast and a violent one, as in "
            "`tests/balance.py`). Regenerate with `python tests/season.py --write` (a few minutes). For curiosity, not a gate.\n"]
     nm = lambda s, c: s["names"].get(c, c)
     for label, violent in (("Default", False), ("Violent mock cast", True)):
@@ -80,11 +113,15 @@ def markdown(seasons):
         out.append(f"- **Deaths per season:** {round(sum(len(s['graveyard']) for s in ss) / len(ss), 1)} on average. Causes: "
                    + ", ".join(f"{k} {n}" for k, n in hows.most_common(8)) + ".")
         out.append(f"- **Trials:** {len(tr)} in all, {sum(t['found'] for t in tr)} right verdicts.")
+        out.append(f"- **Newcomers:** {round(sum(len(s['arrivals']) for s in ss) / len(ss), 1)} per season on average; "
+                   f"{sum(1 for s in ss for c in s['survivors'] if c in {a['id'] for a in s['arrivals']})} of the survivors were newcomers.")
+        out.append(f"- **Ways out at the end:** the furthest route reached {round(statistics.mean(max(s['escape'].values() or [0]) for s in ss))}% on average "
+                   f"(best {max(max(s['escape'].values() or [0]) for s in ss)}%).")
         out.append("- **Who walked out alive (seasons):** " + (", ".join(f"{k} {n}" for k, n in winners.most_common()) or "nobody") + ".\n")
-        out.append("| Season | Days | Ending | Survivors | Deaths | Trials (right) |")
-        out.append("| --- | --- | --- | --- | --- | --- |")
+        out.append("| Season | Days | Ending | Survivors | Deaths | Newcomers | Trials (right) |")
+        out.append("| --- | --- | --- | --- | --- | --- | --- |")
         for s in ss:
-            out.append(f"| {s['seed']} | {s['day']} | {s['title']} | {', '.join(nm(s, c) for c in s['survivors']) or 'none'} | {len(s['graveyard'])} | "
+            out.append(f"| {s['seed']} | {s['day']} | {s['title']} | {', '.join(nm(s, c) for c in s['survivors']) or 'none'} | {len(s['graveyard'])} | {len(s['arrivals'])} | "
                        f"{len(s['trials'])} ({sum(t['found'] for t in s['trials'])}) |")
         out.append("")
     best = max(seasons, key=lambda s: (len(s["graveyard"]) + 2 * len(s["trials"]), s["day"]))

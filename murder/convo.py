@@ -258,7 +258,7 @@ class ConvoMixin:
         """When somebody sets off for something, a close friend who is idle in the same room may come along."""
         w = self.world
         busy = getattr(self, "_free_busy", None)
-        if busy is None or w.agents[cid]["room"] == start_room:
+        if busy is None or cid not in w.agents or w.agents[cid]["room"] == start_room:
             return None
         sm = self.sim()
         pals = []

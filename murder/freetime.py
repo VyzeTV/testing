@@ -174,8 +174,8 @@ class FreeTimeMixin:
                 continue
             if self.plot_slice(tick, cid, hour, m, busy):
                 continue
-            if busy.get(cid, 0) > m:
-                continue
+            if cid not in w.agents or busy.get(cid, 0) > m:
+                continue                                    # they may have died earlier in this slice
             busy[cid] = self.free_pick(tick, cid, hour, m)
 
     def free_time(self, tick, hour, decisions):
