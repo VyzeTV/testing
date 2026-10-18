@@ -504,4 +504,5 @@ class TrialMixin:
         s["case"] = None
         s["incitements"] = []
         self.begin_aftermath(tick, hour)
+        self.after_trial_twist(tick)
         return tick

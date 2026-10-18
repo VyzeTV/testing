@@ -49,7 +49,8 @@ class StoryMixin:
     def bible(self):
         return ((STORY_BIBLE if self.revealed else STORY_BIBLE_INTRO) + scn.bible_extra(self.s.get("scenario"), self.revealed)
                 + ("\nEVIDENCE: the house cameras are TereVi's; nobody in the cast can see their footage. Only cite a recording if you really have one "
-                   "(a still NeoVi showed you, a tape or a camera of your own) and say where it came from." if self.revealed else ""))
+                   "(a still NeoVi showed you, a tape or a camera of your own) and say where it came from." if self.revealed else "")
+                + (self.tone_guide() if self.revealed else ""))
 
     def house_rules(self):
         sc = self.s.get("scenario")
@@ -611,6 +612,8 @@ class StoryMixin:
             weap = next((k for k in a["inv"] if "weapon" in w.item_spec(k).get("tags", [])), None) \
                 or next((k for k, q in s["room_items"].get(room, {}).items() if q > 0 and "weapon" in w.item_spec(k).get("tags", [])), None)
             self.resolve_attacks(tick, [(by, {"target": t, "method": weap or "hands", "activity": "", "thought": "", "staged": ""})], hour)
+        if not s.get("case") and self.murders:
+            self.death_pact(tick, hour)                                             # two lovers may choose to go together (twists.py)
         if not s.get("case"):
             self.day_notable.append("Nobody volunteered, nobody struck: the last call ended in silence and dread.")
         return tick

@@ -493,6 +493,9 @@ class ClaimTrialMixin:
         self.withhold_trial(tick, hour, top2)
         self.trial_betrayals(tick, hour, top2)
         beats = []
+        if self.trial_twist(beats, ids, killer, meter, push, case):       # a confession, someone taking the blame, NeoVi speaking up (twists.py)
+            self.update_trial_suspicion(ids, meter, facts, killer, case)
+            top2 = sorted(ids, key=lambda p: -meter[p])[:2]
         for p in top2:
             self.trial_beat(beats, p, "Look at the evidence, not at me. Vote with your heads." if p != killer else "You're making a terrible mistake. The one who did this is sitting right there.", "plea")
         self.publish_segment(tick, hour, "closing", n + 1, beats, meter, {"debaters": top2})

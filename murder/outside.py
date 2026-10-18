@@ -110,6 +110,8 @@ class OutsideMixin:
             if crew["stage"] == "sea":
                 storm = (s.get("island") or {}).get("id") in ("storm", "fog")
                 crew["food"] -= 1
+                if crew["alive"] and self.rng.random() < (0.06 if storm else 0.03) and self.raft_returns(tick, crew):      # twists.py
+                    continue
                 if crew["alive"] and self.rng.random() < (0.25 if storm else 0.08) + (0.15 if crew["food"] < 0 else 0):
                     gone = self.rng.choice(crew["alive"])
                     crew["alive"].remove(gone)

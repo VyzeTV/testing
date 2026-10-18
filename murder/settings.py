@@ -39,7 +39,8 @@ SETTINGS = [
     ("director_nudge", "Director opportunities", "Drama", 0, 2, 0.1, 1.0, "When a plotter has been waiting for a long time, the Director may steer their target somewhere quiet. It never makes the kill: the plotter still has to strike. 0 = off."),
     ("snap_rate", "Snapping", "Drama", 0, 3, 0.1, 1.0, "How readily someone with very little sanity left, or pushed past their limit by someone they hate, kills with no plan. 0 = only planned killings."),
     ("modesty", "Embarrassment", "Tone", 0, 2, 0.1, 1.0, "How hard being seen in their underwear hits the modest. 0 = nobody minds."),
-    ("flirt_level", "Flirtation", "Tone", 0, 3, 1, 1, "0 off, 1 occasional, 2 frequent, 3 steamy. Suggestive adult flirtation between people who are into each other; never explicit."),
+    ("gore", "Gore", "Tone", 0, 3, 1, 2, "How graphic deaths, wounds, bodies and executions are. 0 = cut away, 1 = restrained, 2 = vivid and brutal, 3 = unflinching."),
+    ("flirt_level", "Flirtation", "Tone", 0, 3, 1, 2, "0 off, 1 occasional, 2 frequent, 3 steamy. Suggestive adult flirtation between people who are into each other; never explicit."),
     ("banter_level", "Banter and crude jokes", "Tone", 0, 3, 1, 2, "0 civil, 1 light teasing, 2 friendly trash talk and the odd nasty joke, 3 relentless."),
 ]
 DEFAULTS = {k: d for k, _, _, _, _, _, d, _ in SETTINGS}

@@ -186,9 +186,13 @@ class NightMixin:
             self.sim_talk(tick)
             self.reaction_pass(tick, hour)
             self.inner_turn(tick, hour)
+        if first:
+            self.intimacy_night(tick)                                # intimacy.py
         if hour == NIGHT_BLOCKS[1] and not s.get("case"):
             self.neovi_visit(tick)                                   # kumiko.py
             self.neovi_choice(tick)
+        if hour == NIGHT_BLOCKS[2]:
+            self.murder_suicide(tick)                                # twists.py
         # what woke the house up for the next block
         noise = {}
         for e in tick["events"]:

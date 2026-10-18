@@ -86,7 +86,7 @@ def one_season(job):
     nv = (w.state.get("npcs") or {}).get("neovi") or {}
     return {"violent": violent, "seed": seed, "ending": over["kind"], "title": over.get("title"), "day": over.get("day", day), "tier": over.get("tier", "unfinished"),
             "neovi": ((nv.get("arc") or {}).get("fate") or "none"), "romances": sum(1 for b in w.state.get("bonds", []) if b.get("kind") == "romance"),
-            "minds": dict(w.state.get("mind_stats") or {}),
+            "minds": dict(w.state.get("mind_stats") or {}), "twists": dict(w.state.get("twists") or {}), "intimacy": dict(w.state.get("intimacy") or {}),
             "nv": {"helped": nv.get("helped", 0), "punished": [p["kind"] for p in nv.get("punished", [])], "named": sum(1 for v in (nv.get("told") or {}).values() if "name" in v),
                    "lover": bool(nv.get("lovers"))},
             "survivors": sorted(c for c, a in w.state["agents"].items() if a.get("status", "alive") == "alive"),
@@ -132,6 +132,12 @@ def markdown(seasons):
         out.append(f"- **Minds:** {mi['thoughts']} thoughts shown; {mi['warped']} beliefs warped by fear, {mi['hallucinations']} hallucinations, "
                    f"{mi['false_memories']} false memories of a crime scene, {mi['seen_through']} seen through later; acted on: {mi['paranoid_plots']} paranoid plots, "
                    f"{mi['hid']} hid; {mi['plots_overheard']} plotters overheard muttering; {mi['mind_testimony']} trials heard testimony from a broken mind.")
+        tw, im = Counter(), Counter()
+        for s in ss:
+            tw.update(s["twists"])
+            im.update(s["intimacy"])
+        out.append("- **Rare turns:** " + (", ".join(f"{k.replace('_', ' ')} {n}" for k, n in tw.most_common()) or "none") + ".")
+        out.append(f"- **Love life:** {im['nights']} nights together, {im['affairs']} affairs ({im['affairs_found']} found out), {im['jealousy']} pangs of jealousy.")
         out.append(f"- **Season length:** median {statistics.median(days)} days (shortest {min(days)}, longest {max(days)}).")
         out.append("- **How seasons ended:** " + ", ".join(f"{k} {n}" for k, n in ends.most_common()) + ".")
         out.append(f"- **Deaths per season:** {round(sum(len(s['graveyard']) for s in ss) / len(ss), 1)} on average. Causes: "

@@ -15,12 +15,28 @@ BANTER = {
     2: "Friends roast each other, trash-talk affectionately and trade the odd nasty or crude joke (about bodies, habits, love lives, the situation, themselves); people with a sarcastic or edgy streak go further. It is banter between people who are comfortable, not cruelty.",
     3: "Friends are relentless: constant roasting, crude and dark humour, innuendo flying about. Still affection underneath, never cruelty.",
 }
+GORE = {
+    0: "Deaths and wounds are never described: cut away before the blow lands and after the body is found.",
+    1: "Violence is clear but restrained: blood and a wound, no lingering on the detail.",
+    2: "Violence is vivid and brutal: wounds, blood and broken bodies are described plainly and with weight, and nobody dies prettily.",
+    3: "Violence is graphic and visceral: the full horror of wounds, bodies and executions, described unflinchingly.",
+}
+TONE_GUIDE = ("TONE: mature, darkly funny and brutal at once. TereVi runs it as a game show: punishments are 'segments' with sound cues, fake sponsors "
+              "('this execution is brought to you by...'), ratings jokes and a studio audience that is not there. The cast's gallows humour, petty feuds and absurd "
+              "mishaps sit right next to the horror, and grief and fear are played straight when they hit. ")
+SEX = ("Sex happens between consenting adults whose feelings got there: desire, flirting, the night together implied and cut away from, the morning after, "
+       "jealousy, affairs and rumours. Never explicit.")
 BANTER_EX = ["'Nice hair. Did you lose a fight with the wardrobe?'", "'You snore like a dying walrus and I say that with love.'", "'Tell me you're not wearing that on purpose. Oh god, you are.'"]
 FLIRT_EX = ["'You're staring.' 'I'm admiring.'", "'If you wanted me out of this shirt you only had to ask.'", "'Don't look at me like that unless you mean it.'"]
 EDGY_WORDS = ("profanity", "sarcas", "contempt", "insult", "cold", "dry", "scorn", "venom")
 
 
 class ToneMixin:
+    def tone_guide(self):
+        """One paragraph every voice call reads (through the bible): comedy, the gore dial, and how sex is handled."""
+        g = max(0, min(3, int(self.tune("gore"))))
+        return "\n" + TONE_GUIDE + "VIOLENCE: " + GORE[g] + " " + (SEX if int(self.tune("flirt_level")) > 0 else "Nobody here is interested in romance.")
+
     def chemistry(self, a, b):
         """A stable 0..1 figure for how well two particular people click, so the same pairs keep finding each other."""
         return (zlib.crc32("|".join(sorted((a, b))).encode()) % 100) / 100.0

@@ -5975,6 +5975,98 @@ w.agents[a_]["sanity"] = 5
 r.distort_minds(r.new_tick(14), 14)
 check("the dial switches breaking minds off", not any(b.get("hal") or b.get("warp") for b in r.beliefs(a_)))
 
+# ---- tone, intimacy and rare turns (tone.py, intimacy.py, twists.py)
+w, r, _ = fresh(280)
+w.state["revealed"] = True
+r.tuning_get = lambda: {"gore": 3, "flirt_level": 2}
+b3_ = r.bible()
+r.tuning_get = lambda: {"gore": 0, "flirt_level": 2}
+b0_ = r.bible()
+check("the tone guide is in every voice call: game-show comedy, gore by the dial, sex implied and never explicit",
+      "game show" in b3_ and "unflinchingly" in b3_ and "cut away" in b0_ and "Never explicit" in b3_)
+check("at gore 0 a body is not described", r.body_desc({"kind": "murder", "method": "sharp (knife)"}) == "is dead")
+r.tuning_get = lambda: {}
+a_, b_, c_ = sorted(w.agents)[:3]
+w.state["bonds"] = [{"a": a_, "b": b_, "kind": "romance", "since": 3}]
+tk_ = r.new_tick(23)
+r.night_together(tk_, a_, b_)
+check("lovers spend the night together, implied and cut away from", any(e["type"] == "romance" and r.nm(a_) in e["text"] for e in tk_["events"])
+      and w.state["nights"][-1]["a"] == a_)
+w.agents[c_]["aff"][a_] = 9
+r.mind(c_)["facets"]["romantic"] = 70
+aff0_ = w.agents[c_]["aff"].get(b_, 0)
+r.jealousy(r.new_tick(31), c_, a_, b_)
+check("someone who wanted one of them is jealous of the other", w.agents[c_]["aff"].get(b_, 0) < aff0_)
+d_ = sorted(w.agents)[3]
+r.affair_found(r.new_tick(31), b_, a_, d_)
+check("an affair found out ends the romance in a row", not r.partner_of(b_) and w.agents[b_]["aff"][a_] < 0)
+w, r, _ = fresh(281)
+w.state["revealed"] = True
+a_, b_ = sorted(w.agents)[:2]
+w.state["bonds"] = [{"a": a_, "b": b_, "kind": "romance", "since": 3}]
+w.agents[a_]["sanity"] = w.agents[b_]["sanity"] = 10
+w.state["deadline_day"] = r.day
+got_ = None
+for _ in range(30):
+    w.state.pop("_pact_day", None)
+    got_ = r.death_pact(r.new_tick(20), 20)
+    if got_:
+        break
+check("a death pact on deadline day: two lovers go together, both dead by their own hand", got_ and a_ not in w.agents and b_ not in w.agents
+      and w.state["case"]["kind"] == "suicide" and w.state["case"]["extra_victims"] == [b_ if got_[0] == a_ else a_])
+tk_ = r.new_tick(21)
+r.announce_body(tk_, 21)
+check("it is announced without a trial, and both places fall vacant", w.state["case"] is None and len(w.state["vacancies"]) >= 2)
+w, r, _ = fresh(282)
+w.state["revealed"] = True
+a_, b_ = sorted(w.agents)[:2]
+w.state["bonds"] = [{"a": a_, "b": b_, "kind": "romance", "since": 3}]
+w.agents[a_]["sanity"] = 5
+r.believe(a_, {"k": "rumor", "s": b_, "n": "they are betraying me", "src": "inferred", "c": 0.8, "t0": r.abs_now(), "true": False, "warp": True})
+got_ = None
+for _ in range(60):
+    got_ = got_ or r.murder_suicide(r.new_tick(27))
+check("a broken lover who believes the worst can kill the other and then themselves", got_ == (a_, b_) and a_ not in w.agents and b_ not in w.agents
+      and w.state["twists"]["murder_suicide"] == 1)
+w, r, _ = fresh(283)
+ids_ = sorted(w.agents)
+k_, v_ = ids_[0], ids_[1]
+case_ = {"victim": v_, "kind": "murder", "culprit_aware": True}
+w.agents[k_]["sanity"] = 10
+meter_ = {p: 0.0 for p in ids_}
+meter_[ids_[2]] = 5.0
+def push_(x, a):
+    meter_[x] = max(0.0, meter_[x] + a)
+class _R:
+    def __init__(self, v): self.v = v
+    def random(self): return self.v
+    def __getattr__(self, k): return getattr(r.__dict__["_r0"], k)
+r._r0, r.rng = r.rng, _R(0.0)
+bt_ = []
+tw_ = r.trial_twist(bt_, ids_, k_, meter_, push_, case_)
+check("a guilt-sick killer can confess just before the vote", tw_ == "confession" and max(meter_, key=meter_.get) == k_ and bt_[0]["speaker"] == k_)
+meter_ = {p: 0.0 for p in ids_}
+meter_[k_] = 6.0
+w.agents[k_]["sanity"] = 80
+r.mind(k_)["facets"]["altruism"] = 20
+case_["culprit_aware"] = False
+lover_ = ids_[3]
+w.agents[lover_]["aff"][k_] = 9
+r.mind(lover_)["facets"]["altruism"] = 70
+tw_ = r.trial_twist([], ids_, k_, meter_, push_, case_)
+check("someone who loves the killer can take the blame for them", tw_ == "took_blame" and max(meter_, key=meter_.get) == lover_)
+r.rng = r._r0
+w, r, _ = fresh(284)
+w.state["revealed"] = True
+x_ = sorted(w.agents)[0]
+crew_ = {"ids": [x_], "alive": [x_], "stage": "sea", "days": 1, "food": 2, "log": [], "tries": 0, "proof": False}
+w.agents[x_]["room"] = "beach"
+w.end_agent(x_, "escaped", "escaped on a raft")
+w.state["vacancies"].append({"gender": w.state["cast"][x_]["gender"], "reason": "x"})
+n0_ = len(w.state["vacancies"])
+check("an escapee can be carried back by the sea, a participant again", r.raft_returns(r.new_tick(31), crew_) and x_ in w.agents and len(w.state["vacancies"]) == n0_ - 1
+      and crew_["stage"] == "returned")
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

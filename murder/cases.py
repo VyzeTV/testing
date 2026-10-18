@@ -32,6 +32,11 @@ BODY_DESC = {
     "accident": ["lies broken where the accident left them, limbs bent the wrong way",
                  "lies still at the foot of the danger that took them, the stillness already wrong"],
 }
+GORE_TAIL = {"sharp": ["and something pale shows through the deepest cut", "the smell of copper thick enough to taste"],
+             "blunt": ["one eye pushed half out of its socket by the swelling", "teeth scattered across the floor like dice"],
+             "hands": ["the face gone a mottled blue-black", "blood dried in the corners of the eyes where the vessels burst"],
+             "poison": ["the bedding soaked through with what came up", "the jaw locked open mid-scream"],
+             "water": ["the skin wrinkled and grey, a pink froth at the nostrils"]}
 CAUSES = {"trap_fall": "a shattering fall from something that had been tampered with",
           "trap_drink": "agonising poisoning from a tainted drink",
           "trap_blade": "a rigged blade that opened them up",
@@ -59,7 +64,15 @@ class CaseMixin:
         key = case.get("body_key") or (case.get("method") or "").split(" ")[0]
         if key not in BODY_DESC:
             key = case["kind"] if case["kind"] in BODY_DESC else "sharp"
-        return self.rng.choice(BODY_DESC[key])
+        text = self.rng.choice(BODY_DESC[key])
+        g = int(self.tune("gore"))
+        if g <= 0:
+            return "is dead" if key not in ("suicide", "accident") else "lies still"
+        if g == 1:
+            return text.split(",")[0]                                  # restrained: the first clause only
+        if g >= 3 and key in GORE_TAIL:
+            text += ", " + self.rng.choice(GORE_TAIL[key])
+        return text
 
     @staticmethod
     def close_label(aff):
@@ -536,6 +549,8 @@ class CaseMixin:
                                   "text": f"{vname} {how} in the {w.room_name(room)}."}, witnesses=witnesses, actor=None)
         self.fx(tick, "shake", room, victim)
         self.day_notable.append(f"{vname} {how} in the {w.room_name(room)}.")
+        if culprit and (self.s["plots"].get(culprit) or {}).get("motive") == "paranoia":
+            self.twist("hallucination_kill")                       # a hallucination that turned into a real killing (innervoice.py)
         self.s["plots"].pop(culprit, None) if culprit else None
         sp_ = s.get("spree")
         if sp_ and kind in ("murder", "manslaughter") and (not self.crime_on() or culprit == sp_["by"] or (victim == sp_["by"] and sp_.get("kills", 0) >= 1)):
@@ -840,7 +855,10 @@ class CaseMixin:
                 w.agents[cid]["sanity"] = clamp(w.agents[cid]["sanity"] - 4)
             self.mourn(tick, case["victim"], {"suicide": "took their own life", "accident": "died in an accident"}.get(case["kind"], "died"), hour)
             s["vacancies"].append({"gender": w.cast[case["victim"]]["gender"], "reason": f"{w.cast[case['victim']]['name']} left the show"})
-            res = f"{self.nm(case['victim'])}'s death was announced: no trial, the deadline is lifted."
+            for ev in case.get("extra_victims", []):                  # a pact or a murder-suicide (twists.py)
+                self.mourn(tick, ev, "died", hour)
+                s["vacancies"].append({"gender": w.cast[ev]["gender"], "reason": f"{w.cast[ev]['name']} left the show"})
+            res = f"{self.nm(case['victim'])}'s death{self.more_dead({})} was announced: no trial, the deadline is lifted."
             tick["events"].append({"type": "system_notable", "who": case["victim"], "room": case["room"], "vis": "public", "text": res})
             self.day_notable.append(res)
             self.saga(res)
