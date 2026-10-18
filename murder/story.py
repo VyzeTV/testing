@@ -47,7 +47,9 @@ class StoryMixin:
         return bool(self.world.state.get("revealed", True))
 
     def bible(self):
-        return (STORY_BIBLE if self.revealed else STORY_BIBLE_INTRO) + scn.bible_extra(self.s.get("scenario"), self.revealed)
+        return ((STORY_BIBLE if self.revealed else STORY_BIBLE_INTRO) + scn.bible_extra(self.s.get("scenario"), self.revealed)
+                + ("\nEVIDENCE: the house cameras are TereVi's; nobody in the cast can see their footage. Only cite a recording if you really have one "
+                   "(a still NeoVi showed you, a tape or a camera of your own) and say where it came from." if self.revealed else ""))
 
     def house_rules(self):
         sc = self.s.get("scenario")

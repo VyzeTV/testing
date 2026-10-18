@@ -170,6 +170,7 @@ class ItemUseMixin:
         w.remember(cid, f"{_hh(tick['hour'])} You play the tape from the {w.room_name(st['room'])}: " + " | ".join(tape[-6:]))
         for ln in tape[-4:]:
             self.note_evidence(cid, "testimony", f"(tape from the {w.room_name(st['room'])}) {ln}", None)
+        w.agents[cid]["footage"] = self.day
         self.tally(cid, "tapes")
 
     # ------------------------------------------------------------------ escape attempts

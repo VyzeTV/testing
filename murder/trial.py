@@ -28,6 +28,8 @@ class TrialMixin:
     def clean_line(self, sp, kind, tx):
         """Tidy model quirks: stray asterisks and an action line that starts with the speaker's own name."""
         tx = tx.strip().strip("*").strip()
+        if kind == "say":
+            tx = self.scrub_footage(sp, tx)                         # nobody cites camera footage they cannot have
         if kind == "act":
             nm = self.nm(sp)
             for pref in (nm, nm.lower()):
@@ -326,8 +328,7 @@ class TrialMixin:
         tick["broadcasts"].append({"speaker": "terevi", "kind": "trial", "text": opening})
         self.bonus_clue(tick, hour)
         for line in self.blackout_alibis(case):
-            if line not in case["file"]:
-                case["file"].append(line)
+            self.file_add(case, line)
         self.fetch_stragglers(tick, ids, TRIAL_ROOM, "the class trial")
         for cid in ids:
             a = w.agents[cid]

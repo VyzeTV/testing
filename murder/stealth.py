@@ -236,6 +236,7 @@ class StealthMixin:
                         got.append(w.item_name(k))
                         self.note_holder(cid, k, tick["hour"])
                 self.play_tape(tick, cid, st)
+                self.play_reel(tick, cid, st)
                 s["stash"].remove(st)
         if got:
             self.log_event(tick, {"type": "stash", "who": cid, "room": a["room"], "vis": "gm", "text": f"{self.nm(cid)} retrieves what they hid: {', '.join(got)}."}, actor=cid)
@@ -256,6 +257,7 @@ class StealthMixin:
                        witnesses=[o for o in w.occupants(st["room"]) if o != finder], actor=finder)
         self.found_stained(tick, finder, list(st["items"]), f"{st['spot']} in the {w.room_name(st['room'])}")
         self.play_tape(tick, finder, st)
+        self.play_reel(tick, finder, st)
         self.moment(finder, f"found a hidden stash ({names})")
         if st["by"] in w.agents and st["by"] != finder:
             w.remember(st["by"], f"{_hh(tick['hour'])} (private) Your hiding place in the {w.room_name(st['room'])} has been found.")

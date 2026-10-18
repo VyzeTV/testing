@@ -192,6 +192,7 @@ class CaseMixin:
                 if s.get("case"):
                     s["case"]["wounds"] = res["wounds"]
                     s["case"]["wound_text"] = self.wound_summary(res["wounds"])
+                    self.file_set(s["case"], "wounds", s["case"]["wound_text"])
                     s["case"]["killer_scratched"] = bool(res["scratched"])
                 also = d.get("also")
                 if also in w.agents and also not in (cid, t) and w.agents[also]["room"] == room and s.get("case") and not s.get("spree"):
@@ -309,7 +310,7 @@ class CaseMixin:
         return " People who handled it before: " + ", ".join(reversed(out)) + "."
 
     def ledger_clues(self, room, culprit, victim, hour, positions=None, label=""):
-        """The camera archive (Foyer) and the bedroom door-lock log (the locked Study): together they narrow the field without naming the killer.
+        """The camera archive (only NeoVi can show it to anyone: evidence.py) and the bedroom door-lock log (the locked Study): together they narrow the field without naming the killer.
         Getting the door log takes a key, so the cast has to cooperate with whoever can open the Study."""
         w = self.world
         dark = self.blackout_until >= self.idx
@@ -343,10 +344,10 @@ class CaseMixin:
             cam_txt = (f"Camera archive for {_hh(hour)}{label}: seen on camera elsewhere: {on}. Not placed by the cameras: "
                        f"{', '.join(self.nm(c) for c in missing + list(door)) or 'nobody'}"
                        + (f" (the camera covering the {rn(room)} 'glitched' at that moment)" if room not in CAMERA_BLIND and not positions else "")
-                       + ". Bedroom door logs are kept in the Study.")
+                       + ".")
         door_txt = (f"Door-lock log (Study) for {_hh(hour)}{label}: " + (", ".join(f"{self.nm(c)} behind their own bedroom door ({rn(r)})" for c, r in door.items())
                                                                          or "no bedroom door was in use") + ".")
-        clues = [{"room": "foyer", "scene": True, "found_by": [], "text": cam_txt, "kind": "ledger"},
+        clues = [{"room": "neovi", "scene": True, "found_by": [], "text": cam_txt, "kind": "ledger"},      # only NeoVi can show it (evidence.py)
                  {"room": "study", "scene": True, "found_by": [], "text": door_txt, "kind": "ledger_door"}]
         return clues, {"cam": cam, "door": door, "missing": missing}
 
@@ -471,8 +472,7 @@ class CaseMixin:
                 case["clues"].append({"room": room, "scene": True, "found_by": [], "kind": "planted", "by": culprit,
                                       "text": f"At the scene lies a {w.item_name(it)} that several people recall {self.nm(framed)} carrying."})
                 w.remember(culprit, f"{_hh(hour)} (private) You planted something of {self.nm(framed)}'s to point the finger at them.")
-        case["file"] = [f"Victim: {vname}.", f"Found in: the {w.room_name(room)}.", f"Cause of death: {shown}.",
-                        f"Estimated time of death: around {_hh(hour)} on Day {self.day}, give or take two hours."]
+        self.make_case_file(case, vname, room, shown, hour)               # TereVi's Case File (evidence.py)
         if culprit:
             self.neovi_observe_case(case, culprit, room, hour)
         w.agents[victim]["hp"] = 0
@@ -563,8 +563,7 @@ class CaseMixin:
         case["room"] = home
         case["poison_pending"] = False
         case["day"], case["hour"] = self.day, 22
-        case["file"] = [f"Victim: {self.nm(v)}.", f"Found in: the {w.room_name(home)} (their own bed).", f"Cause of death: {case['cause']}.",
-                        "Estimated time of death: during the night; the poison was taken hours earlier."]
+        self.make_case_file(case, self.nm(v), home, case["cause"], 22, time_text="during the night; the poison was taken hours earlier")
         case["clues"].insert(0, {"room": home, "scene": True, "found_by": [], "kind": "scene",
                                  "text": f"{self.nm(v)} is dead in bed, with {case['cause']}. Time of death: during the night."})
         s["deadline_day"] = deadline_for_death(self.day, s.get("week_len", 7))
@@ -692,6 +691,7 @@ class CaseMixin:
                 c["found_by"].append(cid)
                 w.remember(cid, f"{_hh(tick['hour'])} CLUE ({w.room_name(room)}): {c['text']}")
                 self.note_evidence(cid, "clue", f"({w.room_name(room)}) {c['text']}")
+                self.learn_from_clue(tick, c)
                 self.log_event(tick, {"type": "clue", "who": cid, "room": room, "vis": "gm", "text": f"{self.nm(cid)} finds a clue: {c['text']}"}, actor=cid)
                 self.maybe_withhold_clue(tick, cid, c)
                 found = True
@@ -822,6 +822,8 @@ class CaseMixin:
             self.begin_aftermath(tick, hour)
             return
         case["announced"] = True
+        if case.get("cf") and case.get("discovered_by"):
+            self.file_set(case, "found_by", ", ".join(self.nm(c) for c in case["discovered_by"][:3]), known=True)
         self.seal_scene(tick, hour)
         case["announce_day"], case["announce_hour"] = self.day, hour
         case["vote_day"], case["vote_hour"] = self.day + 1, min(max(hour, 8), 21)

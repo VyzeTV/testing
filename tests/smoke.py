@@ -5265,6 +5265,45 @@ w.agents[ha_]["room"] = "lounge"
 r.knock_out(r.new_tick(14), ha_, "knocked out")
 check("whoever is knocked out drops what they were holding", "crowbar" not in w.agents[ha_]["inv"] and w.state["room_items"].get("lounge", {}).get("crowbar", 0) >= 1 and w.agents[ha_]["inv"].get("scissors"))
 
+# ---- evidence: no TereVi footage, the Case File
+w, r, _ = fresh(198)
+ids = sorted(w.agents)
+k_, v_ = ids[0], ids[1]
+w.agents[k_]["inv"] = {}
+w.agents[ids[2]]["inv"] = {}
+said_ = r.clean_line(ids[2], "say", "The camera footage shows Cail in the kitchen. I saw him there myself.")
+check("nobody cites TereVi's camera footage they cannot have (the sentence is cut)", "footage" not in said_ and "saw him there myself" in said_, said_)
+w.agents[ids[2]]["inv"] = {"gopro": 1}
+check("someone with a camera of their own may", "footage" in r.clean_line(ids[2], "say", "My footage shows Cail in the kitchen."))
+w.agents[k_]["room"] = w.agents[v_]["room"] = "lounge"
+for c in ids[2:]:
+    w.agents[c]["room"] = "foyer"
+tk_ = r.new_tick(14)
+r.open_case(tk_, "murder", v_, culprit=k_, wkind="sharp", weapon=sharp(), room="lounge", hour=14, witnesses=[])
+case_ = w.state["case"]
+r.reveal_clues(tk_, ids[3])
+check("the camera archive is not lying in the Foyer for anyone to read", not any(c["kind"] == "ledger" and ids[3] in c["found_by"] for c in case_["clues"]))
+check("TereVi's Case File lists the victim, where they were found, time and cause (or says they are withheld), wounds and weapon unknown",
+      case_["file"][0].startswith("Victim:") and any(l.startswith("Found in:") for l in case_["file"]) and any(l.startswith("Time of death:") for l in case_["file"])
+      and any(l.startswith("Cause of death:") for l in case_["file"]) and "Weapon: unknown." in case_["file"], str(case_["file"]))
+case_["cf"]["time"]["known"] = False
+case_["file"] = r.render_case_file(case_)
+check("a fact TereVi keeps back reads as withheld", "Time of death: withheld by TereVi." in case_["file"])
+r.announce_body(r.new_tick(15), 15)
+w.agents[ids[3]]["room"] = "lounge"
+r.reveal_clues(r.new_tick(16), ids[3])
+check("examining the body brings the time of death into the file, and everyone is told", any(l.startswith("Time of death: around") for l in case_["file"])
+      and any("Case File was updated" in m for m in w.agents[ids[4]]["memory"]["recent"]), str(case_["file"]))
+cl_ = case_["clues"][0]
+r.update_clue(r.new_tick(16), cl_, cl_["text"] + " The body was moved after death.", "a second look")
+check("a piece of evidence can be updated with what is learned, and its finders are told", "moved after death" in cl_["text"] and cl_["history"]
+      and any("CLUE UPDATED" in m for m in w.agents[ids[3]]["memory"]["recent"]))
+nb_ = w.state["npcs"]["neovi"]
+nb_["room"] = "lounge"
+r.rng = _Fixed(0.0, r.rng)
+got_ = r.neovi_shares_footage(r.new_tick(16), 16)
+check("only NeoVi can show someone the camera archive, in secret, and then they can cite it", got_ and r.has_footage(got_) and any(c["kind"] == "ledger" and got_ in c["found_by"] for c in case_["clues"]))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

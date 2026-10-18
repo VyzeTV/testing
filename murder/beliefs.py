@@ -127,10 +127,16 @@ class BeliefMixin:
         perc = self.perc() if self.perception_on() else None
         base = self.day * 24 + float(tick["hour"])
         obs = [c for c in sorted(w.agents) if c in sm.tracks and not w.agents[c].get("out")]
+        cams = {st["room"] for st in self.s.get("stash", []) if any(k in st["items"] for k in ("gopro", "dslr"))}
         m = 0.0
         while m <= sm.dur:
             pos = {c: sm.pos_at(c, m) for c in obs}
             room = {c: nav.room_at(*p) if p else None for c, p in pos.items()}
+            for cr in cams:                                         # a hidden camera of someone's own records who it sees (evidence.py)
+                there = [self.nm(c) for c in obs if room.get(c) == cr]
+                if there:
+                    tt = base + m / 60
+                    self.camera_record(cr, [f"{int(tt % 24):02d}:{int(tt % 1 * 60):02d} {', '.join(there)}"])
             for o in obs:
                 if w.agents[o].get("asleep") or not pos[o] or not room[o]:
                     continue

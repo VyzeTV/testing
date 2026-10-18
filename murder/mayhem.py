@@ -578,7 +578,7 @@ class MayhemMixin:
         w.agents[v2]["hp"] = 0
         w.end_agent(v2, "dead", "murdered")
         case.setdefault("extra_victims", []).append(v2)
-        case["file"].append(f"Second victim: {vn}, found in the same room, killed the same way.")
+        self.file_add(case, f"Second victim: {vn}, found in the same room, killed the same way.")
         case["clues"].append({"room": room, "scene": True, "found_by": [], "kind": "scene",
                               "text": f"{vn} is dead nearby, killed the same way, around the same time. Whoever did this killed twice."})
         case["cause"] = case["cause"] + " (two victims)"

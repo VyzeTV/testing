@@ -55,6 +55,7 @@ from .nightlife import NightLifeMixin
 from .planner import MurderPlanMixin
 from .combat import FightMixin
 from .carry import CarryMixin
+from .evidence import EvidenceMixin
 from .perception import PerceptionMixin
 from .envsys import EnvironmentMixin
 from .mind import MindMixin
@@ -140,7 +141,7 @@ class Stop(Exception):
     pass
 
 
-class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, ScheduleMixin, BeliefMixin, NightLifeMixin, MurderPlanMixin, FightMixin, CarryMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
+class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, ScheduleMixin, BeliefMixin, NightLifeMixin, MurderPlanMixin, FightMixin, CarryMixin, EvidenceMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
     def __init__(self, world, llm, on_tick, gate=None, should_stop=None, step=2, workers=6, seed=None,
                  murders=True, motive="", rule_mode="roulette", rule_text="", confessionals=True, mischief="occasional", chaos="normal",
                  variation=0, gm_pull=None, lean=False, call_cap=0, autodir=False, autodir_get=None, tuning_get=None):
@@ -404,7 +405,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             victim = self.nm(case["victim"])
             parts.append(f"INVESTIGATION: {victim} is dead (TereVi's file is in your memory). You have until {self.vote_label(case)} to investigate and debate, "
                          "then a class trial decides who is responsible (someone always is). Use 'investigate' in rooms to look for clues "
-                         "(the camera archive is in the Foyer; the body and its surroundings tell a story), ask people where they were, compare alibis. "
+                         "(the body and its surroundings tell a story; TereVi's case file is in your memory), ask people where they were, compare alibis. "
                          "Clues you have found are in your memory marked CLUE.")
         if case and case["killer"] == cid:
             if case["kind"] == "manslaughter":
@@ -893,6 +894,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         self.hazard_check(tick, hour)
         self.check_discovery(tick, hour)
         self.investigation_upkeep(tick, hour)
+        self.neovi_shares_footage(tick, hour)
         self.spree_upkeep(tick, hour)
         if self.revealed:
             self.resolve_experiments(tick, hour)
