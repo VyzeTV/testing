@@ -23,7 +23,7 @@ from murder.engine import DayRunner          # noqa: E402
 from murder.llm import LLM                   # noqa: E402
 from murder.world import World, new_state    # noqa: E402
 
-SEEDS = (11, 22, 33, 44)
+SEEDS = (11, 22, 33, 44, 55, 66, 77, 88)
 DAYS = 7
 
 

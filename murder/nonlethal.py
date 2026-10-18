@@ -153,6 +153,9 @@ class NonlethalMixin:
         start = d.get("_carry_start")
         if t not in w.agents or not start or a["room"] == start or w.agents[t]["room"] != start or not self.can_carry(cid, t):
             return
+        if self.hands_free(cid) < 2:
+            for k in self.held_items(cid):
+                w.drop(cid, k, 1, )                                  # both hands are needed to drag someone (carry.py)
         ta = w.agents[t]
         ta["room"] = a["room"]
         self.s.setdefault("drags", []).append({"from": start, "to": a["room"], "by": cid, "victim": t, "day": self.day, "hour": tick["hour"]})

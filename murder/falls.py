@@ -145,6 +145,7 @@ class FallMixin:
         if cid not in w.agents:
             return dmg
         self.stat(tick, cid, "sanity", -2 - int(levels * 2), "a fall")
+        self.drop_held(tick, cid, "in the fall")
         if cid in w.agents:
             self.injure(tick, cid, by, set(), dmg, "fall")
         if cid in w.agents and dmg >= 22 and self.rng.random() < 0.35 * self.tune("faint_rate"):

@@ -5249,6 +5249,22 @@ r.resolve_attacks(r.new_tick(14), [(ids[0], {"target": ids[1], "method": sharp()
 cs_ = w.state.get("case") or {}
 check("the case records the wounds for the autopsy", cs_.get("wounds") and cs_.get("wound_text") and ("throat" in cs_["wound_text"] or "head" in cs_["wound_text"]), str(cs_.get("wound_text")))
 
+# ---- phase 6: hands, pockets and what items can do
+w, r, _ = fresh(197)
+ids = sorted(w.agents)
+cb_ = r.item_caps("crowbar")
+check("every item says what it can do, how big it is and what it leaves", "bludgeon" in cb_["does"] and cb_["size"] == "large" and "blood" in cb_["traces"]
+      and r.item_caps("scissors")["size"] == "small" and "cut" in r.item_caps("scissors")["does"])
+ha_ = ids[0]
+w.agents[ha_]["inv"] = {"crowbar": 1, "scissors": 1}
+check("a large item is in plain sight and takes both hands; a small one rides in a pocket", r.held_items(ha_) == ["crowbar"] and r.pocketed(ha_) == ["scissors"] and r.hands_free(ha_) == 0)
+r.seen_holding(ids[1], ha_, r.abs_now())
+check("someone seen carrying a weapon is remembered with it (and suspected)", any(b["k"] == "has" and b["o"] == "crowbar" for b in r.beliefs(ids[1])) and ha_ in r.suspects(ids[1]))
+check("a pocketed weapon has to be drawn first", r.must_draw(ha_, "scissors") and not r.must_draw(ha_, "crowbar"))
+w.agents[ha_]["room"] = "lounge"
+r.knock_out(r.new_tick(14), ha_, "knocked out")
+check("whoever is knocked out drops what they were holding", "crowbar" not in w.agents[ha_]["inv"] and w.state["room_items"].get("lounge", {}).get("crowbar", 0) >= 1 and w.agents[ha_]["inv"].get("scissors"))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

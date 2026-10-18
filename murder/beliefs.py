@@ -141,6 +141,7 @@ class BeliefMixin:
                     if c == o or not pos[c] or not room[c] or w.agents[c].get("hiding"):
                         continue
                     if room[c] == room[o] or (perc and perc.sees(pos[o], pos[c], light)):
+                        self.seen_holding(o, c, t)                      # a weapon in the hand is noticed (carry.py)
                         self.believe(o, {"k": "at", "s": c, "r": room[c], "t0": t, "t1": t, "src": "seen", "c": 0.9 if light == "lit" else 0.6, "true": True})
             m += SIGHT_STEP
 

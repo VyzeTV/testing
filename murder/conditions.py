@@ -247,6 +247,7 @@ class ConditionMixin:
         a["asleep"] = False
         a.pop("hiding", None)
         a["activity"] = "Unconscious"
+        self.drop_held(tick, cid, "as they go down")
         if not quiet:
             verb = {"fainted": "faints", "knocked out": "is knocked out", "drugged": "slumps, drugged", "tased": "convulses and drops", "choked out": "goes limp",
                     "fell": "is knocked senseless by the fall", "exhausted": "collapses from exhaustion", "overcome": "is overcome and collapses", "shock": "faints from shock"}.get(cause, "collapses")

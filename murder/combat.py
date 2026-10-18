@@ -57,10 +57,11 @@ class FightMixin:
         nerve = 4 + int(self.facet(cid, "cruelty") / 25) + (2 if helpless else 0)
         strength = self.success_p(cid, 1.0)
         grip = False
+        drawing = self.must_draw(cid, weapon)             # a hidden weapon has to come out first: they see it coming
         for rnd in range(MAX_ROUNDS):
             part = "throat" if grip else self.aim(cid, t, kind, rnd, helpless)
             p = 0.9 if grip else HIT[kind] * (0.75 + 0.25 * strength) + (0.3 if helpless else 0.15 if rnd == 0 else 0)
-            surprised = rnd == 0 and self.rng.random() < 0.6                    # the first blow usually comes before they can react
+            surprised = rnd == 0 and not drawing and self.rng.random() < 0.6     # the first blow usually comes before they can react
             reply = None if helpless or surprised else ("struggle" if grip else self.defend(cid, t, kind, weapon, hp, others))      # a hand on the throat leaves only the struggle
             if reply == "block":
                 p *= 0.5
@@ -100,7 +101,7 @@ class FightMixin:
             if nerve <= 0:
                 break
         v["hp"] = max(1, hp)
-        return {"outcome": "survived", "blows": blows, "wounds": wounds, "scratched": scratched}
+        return {"outcome": "survived", "blows": blows, "wounds": wounds, "scratched": scratched, "drew": drawing}
 
     def fight_text(self, cid, t, res, wname, kind):
         """The fight told blow by blow, short."""
