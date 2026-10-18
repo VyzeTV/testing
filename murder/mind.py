@@ -334,7 +334,7 @@ class MindMixin:
             cands.append((1.2 + max(a.get("hunger", 0) - 60, a.get("thirst", 0) - 50) / 40, "eat", kit, "Goes to find something to eat and drink"))
         # company: stay where liked people are, or go where they are
         best_room, best = None, 0.0
-        for rid in reach:
+        for rid in sorted(reach):
             ppl = [o for o in w.occupants(rid) if o in w.agents and o != cid]
             sc = sum(max(0, a["aff"].get(o, 0)) for o in ppl)
             if sc > best:

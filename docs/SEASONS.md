@@ -92,7 +92,14 @@
 | 19 | 18 | THE WINNERS | bittersweet | Dario, Ilya, Mara | 10 | 4 | 5 (5) |
 | 20 | 12 | THE LAST ONE STANDING | bittersweet | Mara | 9 | 2 | 3 (2) |
 
-## Notes on this run (2026-10-18, phase 7b final touches)
+## Notes on this run (2026-10-18, phase 8: stories, goals, pauses, reflection)
+
+These notes are written by hand and are not regenerated.
+
+- Tiers: 40% good, 28% bittersweet, 32% bad. Structured reflection first pushed them to 25/28/48 (the engine's own reflections made people distrust, confront and fear too readily); softened, they are back on target.
+- A set-order bug was found and fixed (`mind.routine_decision` picked the room to "find some company" from a set, so ties depended on Python's hash seed). Worker processes inherit a random hash seed, so part of the swing between earlier runs of this report came from it; whole seasons now come out the same under any hash seed.
+
+## Notes on an earlier run (2026-10-18, phase 7b final touches)
 
 These notes are written by hand and are not regenerated.
 
