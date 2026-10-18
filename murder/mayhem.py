@@ -488,8 +488,9 @@ class MayhemMixin:
                 hit.append(step)
         text = self.make_broadcast("countermeasure", {"route": rid, "why": why, "level": ad["hardness"][rid]})
         tick["broadcasts"].append({"speaker": "terevi", "kind": "tease", "text": text})
-        self.log_event(tick, {"type": "tease", "who": "terevi", "room": "foyer", "vis": "public",
+        self.log_event(tick, {"type": "tease", "who": "terevi", "room": "foyer", "vis": "gm",
                               "text": f"TereVi reinforces against '{ESCAPE_ROUTES[rid]['title']}' (level {ad['hardness'][rid]}): {', '.join(hit) or 'she is ready'} set back."})
+        self.escape_counter(tick, rid, strong)                     # what the cast sees her do about it (escape.py)
         self.escape_progress()
 
     def adapt_check(self, tick, hour):

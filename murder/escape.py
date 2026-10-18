@@ -223,3 +223,42 @@ class EscapeWorkMixin:
             self.log_event(tick, {"type": "system_notable", "who": cid, "room": a["room"], "vis": "viewer", "m": m,
                                   "text": f"A step of the way out is done: {title}, {step}."}, actor=cid)
         return {"route": rid, "step": step, "gain": plan[step] - before, "verdict": verdict, "used": used}
+
+    # ------------------------------------------------------------------ TereVi's counters, as scenes
+    def escape_counter(self, tick, rid, strong=False):
+        """TereVi answers progress she has noticed with something people see: parts confiscated, the workroom locked, a worker punished on
+        air, or a rumour that one of them works for her. Returns the kinds used."""
+        w, s = self.world, self.s
+        rt = s["escape"]["routes"][rid]
+        team = [c for c in rt.get("contributors", []) if c in w.agents]
+        title = ESCAPE_ROUTES[rid]["title"].lower()
+        kinds = ["confiscate", "lockdown"] + (["punish", "rumour"] if team else [])
+        used = []
+        for kind in self.rng.sample(kinds, 2 if strong else 1):
+            if kind == "confiscate":
+                parts = rt.setdefault("parts", {})
+                lost = sum(parts.values())
+                for k in list(parts):
+                    parts[k] = parts[k] // 2
+                text = (f"On TereVi's orders NeoVi sweeps through the hiding places and carries off half of what the cast had gathered for the way out ({title})."
+                        if lost else f"NeoVi searches every corner for anything gathered for the way out ({title}), on TereVi's orders.")
+            elif kind == "lockdown":
+                room = (STEP_WORK.get(rid, {}).get(self.escape_step_for(rid) or "", {}).get("rooms") or [ESCAPE_ROUTES[rid]["room"]])[0]
+                s.setdefault("locks", {})[room] = {"by": "terevi", "day": self.day}
+                text = f"The {w.room_name(room)} locks itself with a heavy clunk. TereVi: \"Closed for renovations, darlings.\""
+            elif kind == "punish":
+                c = max(team, key=lambda x: (s.get("stats", {}).get(x, {}).get("route_steps", 0), x))      # the most active worker
+                self.stat(tick, c, "hp", -8, "TereVi's punishment for tampering with the set")
+                self.stat(tick, c, "sanity", -6, "punished on air")
+                text = f"TereVi tases {self.nm(c)} on air for 'tampering with the set'. The audience, she says, loved it."
+                self.moment(c, "was punished on air for working on the way out")
+            else:
+                c = self.rng.choice(sorted(team))
+                for o in team:
+                    if o != c:
+                        w.adjust_aff(o, c, -2)
+                        self.belief_rumor(o, "terevi", c, f"{self.nm(c)} has been reporting the escape plans to TereVi", lie=True)
+                text = f"TereVi lets it slip, oh so casually, that {self.nm(c)} has been 'such a help' keeping her informed about the plans."
+            used.append(kind)
+            self.log_event(tick, {"type": "tease", "who": "terevi", "room": "foyer", "vis": "public", "text": text}, witnesses=list(w.agents))
+        return used

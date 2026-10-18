@@ -5748,6 +5748,20 @@ def traitor_(r_):
 w, r, t_ = finale_(252, "shutdown", traitor_)
 check("TereVi can turn a raider, who runs for the alarm: the raid fails", r._finale_outcome == "betrayed" and not w.state.get("over"), str(r._finale_outcome))
 
+w, r, _ = fresh(253)
+w.state["revealed"] = True
+ids = sorted(w.agents)
+rt_ = w.state["escape"]["routes"]["raft"]
+rt_["contributors"] = ids[:3]
+rt_["parts"] = {"materials": 4}
+tk_ = r.new_tick(14)
+used_ = []
+for _ in range(6):
+    used_ += r.escape_counter(tk_, "raft")
+evs_ = [e["text"] for e in tk_["events"] if e["type"] == "tease"]
+check("TereVi's counters are things people see: confiscations, a locked workroom, a punishment on air, a planted rumour",
+      len(set(used_)) >= 3 and len(evs_) >= 6 and rt_["parts"]["materials"] < 4, str(sorted(set(used_))))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))
