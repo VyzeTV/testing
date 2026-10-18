@@ -178,6 +178,13 @@ Called from `run_tick` for blocks at 10, 14, 16 and 20 (`freetime.py`).
 
 ## 8. Murder, evidence and the trial
 
+### Plans, fights and what people carry (phase 6)
+* **The planner** (`planner.py`): when a plot starts preparing, the plotter settles on a scheme from what the world offers and what they have seen: the target **asleep** in their own room at night (better if they sleep alone), a place they saw the target **alone**, a **height** where the target goes (the first-floor gallery over the foyer, the garden cliffs) for a push that looks like a fall, or a **poison** they hold or know where to find. They strike in the planned place (and, for a night plan, at night), not wherever they happen to be, unless the deadline is on them or they have waited too long. A fatal push is a murder with the pusher as culprit.
+* **Fights in blows** (`combat.py`): up to six exchanges. The attacker goes for a part of the body (throat or head on a sleeper, chest with a blade, head with something heavy, a grip on the throat with bare hands that only a struggle breaks); the defender blocks, dodges, struggles for the weapon, runs or screams. Every hit is a wound on a part (kept in the case for the autopsy); a struggle can leave scratches on the attacker. A victim can get away, be rescued by a scream, or take the weapon. Roughly: a sleeper almost never survives; an awake victim survives a blade about half the time, a blunt weapon two thirds, bare hands three quarters.
+* **Hands and pockets** (`carry.py`): every item has a capability record from its tags (what it does: cut, bludgeon, poison, bind, light, burn, open, climb; its size; the traces it leaves). Large items and unhidden weapons are seen in the hand, and someone seen carrying a weapon is believed to have it (and suspected); small things stay in a pocket. A large item takes both hands. A hidden weapon has to be drawn first, so the target sees it coming. Whoever is knocked out or falls drops what they hold.
+* **Night snooping and secret meetings** (`nightlife.py`): lovers, allies, and a plotter with an accomplice may meet in a quiet unwatched room in a night block; people with someone to suspect may stay up to search that person's room (and go through their things if they sleep there, which may wake them) or the scene of the death.
+* **Captivity wear**: each dawn after the reveal lowers the level sanity recovers towards (the `wear` dial, default 2.8, scaled by stress vulnerability, floor 25), so a week's survivors average about 60.
+
 ### Plots (`plotting.py`)
 A plot is a campaign with stages **brooding, preparing, stalking, striking** driven by the engine; the model may also write a plot step. Plots can be abandoned (calm, fondness) or hardened by the deadline.
 

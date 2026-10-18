@@ -387,6 +387,10 @@ Test knobs for the mock backend: set `MC_MOCK_MURDER` (chance per turn, e.g. 0.3
 
 Every character keeps beliefs: who they saw where and when, what they witnessed, what they were told or overheard, rumours and the news at meals, each with how they learned it and how sure they are. Beliefs can be wrong (a lie, a rumour, a line half heard through a wall). When someone's claim about where they were contradicts what a listener saw, the listener catches the lie: they trust the liar less and suspect them first. In GM view the cast panel shows each person's latest beliefs, with wrong ones marked.
 
+## Plans, fights and nights
+
+Plotters plan how to kill from what they have seen: catch the target asleep, alone, or near a drop for a push that looks like a fall, or poison them, and they wait for the planned moment. An attack is fought blow by blow: the victim can block, dodge, struggle for the weapon, run or scream, and every wound lands on a part of the body. What people carry in their hands is seen; small things stay in pockets. At night lovers and allies meet in secret, and suspicious people go snooping. Captivity wears everyone down: a week's survivors average about 60 sanity (the "Captivity wear" dial).
+
 ## Not built yet
 
 Hidden bodies or moving corpses, multiple simultaneous cases, and a hacker/terminal minigame for the Study.
