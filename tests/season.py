@@ -73,8 +73,9 @@ def one_season(job):
                     pool.remove(spec)
                 else:                                                   # the sketches ran out: an old personality under a new name
                     base = [x for x in NEWCOMERS if x["gender"] == v["gender"]][len(arrivals) % 4]
-                    first = FIRST[v["gender"]][len(arrivals) % len(FIRST[v["gender"]])]
-                    spec = dict(base, name=f"{first} {base['name'].split()[-1]}-{len(arrivals) + 1}")
+                    used = {c["short"] for c in w.state["cast"].values()}
+                    first = next((f for f in FIRST[v["gender"]] if f not in used), None) or f"{FIRST[v['gender']][len(arrivals) % 12]}-{len(arrivals) + 1}"
+                    spec = dict(base, name=f"{first} {base['name'].split()[-1]}")
                 arrivals.append({"id": w.add_newcomer(spec), "day": day})
         DayRunner(w, LLM(backend="mock"), keep, step=2, murders=True, rule_mode="roulette", seed=seed * 1000 + day).run()
         day = w.state.get("day", day) + (1 if w.state.get("day", day) == day else 0)
