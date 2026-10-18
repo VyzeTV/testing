@@ -6,17 +6,9 @@ they can undress or change at will, wear a costume or clothes they find or craft
 underwear" rule can be checked in code. ClothingMixin is mixed into DayRunner (engine.py).
 """
 from .data_world import ITEMS, ROOMS
+from .looks import OUTFITS, looks_of
 
-OWN = {
-    "szymon": ("explorer jacket and cargo trousers", "board shorts"),
-    "seul": ("gaming hoodie and joggers", "sporty one-piece swimsuit"),
-    "vixen": ("black tech-wear", "black bikini"),
-    "noah": ("loose linen shirt and jeans", "patterned swim shorts"),
-    "ayden": ("photographer's vest and chinos", "plain swim trunks"),
-    "shintaro": ("dark student blazer and slacks", "navy swim trunks"),
-    "chloe": ("paint-flecked dungarees", "floral swimsuit"),
-    "cail": ("designer streetwear", "designer bikini"),
-}
+OWN = {cid: (o[0], o[1]) for cid, o in OUTFITS.items()}
 SWIM_ROOMS = {"pool", "beach", "boathouse"}
 
 
@@ -32,11 +24,19 @@ class ClothingMixin:
         for cid, c in w.cast.items():
             short = c.get("short") or c["name"].split()[0]
             clothes, swim = OWN.get(cid, ("everyday clothes", "swimwear"))
-            s["custom_items"].setdefault(f"clothes_{cid}", {"name": f"{short}'s {clothes}", "tags": ["clothing", "own"], "owner": cid})
+            fib, shape = (OUTFITS[cid][2], OUTFITS[cid][3]) if cid in OUTFITS else ([], [])
+            s["custom_items"].setdefault(f"clothes_{cid}", {"name": f"{short}'s {clothes}", "tags": ["clothing", "own"], "owner": cid, "fibres": fib, "shape": shape})
+            acc = looks_of(cid, c).get("accessory")
+            if acc:
+                s["custom_items"].setdefault(f"acc_{cid}", {"name": acc[0], "tags": ["accessory", "own"], "owner": cid, "fibres": [acc[1]] if acc[1] else []})
             s["custom_items"].setdefault(f"swimsuit_{cid}", {"name": f"{short}'s {swim}", "tags": ["clothing", "own", "swimwear"], "owner": cid})
         if s.get("belongings") is None:
             self.seed_belongings()
         for cid, a in w.agents.items():
+            if not a.get("acc_done"):
+                a["acc_done"] = True
+                if f"acc_{cid}" in s["custom_items"]:
+                    a["inv"].setdefault(f"acc_{cid}", 1)              # worn all the time (looks.py)
             if a.get("wardrobe_done"):
                 continue
             a["wardrobe_done"] = True

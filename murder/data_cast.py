@@ -47,7 +47,7 @@ CHARACTERS = {
         "candor": 'Cold, terse and cutting; rarely swears, but when she does it lands. Sarcasm as a weapon, openly contemptuous of nosy or loud people, brutally blunt about what she thinks of someone.',
         "goals": "Trace the Study cable run, learn what TereVi is, keep the hairpin hidden, understand Noah's kindness.",
         "start": {"hp": 100, "sanity": 88},
-        "inv": {"laptop": 1, "hacking_drive": 1, "scarf": 1, "cipher_notebook": 1, "pen": 1},
+        "inv": {"laptop": 1, "hacking_drive": 1, "cipher_notebook": 1, "pen": 1},
         "aff": {"noah": 2, "shintaro": 2, "seul": 2, "ayden": 0, "chloe": 0, "cail": -1, "szymon": 0},
         "diary": [
             "Day 1: Checked the Study lock panel; the cable runs into the wall. NeoVi warned me away. Asked Shintaro whether he tested the lock; he said he does not guess.",

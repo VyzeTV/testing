@@ -209,6 +209,8 @@ class CaseMixin:
                     seen_, _ = self.read_wounds(s["case"])
                     s["case"]["wound_text"] = self.wound_summary(res["wounds"]) + "".join(" " + x for x in seen_)
                     self.file_set(s["case"], "wounds", s["case"]["wound_text"])
+                    dark_here = [o for o in here if o not in seen and o not in (cid, t)] if dark else []
+                    s["case"]["clues"] += self.body_traces(s["case"], cid, t, room, bool(res["scratched"]), kind in ("hands", "water"), dark_here)
                 also = d.get("also")
                 if also in w.agents and also not in (cid, t) and w.agents[also]["room"] == room and s.get("case") and not s.get("spree"):
                     self.double_kill(tick, s["case"], cid, also, kind, wname, hour)

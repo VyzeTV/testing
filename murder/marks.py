@@ -1,7 +1,7 @@
 """Marks on bodies and weapons that anyone can read by eye: no lab, no print matching.
 
 The show gives the cast no forensic tools, so evidence on a body or a weapon is only what a person can see and compare. Each character has a
-few visible traits (`body`: hand size, the hand they use, height), set in the cast data or derived from the id. The fight records which side each
+few visible traits (hand size, the hand they use, height; from looks.py, or the cast field `body`). The fight records which side each
 blow landed on and whether it came from above, so the body can be read: blows on the victim's left mean a right-handed attacker facing them,
 blows from above mean someone taller, finger bruises on the throat show the size of the hand, defensive cuts on the forearms mean they fought,
 and skin under the nails means the attacker carries fresh scratches. A bare hand on a bloody handle leaves a handprint of a size (no
@@ -10,32 +10,18 @@ compare by looking: hands on the table, who uses which hand, who stands taller, 
 garden, where thorns would explain it). MarksMixin is mixed into DayRunner (engine.py).
 """
 
-SIZES = ("small", "medium", "large")
 HEIGHTS = ("short", "medium", "tall")
-BODY = {
-    "szymon": {"hand": "large", "handed": "right", "height": "tall"},
-    "seul": {"hand": "small", "handed": "right", "height": "short"},
-    "vixen": {"hand": "small", "handed": "left", "height": "medium"},
-    "noah": {"hand": "medium", "handed": "left", "height": "tall"},
-    "ayden": {"hand": "large", "handed": "right", "height": "medium"},
-    "shintaro": {"hand": "medium", "handed": "right", "height": "short"},
-    "chloe": {"hand": "small", "handed": "right", "height": "medium"},
-    "cail": {"hand": "medium", "handed": "right", "height": "tall"},
-}
 SIDED = {"head", "face", "chest", "torso", "back", "arm", "shoulder", "neck", "throat"}
 
 
 class MarksMixin:
     def build_of(self, cid):
-        """{"hand", "handed", "height"}: what anyone can see of someone's build."""
+        """{"hand", "handed", "height"}: what anyone can see of someone's build (looks.py, or the cast field `body`)."""
         c = self.world.cast.get(cid) or {}
         if c.get("body"):
             return c["body"]
-        if cid in BODY:
-            return BODY[cid]
-        n = sum(map(ord, cid))
-        big = 1 if c.get("gender") == "male" else 0
-        return {"hand": SIZES[min(2, n % 2 + big)], "handed": "left" if n % 9 == 0 else "right", "height": HEIGHTS[min(2, n % 2 + big)]}
+        lk = self.looks(cid)
+        return {"hand": lk["hand"], "handed": lk["handed"], "height": lk["height"]}
 
     def taller(self, a, b):
         return HEIGHTS.index(self.build_of(a)["height"]) > HEIGHTS.index(self.build_of(b)["height"])

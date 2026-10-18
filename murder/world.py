@@ -570,7 +570,7 @@ class World:
         return f"no route to {self.room_name(dst)}"
 
     def carried(self, agent_id):
-        return sum(self.agents[agent_id]["inv"].values())
+        return sum(q for k, q in self.agents[agent_id]["inv"].items() if not k.startswith("acc_"))      # a worn accessory (looks.py) weighs nothing
 
     def take(self, agent_id, item, qty=1):
         a = self.agents[agent_id]

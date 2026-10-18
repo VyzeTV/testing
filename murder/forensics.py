@@ -4,7 +4,6 @@ ForensicsMixin is mixed into DayRunner (engine.py).
 """
 from .data_world import ROOMS
 
-FIBRE_ITEMS = {"scarf", "jacket", "fedora", "outfit", "apron", "maid_uniform", "towels", "rags", "bed_sheets", "cardigan", "tote_bag", "sunglasses"}
 SOLVENT_TAGS = {"flammable", "poison"}
 
 
@@ -56,10 +55,10 @@ class ForensicsMixin:
         if (w.all_agents.get(victim, {}).get("asleep") or w.all_agents.get(victim, {}).get("out")) and self.rng.random() < 0.9:
             add("unwoken", f"There are no defensive wounds: {self.nm(victim)} never woke up.")
         inv = w.agents[culprit]["inv"] if culprit in w.agents else {}
-        fib = [k for k in inv if k in FIBRE_ITEMS]
-        if fib and self.rng.random() < 0.4:
-            it = self.rng.choice(fib)
-            add("fibres", f"A few fibres, the kind that come from a {w.item_name(it).lower()}, are caught on the doorframe.")
+        fib = self.fibres_of(self.coat_of(culprit) or (self.worn(culprit) if culprit in w.agents else None))
+        if fib and self.rng.random() < 0.3:
+            f = self.rng.choice(fib)
+            out.append({"room": room, "scene": True, "found_by": [], "kind": "fibres", "text": f"A few fibres of {f} are caught on the doorframe.", "fibre": f})
         solv = [k for k in inv if set(w.item_spec(k).get("tags", [])) & SOLVENT_TAGS]
         if solv and self.rng.random() < 0.3:
             add("smell", f"A faint chemical smell hangs in the air, like {w.item_name(self.rng.choice(solv)).lower()}.")

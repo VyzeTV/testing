@@ -8,7 +8,7 @@ ItemUseMixin is mixed into DayRunner (engine.py).
 from .data_world import ROOMS
 
 OPTICS = ("binoculars", "small_telescope", "brass_telescope")
-FINE_KINDS = {"fibres", "door_picked", "smell", "footprints"}
+FINE_KINDS = {"fibres", "hair", "door_picked", "smell", "footprints"}
 NAV_ITEMS = ("old_map", "star_charts", "sextant", "binoculars", "brass_telescope")
 RADIO_ITEMS = ("radio_manual", "rigged_radio", "signal_mirror", "handheld")
 NAV_WORDS = ("raft", "sail", "sea", "navigat", "current", "tide", "star", "chart", "map", "boat")

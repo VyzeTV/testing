@@ -1415,6 +1415,7 @@ function renderCast() {
   }).join("");
   d.innerHTML = `<h3 style="color:${c.color}">${esc(c.name)}</h3>
     <div class="row">${esc(c.role)} · ${esc(c.origin || "")} · age ${c.age || "?"}${alive(a) ? "" : " · <b>" + esc(a.status) + "</b>"}</div>
+    ${c.looks ? `<div class="row" style="opacity:.85">${esc(c.looks)}</div>` : ""}
     ${alive(a) ? `<div class="row">Now: <b>${esc(a.activity)}</b> in ${esc(S.W.rooms[a.room].name)}</div>` : ""}
     ${(a.lost || []).length ? `<div class="row">Carries the loss of: <b>${a.lost.map(esc).join(", ")}</b></div>` : ""}
     ${S.gm && (a.moments || []).length ? `<div class="row"><b>Defining moments</b><br>${a.moments.map((m) => "\u2022 " + esc(m)).join("<br>")}</div>` : ""}

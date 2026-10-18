@@ -85,7 +85,7 @@ class ClaimTrialMixin:
                 text = f"I saw it happen. It was {self.nm(case['killer'])}." if not seen_it else f"I saw it too. It was {self.nm(case['killer'])}."
                 facts.append({"by": wit, "about": case["killer"], "kind": "witness", "w": 6.0, "text": text, "true": True})
                 seen_it += 1
-        return facts + self.mark_facts(case, ids)
+        return facts + self.mark_facts(case, ids) + self.look_facts(case, ids)
 
     def compare_marks(self, beats, marks, case, ids, killer, raise_fact, push):
         """What the body and the weapon show, compared by eye: hands on the table, who uses which hand, who is taller, whose hands are scratched."""
@@ -126,6 +126,29 @@ class ClaimTrialMixin:
             else:
                 self.trial_beat(beats, p, "That's old. It has nothing to do with this.", "deny")
                 push(p, -0.5)
+
+    def compare_looks(self, beats, looks, case, raise_fact):
+        """Hair, fibres, a lost accessory and glimpses in the dark, held up against how everyone looks."""
+        def names(ps, by):
+            ns = [self.nm(p) for p in ps if p != by] + (["me"] if by in ps else [])
+            return ", ".join(ns[:-1]) + (" and " if len(ns) > 1 else "") + ns[-1] if ns else "nobody here"
+        clue = {c["kind"]: c for c in case.get("clues", []) if c.get("kind") in ("hair", "fibres")}
+        for key in ("hair", "fibres", "glimpse"):
+            for by in sorted({f["by"] for f in looks if f["look"] == key}):
+                group = [f for f in looks if f["look"] == key and f["by"] == by]
+                for f in group:
+                    raise_fact(f, beats, quiet=True)
+                fit = [f["about"] for f in group if f["fits"]]
+                if key == "hair":
+                    self.trial_beat(beats, by, f"{clue['hair']['text']} Whose hair is that? {names(fit, by)}.", "compare")
+                elif key == "fibres":
+                    self.trial_beat(beats, by, f"{clue['fibres']['text']} Who wears that? {names(fit, by)}.", "compare")
+                else:
+                    feat = next((g["feature"] for g in case.get("glimpses") or [] if g["by"] == by), "a shape")
+                    self.trial_beat(beats, by, f"It was dark, but I saw a figure: {feat}. That fits {names(fit, by)}.", "compare")
+        for f in [f for f in looks if f["look"] == "accessory"]:
+            if raise_fact(f, beats, quiet=True):
+                self.trial_beat(beats, f["by"], f"This was lying near the body. {f['text']}", "compare")
 
     def weapon_match(self, item, weapon):
         """How much being seen with `item` says about a death by `weapon`: the weapon itself counts, the same kind of weapon a little, anything else not at all."""
@@ -360,6 +383,7 @@ class ClaimTrialMixin:
             raise_fact(f, beats)
         raise_sightings([f for f in facts if f["kind"] == "near_scene"], beats)
         self.compare_marks(beats, [f for f in facts if f["kind"] == "mark"], case, ids, killer, raise_fact, push)
+        self.compare_looks(beats, [f for f in facts if f["kind"] == "look"], case, raise_fact)
         self.update_trial_suspicion(ids, meter, facts, killer, case)
         self.publish_segment(tick, hour, "debate", n, beats, meter)
 
@@ -500,6 +524,9 @@ class ClaimTrialMixin:
         spoken = {}
         for g in groups:
             g["live"], g["m"] = True, round(m, 1)
+            g.setdefault("ended", "trial")
+            g.setdefault("joined", [])
+            g.setdefault("left", [])
             g["members"] = sorted({l["speaker"] for l in g["lines"]})
             for ln in g["lines"]:
                 m = max(m, arrivals.get(ln["speaker"], 0.0) + 0.3)
@@ -537,7 +564,7 @@ class ClaimTrialMixin:
                     for o, lvl in bt["heard"].items():
                         if lvl == "full":
                             w.remember(o, f"At the trial you overheard {self.nm(l['speaker'])} whisper: {l['text'][12:]}")
-            tick["talk"].append({"room": room, "lines": lines, "live": True, "m": x, "members": [a, b], "whisper": True})
+            tick["talk"].append({"room": room, "lines": lines, "live": True, "m": x, "members": [a, b], "whisper": True, "ended": "whisper", "joined": [], "left": []})
 
     def trial_slip_out(self, tick, t0, t1, spoken):
         """The most rattled person who is not on the spot steps out for a few minutes and comes back."""

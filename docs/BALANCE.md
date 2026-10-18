@@ -6,22 +6,22 @@ The mock backend scripts what characters say and decide, so these numbers show h
 
 | Metric | Default | Violent mock cast |
 | --- | --- | --- |
-| Model calls per day | 87.5 | 78.9 |
-| Deaths per week | 2.8 | 4.2 |
-| How the weeks ended | still going 8 | battle 1, still going 7 |
-| Deaths by cause | murdered 10, executed after the trial 5, wrongly executed 3, escaped the island 3, died in an accident 1 | murdered 19, executed after the trial 10, died in the final battle 2, killed 1, wrongly executed 1, escaped the island 1 |
+| Model calls per day | 89.3 | 80.9 |
+| Deaths per week | 2.8 | 3.6 |
+| How the weeks ended | still going 8 | still going 8 |
+| Deaths by cause | murdered 7, executed after the trial 6, killed 4, wrongly executed 2, escaped the island 2, died in an accident 1 | murdered 10, executed after the trial 10, killed 6, wrongly executed 1, escaped the island 1, died in an accident 1 |
 | Trials (all weeks) | 8 | 11 |
-| Verdicts right / wrong / none | 5 / 3 / 0 | 10 / 1 / 0 |
-| Average sanity of survivors at the end of the week | 61.6 | 55.2 |
-| Median sanity at the end of each week | 65 / 60 / 61 / 68.0 / 68.0 / 65.0 / 65 / 62.5 | 62.0 / 25 / 60 / 65.0 / 67.5 / 65 / 54 / 59.5 |
-| Aimless share of free-time activities | 0.17 | 0.16 |
-| Meal attendance (share of the living) | 0.66 | 0.65 |
-| Calm meals (share) | 0.57 | 0.61 |
-| Night blocks where everyone sleeps (share) | 0.37 | 0.38 |
-| People awake per night block | 1.49 | 1.47 |
-| Exhausted at dawn (share of the living) | 0.1 | 0.14 |
+| Verdicts right / wrong / none | 6 / 2 / 0 | 10 / 1 / 0 |
+| Average sanity of survivors at the end of the week | 60.2 | 57.6 |
+| Median sanity at the end of each week | 64 / 51 / 68.0 / 53 / 62.0 / 68 / 56 / 62 | 62 / 43.0 / 59.5 / 64 / 60 / 60 / 64.0 / 62 |
+| Aimless share of free-time activities | 0.18 | 0.17 |
+| Meal attendance (share of the living) | 0.65 | 0.66 |
+| Calm meals (share) | 0.56 | 0.7 |
+| Night blocks where everyone sleeps (share) | 0.32 | 0.33 |
+| People awake per night block | 1.69 | 1.55 |
+| Exhausted at dawn (share of the living) | 0.14 | 0.15 |
 | Beliefs per survivor at the end | 80.0 | 80.0 |
 | False beliefs (share) | 0.0 | 0.0 |
-| Lies caught: real / honest people wrongly caught | 2 / 0 | 15 / 0 |
-| Secret meetings per week | 2.0 | 2.2 |
-| Snooping per week / snoopers caught (all weeks) | 4.4 / 5 | 3.1 / 5 |
+| Lies caught: real / honest people wrongly caught | 4 / 0 | 2 / 0 |
+| Secret meetings per week | 2.8 | 2.5 |
+| Snooping per week / snoopers caught (all weeks) | 4.4 / 6 | 2.9 / 2 |

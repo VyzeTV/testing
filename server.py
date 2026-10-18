@@ -19,6 +19,9 @@ PORT = 8766
 game = Game()
 
 
+from murder.looks import describe as describe_looks
+
+
 def world_payload():
     cur = game.load_current()
     rooms = {rid: {"name": r[0], "zone": r[1], "x": r[2], "y": r[3], "w": r[4], "h": r[5], "secret": rid in SECRET_ROOMS} for rid, r in ROOMS.items()}
@@ -26,7 +29,7 @@ def world_payload():
              for e in build_edges()]
     chars = {cid: {"name": c["name"], "short": c["short"], "role": c["role"], "color": c["color"], "card": c.get("card", ""),
                    "home": c["home"], "gender": c["gender"], "origin": c["origin"], "age": c["age"],
-                   "status": cur["agents"].get(cid, {}).get("status", "alive")}
+                   "status": cur["agents"].get(cid, {}).get("status", "alive"), "looks": describe_looks(cid, c)}
              for cid, c in cur.get("cast", {}).items()}
     hosts = {hid: {"name": h["name"], "role": h["role"], "color": h["color"], "card": h["card"]} for hid, h in HOSTS.items()}
     items = {iid: {"name": i["name"], "tags": i.get("tags", [])} for iid, i in ITEMS.items()}

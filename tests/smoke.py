@@ -1842,7 +1842,8 @@ check("a sleeping victim has no defensive wounds", "unwoken" in got)
 got = set()
 for s_ in range(40):
     w2, r2, ids2, k2, v2 = case_in(410 + s_, "lounge")
-    w2.agents[k2]["inv"] = {"scarf": 1}
+    r2.ensure_wardrobe()
+    w2.agents[k2]["inv"] = {f"clothes_{k2}": 1}
     case, _ = make_case(w2, r2, k2, v2, "lounge")
     got |= {c["kind"] for c in case["clues"]}
 check("what the killer wears can leave fibres", "fibres" in got)
@@ -5555,8 +5556,7 @@ def marks_(w_, r_, i_, case_):
             c["found_by"] = [i_[2]]
     r_.scratch(None, i_[0], "the victim clawed at them")
     r_.scratch(None, i_[3], "thorns in the garden")
-    w_.agents[i_[2]]["aff"][i_[3]] = -3
-    r_.mind(i_[2])["facets"]["courage"] = 95
+    r_.willingness = lambda *a_, **k_: 1.0
     r_.believe(i_[4], {"k": "at", "s": i_[3], "r": "garden", "t0": r_.abs_now() - 2, "t1": r_.abs_now() - 1, "src": "seen", "c": 0.9, "true": True})
 w, r, ids, case_, tr, _ = trial_case_(215, marks_)
 mv_ = [(l["speaker"], l.get("move"), l["text"]) for g in tr["talk"] if g.get("segment") for l in g["lines"]]
@@ -5565,6 +5565,47 @@ check("at the trial the body is compared by eye: who uses that hand, whose hands
       and any(m == "compare" and "scratches" in t and r.nm(ids[0]) in t for _, m, t in mv_), str([t for _, m, t in mv_ if m == "compare"]))
 check("scratches from the garden's thorns are explained when someone saw them there; the killer's story is not backed up",
       any(s_ == ids[3] and "Thorns" in t for s_, _, t in mv_) and ct_["meter"][ids[0]] > ct_["meter"][ids[3]], str(ct_.get("meter")))
+
+# ---- looks and the traces they leave (looks.py)
+from murder.looks import describe as _describe, LOOKS as _LOOKS  # noqa: E402
+w, r, _ = fresh(216)
+r.ensure_wardrobe()
+ids = sorted(w.agents)
+check("everyone's looks follow their portrait: hair, eyes, build, outfit, accessory", set(_LOOKS) >= set(ids) and "lavender" in _describe("seul") and "fedora" in _describe("noah")
+      and "parka" in w.item_name("clothes_szymon") and w.agents["ayden"]["inv"].get("acc_ayden") and not w.agents["shintaro"]["inv"].get("acc_shintaro"))
+check("a worn accessory weighs nothing and cannot be pickpocketed", w.carried("ayden") == sum(q for k_, q in w.agents["ayden"]["inv"].items() if k_ != "acc_ayden"))
+k_, v_ = "seul", "noah"
+r.rng = _Fixed(0.01, r.rng)
+cs_ = {"victim": v_, "killer": k_, "clues": []}
+tr_ = r.body_traces(cs_, k_, v_, "library", True, True, ["vixen"])
+kinds_ = {c["kind"]: c for c in tr_}
+check("a struggle leaves the killer's hair and the fibres of what they wore, and a glimpse for whoever was in the dark", "lavender" in kinds_.get("hair", {}).get("text", "")
+      and kinds_.get("fibres", {}).get("fibre") == "light blue fleece" and cs_.get("glimpses") and cs_["glimpses"][0]["feature"] in r.silhouette(k_), str(tr_))
+w.agents["vixen"]["inv"]["clothes_shintaro"] = 1
+w.agents["vixen"]["wearing"] = "clothes_shintaro"
+cs2_ = {"victim": v_, "killer": "vixen", "clues": []}
+tr2_ = r.body_traces(cs2_, "vixen", v_, "library", True, True, [])
+fib_ = next(c for c in tr2_ if c["kind"] == "fibres")
+check("in someone else's clothes, the fibres point at the owner of the clothes", fib_["fibre"] in ("white fur", "brown suede"))
+fib_["found_by"] = ["chloe"]
+acc_ = next((c for c in tr2_ if c["kind"] == "accessory"), None)
+if acc_:
+    acc_["found_by"] = ["chloe"]
+cs2_["clues"] = tr2_
+r.rng = r.rng.b
+lf_ = r.look_facts(cs2_, ids)
+check("matched by eye: the fibres fit Shintaro's jacket; Vixen's lost scarf is hers and she is visibly without it",
+      any(f["look"] == "fibres" and f["about"] == "shintaro" and f["fits"] for f in lf_) and (acc_ is None or any(f["look"] == "accessory" and f["about"] == "vixen" and f["w"] >= 3 for f in lf_)), str(lf_)[:300])
+w.agents["seul"]["inv"]["sheet_cloak"] = 1
+check("a cloak hides the hair from a glimpse", "long hair" not in r.silhouette("seul") and "cloaked" in r.silhouette("seul"))
+
+def hair_(w_, r_, i_, case_):
+    hl_, hc_ = r_.looks(i_[0])["hair"]
+    case_["clues"].append({"room": "library", "scene": True, "found_by": [i_[2]], "kind": "hair", "text": f"A single {hl_} {hc_} hair is caught in the fingers.", "hair": [hl_, hc_]})
+    r_.willingness = lambda *a_, **k_: 1.0
+w, r, ids, case_, tr, _ = trial_case_(217, hair_)
+cmp_ = [l["text"] for g in tr["talk"] if g.get("segment") for l in g["lines"] if l.get("move") == "compare"]
+check("at the trial a hair is held up against everyone's hair", any("Whose hair is that?" in t and r.nm(ids[0]) in t for t in cmp_), str(cmp_))
 
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]

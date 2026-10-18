@@ -190,7 +190,7 @@ class NonlethalMixin:
         elif want and ta["inv"].get(want, 0) > 0:
             pool = [want]
         else:
-            pool = [k for k in ta["inv"] if "clothing" not in self.tags(k)]
+            pool = [k for k in ta["inv"] if not self.tags(k) & {"clothing", "accessory"}]
         for k in pool[:6]:
             if w.carried(cid) >= self.carry_cap(cid):
                 break
