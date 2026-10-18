@@ -134,6 +134,7 @@ class ScheduleMixin:
                 continue
             for p in new:
                 w.remember(p, f"Over {label.lower()}, {self.nm(knew[0])} told everyone: {n['text'][:120]}")
+                self.belief_news(p, knew[0], n["text"][:140])
             n["knows"] = sorted(set(n["knows"]) | set(new))
             told += 1
         return told

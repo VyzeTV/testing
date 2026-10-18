@@ -122,6 +122,16 @@ Special scenes replace ordinary ticks when due: presentations and the reveal on 
 
 ## 6. The inner life: mind, body and brain
 
+### Beliefs (`beliefs.py`)
+Each person keeps what they think is true in `agent["beliefs"]`: a kind (`at` someone was in a room from one time to another, `did` someone did something, `rumor`, `news`, `lied` someone lied to them), who it is about, where and when (absolute hours: day * 24 + hour), how it was learned (**seen**, **heard** by overhearing, **told** to their face, **inferred**) and how sure they are. Beliefs can be wrong; the engine keeps the truth beside each one (`true`), which only the GM view shows.
+
+* **Sightings**: after every turn, everyone awake notes who they saw where (sampled every 15 minutes from real positions and line of sight, worse in the dark), and where they were themselves. Consecutive sightings join up; a gap means the person was out of sight.
+* **Witnessed events** (an assault, a body, a theft, a punishment...) become beliefs about who did what.
+* **Testimony** in a conversation (someone saying where they were at the time of a death) is *told* to the people in it, *heard* by a listener in full earshot, and half heard at the edge of earshot with the room wrong.
+* **Rumours** and the **news at meals** become told beliefs, a rumour marked false if it was a lie.
+* **Lies are caught** when a claim about where someone was contradicts what the listener saw at that time: the listener now believes the speaker lied, likes them less, suspects them first, and wants to tell the booth about it.
+* **Uses**: honest testimony says where the person knows they were and who they actually saw; suspicion puts caught liars first; during a case the decision prompt lists what they know about the time of the death and whom they caught lying; the GM view lists each person's latest beliefs with their source, confidence and whether they are wrong.
+
 ### Mind (`mind.py`)
 * **Needs**: social, rest, safety, purpose, privacy (0-100), driven by what happens (company, sleep, danger, getting something done, solitude).
 * **Thoughts**: every change of sanity becomes a thought with a weight that fades. **Stress** is the weighted sum, scaled by stress vulnerability and the `stress_scale` dial plus deadline pressure.
@@ -299,6 +309,8 @@ Engine and turn: `engine.py`, `world.py`, `cases.py`, `trial.py`, `story.py`, `d
 ---
 
 ## 15. Known limits and what comes next
+
+* **Beliefs** (phase 5) do not yet drive night snooping or secret meetings, and testimony only covers where someone was at the time of a death. The trial still reads the old testimony; the claim-based trial (phase 7) will argue over beliefs.
 
 * **Real-model coverage**: the brain, the harder trial, the sealed scene and the new motives have been exercised on the mock backend and on two calm real days; a full real week with a murder and a trial on the new map has not been played yet.
 * **Brain**: off by default; plan completion was about a third on real days; retrieval is simple scoring (recency, importance, people), with no separate reflection call beyond the nightly diary.

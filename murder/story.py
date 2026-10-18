@@ -305,6 +305,7 @@ class StoryMixin:
             trust = w.agents[c]["aff"].get(by, 0) if by in w.agents else 0
             src = self.nm(by) if by in w.cast else "an unknown source"
             w.remember(c, f"{_hh(hour)} (rumor, from {src}) {self.nm(about)}: {claim}")
+            self.belief_rumor(c, by, about, claim, lie)
             if trust >= 0 and about in w.agents[c]["aff"]:
                 self.adjust_any_aff(c, about, -1 if tone == "bad" else 1)
             heard.append(c)

@@ -50,6 +50,7 @@ from .social import SocialMixin
 from .convo import ConvoMixin
 from .booth import BoothMixin
 from .schedule import ScheduleMixin
+from .beliefs import BeliefMixin
 from .perception import PerceptionMixin
 from .envsys import EnvironmentMixin
 from .mind import MindMixin
@@ -135,7 +136,7 @@ class Stop(Exception):
     pass
 
 
-class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, ScheduleMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
+class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, ScheduleMixin, BeliefMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
     def __init__(self, world, llm, on_tick, gate=None, should_stop=None, step=2, workers=6, seed=None,
                  murders=True, motive="", rule_mode="roulette", rule_text="", confessionals=True, mischief="occasional", chaos="normal",
                  variation=0, gm_pull=None, lean=False, call_cap=0, autodir=False, autodir_get=None, tuning_get=None):
@@ -213,6 +214,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             a_["outfit"] = self.outfit_label(cid_)
             a_["conds_view"] = self.cond_snapshot(cid_)
             a_["out_view"] = (a_.get("out") or {}).get("cause")
+            a_["beliefs_view"] = self.beliefs_view(cid_)
             if self.brain_on():
                 a_["brain_view"] = self.brain_view(cid_)
         try:
@@ -234,6 +236,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             tick["live"] = self.sim_finish(tick)
             self.finish_hearing(tick)
             self.log_whereabouts(tick)
+            self.belief_sightings(tick)
             self.clock_stop()
         except Exception as e:  # positions must never break the game
             self.clock_stop()
@@ -276,6 +279,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             side.clear()
         side[id(evt)] = (list(witnesses) if witnesses else None, actor)
         self.note_news(evt, witnesses, actor)
+        self.belief_witness(evt, witnesses, actor)
         if evt.get("type") == "punish":
             self.punish_count = getattr(self, "punish_count", 0) + 1
         text = f"{hhmm(tick['hour'])} {evt['text']}"
@@ -409,6 +413,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         parts.extend(self.free_lines(cid, hour))
         parts.extend(self.story_decision_lines(cid, hour))
         parts.extend(self.notebook_lines(cid))
+        parts.extend(self.belief_lines(cid))
         bl = self.build_lines(cid)
         if bl:
             parts.append(bl)

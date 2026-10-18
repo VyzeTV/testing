@@ -413,6 +413,7 @@ class ConvoMixin:
                 if b.get("unseen"):
                     ln["unseen"] = sorted(set(b["unseen"]))
             self.remember_talk(c, lines, hour)
+            self.belief_from_talk(c, lines, beats)
         self._heard_later = []
         self.booth_hearing(tick)
 

@@ -5074,6 +5074,69 @@ from murder.session import resume_hour  # noqa: E402
 check("an old save checkpointed at the old 23:00 night turn replays from bedtime; new checkpoints resume where they stopped",
       resume_hour({"hour": 23}) == 21 and resume_hour({"hour": 23, "v": 2}) == 23 and resume_hour({"hour": 14}) == 14)
 
+# ---- phase 5: belief bases
+w, r, _ = fresh(190)
+ids = sorted(w.agents)
+x_, o_, f_, l_ = ids[0], ids[1], ids[2], ids[3]
+T_ = r.day * 24 + 14.5
+r.believe(o_, {"k": "at", "s": x_, "r": "kitchen", "t0": T_ - 0.25, "t1": T_ + 0.25, "src": "seen", "c": 0.9, "true": True})
+got_ = r.believed_at(o_, x_, T_)
+check("a belief records what, where, when, how it was learned and how sure they are", got_ and got_["r"] == "kitchen" and got_["src"] == "seen" and got_["c"] == 0.9)
+r.believe(o_, {"k": "at", "s": x_, "r": "kitchen", "t0": T_ + 0.5, "t1": T_ + 0.5, "src": "seen", "c": 0.9, "true": True})
+r.believe(o_, {"k": "at", "s": x_, "r": "kitchen", "t0": T_ + 1.5, "t1": T_ + 1.5, "src": "seen", "c": 0.9, "true": True})
+check("consecutive sightings join up, a gap keeps them apart", sorted((b["t0"], b["t1"]) for b in r.beliefs(o_) if b["k"] == "at" and b["s"] == x_) == [(T_ - 0.25, T_ + 0.5), (T_ + 1.5, T_ + 1.5)])
+aff0_ = w.agents[o_]["aff"][x_]
+r.believe(o_, {"k": "at", "s": x_, "r": "library", "t0": T_, "t1": T_, "by": x_, "src": "told", "c": 0.6, "true": False})
+check("a claim that contradicts what someone saw is caught as a lie", x_ in r.caught_liars(o_) and w.agents[o_]["aff"][x_] < aff0_ and r.suspects(o_)[0] == x_
+      and any(e["liar"] == x_ and e["true_lie"] for e in w.state["lies_caught"]))
+r.believe(f_, {"k": "at", "s": x_, "r": "kitchen", "t0": T_ - 0.25, "t1": T_ + 0.25, "src": "seen", "c": 0.9, "true": True})
+r.believe(f_, {"k": "at", "s": x_, "r": "kitchen", "t0": T_, "t1": T_, "by": x_, "src": "told", "c": 0.6, "true": True})
+check("a claim that matches what they saw is not a lie", x_ not in r.caught_liars(f_))
+conv_ = {"members": [x_, f_], "joined": [], "room": "lounge"}
+beats_ = [{"who": x_, "claim_at": {"s": x_, "r": "study", "t": T_ + 3, "true": False}}]
+lines_ = [{"b": 0, "heard": {l_: "full", ids[4]: "part"}}]
+r.rng = _Fixed(0.0, r.rng)
+r.belief_from_talk(conv_, lines_, beats_)
+tl_, hl_, pl_ = r.believed_at(f_, x_, T_ + 3), r.believed_at(l_, x_, T_ + 3), r.believed_at(ids[4], x_, T_ + 3)
+check("testimony is told to the people in the conversation, overheard in full by a listener, and half heard with the room wrong", tl_ and tl_["src"] == "told" and tl_["by"] == x_
+      and hl_ and hl_["src"] == "heard" and hl_["r"] == "study" and pl_ and pl_["r"] != "study" and pl_["c"] < hl_["c"], str((tl_, hl_, pl_)))
+check("a lie someone believes is marked false (for the GM), the person does not know", tl_ and tl_["true"] is False and any(b["false"] for b in r.beliefs_view(f_)))
+r.spread_rumor(r.new_tick(14), x_, f_, "keeps a knife under the pillow", "bad", True, [l_], "lounge", 14)
+check("a rumour becomes a belief that may be false", any(b["k"] == "rumor" and b["s"] == f_ and b["true"] is False for b in r.beliefs(l_)))
+tk_ = r.new_tick(14)
+r.belief_witness({"type": "assault", "who": x_, "room": "lounge", "vis": "public", "text": "X shoves Y."}, [l_], x_)
+check("a witnessed event becomes a belief about who did it", any(b["k"] == "did" and b["s"] == x_ and b["o"] == "assault" for b in r.beliefs(l_)))
+
+w, r, _ = fresh(191)
+ids = sorted(w.agents)
+for c in ids:
+    w.agents[c]["room"] = "garden"
+w.agents[ids[0]]["room"] = w.agents[ids[1]]["room"] = "lounge"
+tq_ = r.new_tick(14)
+r.clock_start(); r.sim_turn(tq_); r.clock_to(30)
+r.emit(tq_)
+check("people note who they saw where, and where they were themselves, from real positions", r.believed_at(ids[0], ids[1], r.day * 24 + 14) and r.believed_at(ids[0], ids[0], r.day * 24 + 14)
+      and r.believed_at(ids[0], ids[0], r.day * 24 + 14)["src"] == "seen")
+w.state["case"] = {"announced": True, "resolved": False, "day": r.day, "hour": 14, "m": 0.0, "room": "study", "killer": ids[5], "victim": ids[6]}
+tm_ = r.testimony_for(ids[0])
+check("honest testimony says where they really were and who they really saw", tm_ and not tm_["lie"] and tm_["room"] == r.believed_at(ids[0], ids[0], r.day * 24 + 14)["r"])
+check("during a case the decision prompt carries what they know about the time of the death", any(l.startswith("WHAT YOU KNOW") for l in r.belief_lines(ids[0])))
+w.state["case"] = None
+
+llm_.LLM.mock_murder_prob = 0.2
+false_ = told_ = 0
+for seed_ in (40, 60):
+    wb_ = World(new_state(3))
+    for d in range(3, 9):
+        wb_.state["day"] = d
+        DayRunner(wb_, LLM(backend="mock"), lambda t: None, step=2, murders=True, rule_mode="roulette", seed=seed_ + d).run()
+        if not wb_.agents or wb_.state.get("over"):
+            break
+    false_ += sum(1 for e in wb_.state.get("lies_caught") or [] if not e["true_lie"])
+    told_ += sum(1 for a in wb_.agents.values() for b in a.get("beliefs", []) if b["src"] == "seen")
+llm_.LLM.mock_murder_prob = mmp_
+check("phase 5 gate: mock weeks build beliefs from what people see, and nobody telling the truth is ever caught 'lying'", told_ > 100 and false_ == 0, f"{told_} sightings, {false_} false catches")
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

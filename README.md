@@ -383,6 +383,10 @@ Test knobs for the mock backend: set `MC_MOCK_MURDER` (chance per turn, e.g. 0.3
 
 **Quiet nights.** A night block where everyone sleeps is quiet. The pause settings decide what the viewer does with them: **Ask each night** (default: a "The house sleeps" prompt), **Skip them automatically** (a short "The house sleeps" card) or **Always watch**. In GM view a **Skip quiet night** button skips ahead, stopping at the first block where anything happens.
 
+## What people believe
+
+Every character keeps beliefs: who they saw where and when, what they witnessed, what they were told or overheard, rumours and the news at meals, each with how they learned it and how sure they are. Beliefs can be wrong (a lie, a rumour, a line half heard through a wall). When someone's claim about where they were contradicts what a listener saw, the listener catches the lie: they trust the liar less and suspect them first. In GM view the cast panel shows each person's latest beliefs, with wrong ones marked.
+
 ## Not built yet
 
 Hidden bodies or moving corpses, multiple simultaneous cases, and a hacker/terminal minigame for the Study.

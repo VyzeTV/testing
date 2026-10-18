@@ -737,7 +737,7 @@ class World:
             "broken_doors": list(s.get("broken", [])),
             "barricades": [{"edge": eid, "inside": b["inside"], "prop": b.get("prop_name") or b["prop"]} for eid, b in s.get("blocks", {}).items()],
             "stash": [{"room": x["room"], "spot": x["spot"], "items": dict(x["items"]), "by": x["by"]} for x in s.get("stash", [])],
-            "agents": {cid: {"status": v.get("status", "alive"), "room": v["room"], "hp": v["hp"], "sanity": v["sanity"], "hiding": bool(v.get("hiding")), "concealed": list(v.get("concealed", {})), "outfit": v.get("outfit"), "conds": v.get("conds_view") or [], "out": v.get("out_view"), "mind": v.get("mind_view"), "brain": v.get("brain_view"),
+            "agents": {cid: {"status": v.get("status", "alive"), "room": v["room"], "hp": v["hp"], "sanity": v["sanity"], "hiding": bool(v.get("hiding")), "concealed": list(v.get("concealed", {})), "outfit": v.get("outfit"), "conds": v.get("conds_view") or [], "out": v.get("out_view"), "mind": v.get("mind_view"), "brain": v.get("brain_view"), "beliefs": v.get("beliefs_view") or [],
                              "inv": dict(v["inv"]), "activity": v["activity"], "known": list(v["known"]),
                              "drive": dict(v.get("drive", {})), "secrets": [dict(k) for k in v.get("known_secrets", [])],
                              "lost": [x["name"] for x in v["memory"].get("lost", [])], "moments": list(v["memory"].get("moments", []))[-4:],

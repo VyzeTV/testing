@@ -91,22 +91,29 @@ class SocialMixin:
         if not case:
             return None
         day, hour = case.get("day", self.day), case.get("hour", 12)
-        truth = self.whereabouts(cid, day, hour)
-        hh = f"{int(hour):02d}:00"
+        t = round(day * 24 + hour + case.get("m", 0.0) / 60, 2)
+        mine = self.believed_at(cid, cid, t, slack=0.13)             # where they know they were (their own sighting)
+        truth = mine["r"] if mine else None
+        sm = self.__dict__.get("_sim")
+        if not truth and sm is not None and cid in sm.tracks and (day, hour) == (self.day, self.s.get("_hour")):
+            p = sm.pos_at(cid, case.get("m", 0.0))                    # it happened this turn: they know where they were a moment ago
+            truth = sm.nav.room_at(*p) if p else None
+        truth = truth or self.whereabouts(cid, day, hour)
+        hh = f"{int(hour) % 24:02d}:00"
         if cid == case.get("killer"):
-            pool = [r for (d, h, r) in self.s.get("where_log", {}).get(cid, []) if d == day and r != case.get("room")] or [w.cast[cid].get("home") or "garden"]
+            pool = sorted({r for (d, h, r) in self.s.get("where_log", {}).get(cid, []) if d == day and r != case.get("room")}) or [w.cast[cid].get("home") or "garden"]
             room = self.rng.choice(pool)
-            return {"claim": f"I was in the {w.room_name(room)} around {hh}, nowhere near the {w.room_name(case.get('room'))}.", "lie": True}
+            return {"claim": f"I was in the {w.room_name(room)} around {hh}, nowhere near the {w.room_name(case.get('room'))}.", "lie": True, "room": room, "t": t}
         if not truth:
             return {"claim": f"I honestly don't remember where I was around {hh}.", "lie": False}
-        with_ = [o for o in w.agents if o != cid and self.whereabouts(o, day, hour) == truth][:2]
+        with_ = self.seen_with(cid, t, truth)[:2]                     # the people they actually saw there
         claim = f"I was in the {w.room_name(truth)} around {hh}" + (f", with {' and '.join(self.nm(o) for o in with_)}." if with_ else ", on my own.")
-        return {"claim": claim, "lie": False}
+        return {"claim": claim, "lie": False, "room": truth, "t": t}
 
     def suspects(self, cid):
         """Whom `cid` suspects, strongest first: hooks they hold a suspect for, the case evidence they have noted, people they hate during a case."""
         w, s = self.world, self.s
-        out = []
+        out = list(self.caught_liars(cid))                          # someone caught lying to them comes first
         for h in s.get("hooks", []):
             if not h.get("closed") and h.get("suspect", {}).get(cid) in w.agents:
                 out.append(h["suspect"][cid])
@@ -218,7 +225,7 @@ class SocialMixin:
         roll = self.rng.random()
         outcome = "ok" if roll < p else ("backfire" if roll > 1 - 0.25 * (1 - r) else "fail")
         fx = {}
-        reply, claim = "shrug", None
+        reply, claim, claim_at = "shrug", None, None
         aff = lambda x, y, d: fx.setdefault("affinity", []).append({"from": x, "to": y, "delta": d})
         special = lambda kind, who, depth=1, why="": fx.setdefault("special", []).append({"kind": kind, "who": who, "depth": depth, "why": why or kind})
         hurt = lambda x, d, why: (fx.setdefault("sanity", {}).__setitem__(x, fx.get("sanity", {}).get(x, 0) - d), fx.setdefault("why", {}).__setitem__(x, why))
@@ -315,6 +322,8 @@ class SocialMixin:
             if tm and outcome != "backfire":
                 claim = tm["claim"]
                 fx["testimonies"] = [{"by": t, "claim": claim}]
+                if tm.get("room"):
+                    claim_at = {"s": t, "r": tm["room"], "t": tm["t"], "true": not tm["lie"]}
                 reply = "lie" if tm["lie"] else "testify"
                 outcome = "ok"
             elif self.s.get("case") and self.s["case"].get("killer") == t:
@@ -427,7 +436,7 @@ class SocialMixin:
         b1 = {"who": a, "to": t, "move": move, "about": about_, "item": about if move == "gift" else None, "outcome": outcome, "loud": loud_,
               "topic": topic.format(x=self.nm(about_) if about_ else "someone")}
         b2 = {"who": t, "to": a, "move": reply, "reply_to": move, "outcome": outcome, "loud": "heated" if reply in ("snap", "stand_up", "counter") else ("quiet" if loud == "whisper" else loud),
-              "topic": b1["topic"], **({"claim": claim} if claim else {})}
+              "topic": b1["topic"], **({"claim": claim} if claim else {}), **({"claim_at": claim_at} if claim_at else {})}
         return [b1, b2]
 
     def chime_in(self, tick, conv, a, t, c):

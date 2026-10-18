@@ -431,6 +431,7 @@ class CaseMixin:
         case = self.new_case(kind, victim, culprit, room, hour, witnesses, method=desc, cause=shown, true_cause=true_cause, weapon=weapon,
                              staged=staged, instigator=instigator, intended=intended, note=note, detail=detail, culprit_aware=aware,
                              trap=trap, mistaken=mistaken, self_defense=self_defense, aggressor=aggressor, body_key={"trap_fall": "blunt", "trap_drink": "poison", "trap_blade": "sharp"}.get(wkind))
+        case["m"] = round(self.minute() or 0.0, 1)                     # the minute of the turn it happened (testimony asks about that moment)
         self.build_clues(case, tick)
         if culprit and culprit in w.agents:
             case["clues"].extend(self.clothes_clue(case))
