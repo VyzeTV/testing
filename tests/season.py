@@ -86,7 +86,7 @@ def one_season(job):
     nv = (w.state.get("npcs") or {}).get("neovi") or {}
     return {"violent": violent, "seed": seed, "ending": over["kind"], "title": over.get("title"), "day": over.get("day", day), "tier": over.get("tier", "unfinished"), "costs": over.get("costs") or [], "epilogues": over.get("epilogues") or [],
             "neovi": ((nv.get("arc") or {}).get("fate") or "none"), "romances": sum(1 for b in w.state.get("bonds", []) if b.get("kind") == "romance"),
-            "minds": dict(w.state.get("mind_stats") or {}), "twists": dict(w.state.get("twists") or {}), "intimacy": dict(w.state.get("intimacy") or {}),
+            "minds": dict(w.state.get("mind_stats") or {}), "stories": [e["kind"] for e in (w.state.get("stories") or {}).values()], "twists": dict(w.state.get("twists") or {}), "intimacy": dict(w.state.get("intimacy") or {}),
             "nv": {"helped": nv.get("helped", 0), "punished": [p["kind"] for p in nv.get("punished", [])], "named": sum(1 for v in (nv.get("told") or {}).values() if "name" in v),
                    "lover": bool(nv.get("lovers"))},
             "survivors": sorted(c for c, a in w.state["agents"].items() if a.get("status", "alive") == "alive"),
@@ -148,6 +148,8 @@ def markdown(seasons):
                    f"(believed {sum(1 for k in ko if k['stage'] == 'believed')}, dismissed {sum(1 for k in ko if k['stage'] == 'dismissed')}), the rest kept quiet or gave up.")
         out.append(f"- **NeoVi joined the cast** after the fourth trial in {sum(1 for s in ss if s['nv_joined'] == 'fourth trial')} seasons, as a punishment in "
                    f"{sum(1 for s in ss if s['nv_joined'] == 'punishment')}. Seasons that ran the full 28 days: {sum(1 for s in ss if s['capped'])}.")
+        sk = Counter(k for s in ss for k in s["stories"])
+        out.append("- **Stories that formed** (story sifting): " + (", ".join(f"{k.replace('_', ' ')} {n}" for k, n in sk.most_common()) or "none") + ".")
         out.append(f"- **Season length:** median {statistics.median(days)} days (shortest {min(days)}, longest {max(days)}).")
         out.append("- **How seasons ended:** " + ", ".join(f"{k} {n}" for k, n in ends.most_common()) + ".")
         out.append(f"- **Deaths per season:** {round(sum(len(s['graveyard']) for s in ss) / len(ss), 1)} on average. Causes: "

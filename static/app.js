@@ -428,7 +428,7 @@ function eventSfx(e) {
 // ---------- relationship web ----------
 function renderWeb() {
   const el = $("#webWrap"), st = S.state;
-  renderBoard(); renderStats(); renderChronicle();
+  renderBoard(); renderStats(); renderChronicle(); renderStories();
   if (!st) { el.innerHTML = '<i style="color:var(--muted)">Start a day to see the web.</i>'; return; }
   const ids = Object.keys(st.agents).filter((id) => alive(st.agents[id])).sort((a, b) => orderIdx(a) - orderIdx(b));
   const n = ids.length, cx = 180, cy = 180, R = 132, pos = {};
@@ -561,7 +561,7 @@ function buildPaths(t) {
 }
 function applyState(t) {
   if (window.TileMap && S.mapMode === "tiles") { S.tileAnim = null; TileMap.setTick(t, t.live ? t.live.dur : 120); }
-  S.state = t.state; S.hour = t.hour; S.day = t.day; S.thoughts = t.thoughts || {}; S.dread = t.dread || 0;
+  S.state = t.state; S.hour = t.hour; S.day = t.day; S.thoughts = t.thoughts || {}; S.stories = t.stories || []; S.dread = t.dread || 0;
   if ($("#tab-chron") && $("#tab-chron").classList.contains("on")) renderChronicle();
   S.weather = t.island ? t.island.id : null; S.weatherRoom = t.island ? t.island.room : null;
   setPositions(mapFromState(t.state));
@@ -1005,7 +1005,7 @@ async function showSegment(t, tok) {
 async function playTick(i, tok) {
   const t = S.ticks[i];
   S.tileAnim = null; S.freeTick = null; S.freeActs = null; if (window.TileMap) TileMap.setTick(t, 0);
-  S.hour = t.hour; S.day = t.day; S.thoughts = t.thoughts || {}; S.dread = t.dread || 0;
+  S.hour = t.hour; S.day = t.day; S.thoughts = t.thoughts || {}; S.stories = t.stories || []; S.dread = t.dread || 0;
   S.weather = t.island ? t.island.id : null; S.weatherRoom = t.island ? t.island.room : null; setDrone();
   feedTime(t); updateUI(); $("#tally").style.display = "none";
   await showSegment(t, tok); if (tok !== S.token) return;
@@ -1306,6 +1306,14 @@ function renderTally(seg) {
   el.innerHTML = `<div class="tt">SUSPICION</div>${rows}${meter}${seg.theory ? `<div class="tth">Working theory: ${esc(seg.theory)}</div>` : ""}`;
   el.style.display = "block";
 }
+// stories in play (sifting.py): what the engine sees forming, hottest first; GM view only
+function renderStories() {
+  const el = $("#storiesWrap"); if (!el) return;
+  if (!S.gm) { el.innerHTML = '<i style="color:var(--muted)">Turn on GM view to see the stories forming on the island.</i>'; return; }
+  const st = S.stories || [];
+  if (!st.length) { el.innerHTML = '<i style="color:var(--muted)">Nothing is forming yet.</i>'; return; }
+  el.innerHTML = st.map((x) => `<div class="story"><div class="heat" style="width:${Math.round(x.heat * 100)}%"></div><div class="sfaces">${x.people.map((id) => `<img src="portraits/${id}.png" title="${esc(info(id).name || id)}" onerror="this.style.visibility='hidden'">`).join("")}</div><div>${esc(x.text)}<div class="smeta">${esc(x.kind.replace(/_/g, " "))} · since Day ${x.since[0]} ${String(x.since[1] % 24).padStart(2, "0")}:00${x.pushed ? ` · pushed ${x.pushed}×` : ""}</div></div></div>`).join("");
+}
 function renderBoard() {
   const el = $("#boardWrap"), st = S.state;
   const c = st && st.case;
@@ -1559,7 +1567,7 @@ function setTab(name) {
   if (name === "chron") chronLoadPast();
 }
 document.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => setTab(b.dataset.tab)));
-$("#gm").onchange = (e) => { S.gm = e.target.checked; $("#fGm").checked = S.gm; applyFilters(); renderCast(); renderRoom(); updateUI(); };
+$("#gm").onchange = (e) => { S.gm = e.target.checked; $("#fGm").checked = S.gm; applyFilters(); renderCast(); renderRoom(); renderStories(); updateUI(); };
 function applyFilters() {
   feed.classList.toggle("hide-talk", !$("#fTalk").checked);
   feed.classList.toggle("hide-events", !$("#fEvents").checked);

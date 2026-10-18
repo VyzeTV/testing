@@ -1,4 +1,5 @@
 """The auto-director: when the island goes quiet, it nudges the story along (a TereVi dare, a rumour, an unsigned note or an island event).
+Most of the time it pushes the hottest story already forming (sifting.py) one step, aimed at the people in it.
 
 DirectorMixin is mixed into DayRunner (engine.py). It can be switched on and off while a day is running.
 """
@@ -46,8 +47,56 @@ class DirectorMixin:
         self.dir_used += 1
         self.director_act(tick, hour)
 
+    def story_move(self, tick, hour, st):
+        """Push the hottest story in play one step: a rumour, an unsigned note or a TereVi provocation aimed at its people. Returns the text, or ''."""
+        w = self.world
+        p = [c for c in st["people"] if c in w.agents]
+        if not p:
+            return ""
+        k, a = st["kind"], p[0]
+        b = p[1] if len(p) > 1 else None
+        c = p[2] if len(p) > 2 else None
+        note = lambda who, text: (w.remember(who, f"{_hh(hour)} You find an unsigned note: \"{text}\""), self.moment(who, f"found an unsigned note: {text[:60]}"))
+        if k == "triangle" and c:
+            ok = self.spread_rumor(tick, "unknown", b, f"{self.nm(b)} and {self.nm(c)} were seen together very late last night", "bad", True, [a], w.agents[a]["room"], hour)
+            return f"a rumour about {self.nm(b)} and {self.nm(c)} reaches {self.nm(a)}" if ok else ""
+        if k in ("enemies_alone", "lovers_breaking", "near_freedom") and b:
+            self.force_tease = (f"Dare {self.nm(a)} and {self.nm(b)} to settle what is between them, tonight, alone." if k == "enemies_alone" else
+                                f"Offer {self.nm(a)} and {self.nm(b)} a cruel bargain on air: one of them can sleep safe tonight, if the other volunteers for something." if k == "lovers_breaking" else
+                                "Let it slip that you know exactly how close they are to a way out, and that you are looking forward to it.")
+            return f"TereVi is pointed at {self.nm(a)} and {self.nm(b)}"
+        if k in ("betrayed_protector", "grudge") and b:
+            note(b if k == "betrayed_protector" else a, f"You know what {self.nm(a if k == 'betrayed_protector' else b)} did. So does everyone else.")
+            return f"an unsigned note stirs up {self.nm(b if k == 'betrayed_protector' else a)}"
+        if k == "contradiction_fear" and b:
+            note(a, f"Tell the others what you know about {self.nm(b)}. Or keep quiet, and wait to see what {self.nm(b)} does about you.")
+            return f"an unsigned note pushes {self.nm(a)} to speak up about {self.nm(b)}"
+        if k == "secret_held" and b:
+            note(b, f"{self.nm(a)} knows. And {self.nm(a)} is not your friend.")
+            return f"an unsigned note tells {self.nm(b)} that {self.nm(a)} knows their secret"
+        if k == "alliance_strain" and b:
+            ok = self.spread_rumor(tick, "unknown", b, f"{self.nm(b)} has been talking about {self.nm(a)} behind their back", "bad", True, [a], w.agents[a]["room"], hour)
+            return f"a rumour strains the alliance of {self.nm(a)} and {self.nm(b)}" if ok else ""
+        if k in ("plot_suspected", "silent_witness", "plot") and b:
+            who = b if k in ("plot_suspected", "plot") else a
+            note(who, "Someone in this house is watching you very closely. Don't go anywhere alone.")
+            return f"an unsigned note warns {self.nm(who)}"
+        if k == "unrequited" and b:
+            note(a, f"{self.nm(b)} laughs about you when you leave the room.")
+            return f"an unsigned note hurts {self.nm(a)}"
+        return ""
+
     def director_act(self, tick, hour):
         w = self.world
+        stories = self.stories_in_play(3)
+        if stories and self.rng.random() < 0.65:                  # most of the time, push a story already forming (sifting.py)
+            st = stories[0]
+            text = self.story_move(tick, hour, st)
+            if text:
+                st["pushed"] = st.get("pushed", 0) + 1
+                self.log_event(tick, {"type": "director", "who": "terevi", "room": "foyer", "vis": "viewer", "text": f"Auto-director (story: {st['text']}): {text}."})
+                self.day_notable.append("The auto-director pushed a story: " + text[:80])
+                return
         ids = list(w.agents)
         san, aff = self.collapse_metrics()
         opts = [("provoke", 3.0), ("rumor", 3.0 if aff > -1 else 1.0), ("note", 2.0), ("event", 1.5)]

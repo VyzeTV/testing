@@ -333,3 +333,9 @@ table.tel { font-size: 12px; border-collapse: collapse; margin: 4px 0 10px; } ta
 .epilogues { text-align: left; max-height: 46vh; overflow-y: auto; margin: 10px 0; }
 .epilogues .epi { display: flex; gap: 10px; align-items: flex-start; margin: 8px 0; font-size: 13px; line-height: 1.4; }
 .epilogues .epi img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--c, #888); flex: none; }
+
+.story { position: relative; display: flex; gap: 8px; align-items: flex-start; padding: 8px; margin: 6px 0; border-radius: 6px; background: rgba(255,255,255,.04); font-size: 13px; overflow: hidden; }
+.story .heat { position: absolute; left: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, #f0b24a, #ff4d6d); }
+.story .sfaces { display: flex; flex: none; }
+.story .sfaces img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; margin-right: -6px; border: 2px solid #222; }
+.story .smeta { color: var(--muted); font-size: 11px; margin-top: 2px; }

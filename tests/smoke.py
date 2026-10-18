@@ -6194,6 +6194,34 @@ w.end_agent(d_, "dead", "murdered")
 bt_ = r.vigil_beats(ids_[1:], [d_])
 check("the remembrance is honest: those who hated the dead do not pretend", any(b.get("move") == "cold" for b in bt_), str([b.get("move") for b in bt_][:5]))
 
+# ---- phase 8a: story sifting (sifting.py) and the auto-director pushing stories
+w, r, _ = fresh(310)
+w.state["revealed"] = True
+ids_ = sorted(w.agents)
+a_, b_, c_, d_, e_ = ids_[:5]
+w.agents[a_]["aff"][b_] = 9
+w.agents[b_]["aff"][c_] = 9
+w.agents[b_]["aff"][a_] = 2
+for x, y in ((d_, e_), (e_, d_)):
+    w.agents[x]["aff"][y] = -7
+w.agents[d_]["room"], w.agents[e_]["room"] = "library", "pool"
+for o in ids_:
+    if o not in (d_, e_) and w.agents[o]["room"] in ("library", "pool"):
+        w.agents[o]["room"] = "kitchen"
+w.state["plots"] = {c_: {"target": a_, "stage": "stalking", "motive": "hatred"}}
+r.believe(a_, {"k": "lied", "s": c_, "n": "x", "src": "inferred", "c": 0.7, "t0": r.abs_now(), "true": True})
+r.sift_tick(r.new_tick(14))
+kinds_ = {e["kind"] for e in r.stories_in_play(20)}
+check("story sifting finds a love triangle, two enemies alone, and a target starting to suspect their killer",
+      {"triangle", "enemies_alone", "plot_suspected"} <= kinds_, str(sorted(kinds_)))
+check("stories are ranked by heat: the suspected plot comes first", r.stories_in_play(1)[0]["kind"] == "plot_suspected")
+w.state["plots"] = {}
+r.sift_tick(r.new_tick(16))
+check("a story that no longer matches is marked over", all(e["status"] == "over" for e in w.state["stories"].values() if e["kind"] == "plot_suspected"))
+st_ = next(e for e in r.stories_in_play(20) if e["kind"] == "triangle")
+txt_ = r.story_move(r.new_tick(16), 16, st_)
+check("the auto-director can push a story at its people (a rumour about the beloved reaches the one who loves them)", txt_ and r.nm(a_) in txt_)
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

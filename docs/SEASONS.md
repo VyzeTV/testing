@@ -15,6 +15,7 @@
 - **Wins at a price** (good endings made bittersweet): only the last few of a killing game walked out 2, one survivor or fewer walked out of the house 2, someone never came out of the house 1, NeoVi gave her life for it 1.
 - **Killers the show let go:** 15; 1 tried to help from outside (believed 0, dismissed 0), the rest kept quiet or gave up.
 - **NeoVi joined the cast** after the fourth trial in 1 seasons, as a punishment in 1. Seasons that ran the full 28 days: 3.
+- **Stories that formed** (story sifting): enemies alone 210, secret held 198, plot 100, triangle 72, near freedom 71, silent witness 53, plot suspected 36, betrayed protector 13, grudge 11, unrequited 9, alliance strain 8, lovers breaking 7, contradiction fear 7.
 - **Season length:** median 13.5 days (shortest 5, longest 28).
 - **How seasons ended:** THE LAST BATTLE 7, THE SHOW SURRENDERS 6, RESCUE 3, THE WINNERS 1, THE LAST ONE STANDING 1, TEREVI IS SHUT DOWN 1, THE RECKONING 1.
 - **Deaths per season:** 7.7 on average. Causes: murdered 33, escaped on a raft 26, executed after the trial 24, escaped the island 15, wrongly executed 14, died in the final battle 12, killed 11, died in an accident 9.
@@ -58,6 +59,7 @@
 - **Wins at a price** (good endings made bittersweet): only the last few of a killing game walked out 6, NeoVi gave her life for it 2, one survivor or fewer walked out of the house 2, TereVi took someone with her 1.
 - **Killers the show let go:** 14; 3 tried to help from outside (believed 1, dismissed 0), the rest kept quiet or gave up.
 - **NeoVi joined the cast** after the fourth trial in 5 seasons, as a punishment in 1. Seasons that ran the full 28 days: 0.
+- **Stories that formed** (story sifting): plot 139, secret held 116, triangle 105, enemies alone 76, silent witness 70, near freedom 69, plot suspected 50, betrayed protector 22, grudge 19, unrequited 10, contradiction fear 9, alliance strain 5, lovers breaking 1.
 - **Season length:** median 13.5 days (shortest 6, longest 26).
 - **How seasons ended:** THE WINNERS 4, THE SHOW SURRENDERS 4, TEREVI IS SHUT DOWN 4, CROWNED BY WHIM 2, THE LAST BATTLE 2, RESCUE 2, THE LAST ONE STANDING 2.
 - **Deaths per season:** 8.4 on average. Causes: murdered 58, executed after the trial 49, escaped on a raft 15, escaped the island 14, wrongly executed 13, killed 10, executed by TereVi's whim 3, died in an accident 3.

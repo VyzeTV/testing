@@ -61,6 +61,8 @@ Out of uniform Kumiko is herself: long dark purple hair with blunt bangs, red ey
 ### The player's tools
 Director panel (whisper to someone, spread a rumour, drop an item, force a twist, island events), an optional **auto-director** that nudges quiet days, scenario editor and a **scenario generator** (premise, secret twist, rules, scheduled events under a difficulty budget), save slots, rewind/export, "Previously on" recap.
 
+**Stories in play** (`sifting.py`, the Stories tab in GM view): after every turn, patterns over the state spot stories forming: a love triangle, a love not returned, two enemies both alone right now, someone betrayed while protecting a third, someone holding a proven lie against a person they fear, a secret held by someone the owner dislikes, an alliance wearing thin, a plot (and a target starting to suspect the plotter), a witness the killer does not know about, lovers at breaking point, a grudge for an innocent voted to death, a way out close to done. Each has a heat and a "since"; one that stops matching is marked over. Sifting only reads (no chance, no state change). When the auto-director steps in, most of the time it pushes the hottest story one step at its people: a rumour, an unsigned note, or TereVi pointed at them.
+
 ---
 
 ## 3. The arc of a season
