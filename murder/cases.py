@@ -166,15 +166,13 @@ class CaseMixin:
                     weapon = method
             tags = w.item_spec(weapon).get("tags", []) if weapon else []
             kind = "sharp" if "sharp" in tags else "blunt" if "blunt" in tags else "hands"
-            p = {"sharp": 0.85, "blunt": 0.7, "hands": 0.25}[kind]
             vhp = w.agents[t]["hp"]
-            if vhp < 50:
-                p += 0.15
-            p = p * (0.75 + 0.25 * self.success_p(cid, 1.0))
-            if w.agents[t].get("asleep") or w.agents[t].get("out"):
-                p = max(p, 0.92)                    # a sleeper cannot defend themselves
-            good, luck = self.roll(cid, p)
+            res = self.fight(tick, cid, t, weapon, kind, hour, others=here)     # blow by blow (combat.py)
+            good = res["outcome"] == "killed"
             wname = w.item_name(weapon) if weapon else "bare hands"
+            if res["scratched"]:
+                a["scratched"] = self.day                                  # marks a sharp eye can find
+            tick.setdefault("fights", []).append({"by": cid, "on": t, "room": room, "outcome": res["outcome"], "blows": res["blows"]})
             instig = self.find_instigator(cid, t)
             dark = self.blackout_until >= self.idx          # in the dark nobody without a light sees who did it
             seen = here if not dark else [o for o in here if w.agents.get(o, {}).get("lit")]
@@ -184,24 +182,42 @@ class CaseMixin:
                           "hands": f"{name} wraps their hands around {tname}'s throat and does not let go until the struggling stops"}[kind]
                 self.log_event(tick, {"type": "attack", "who": cid, "room": room, "vis": "public",
                                       "text": f"{brutal}, in the {w.room_name(room)}."}, witnesses=seen, actor=cid)
+                self.log_event(tick, {"type": "fight", "who": cid, "room": room, "vis": "gm", "text": self.fight_text(cid, t, res, wname, kind)})
                 if dark:
                     for o in [x for x in here if x not in seen]:
                         w.remember(o, f"{_hh(hour)} (in the dark) You heard a struggle, a gasp and a thud somewhere near you; you could not see who.")
                 self.betrayal(tick, cid, t, "murdered")
                 self.open_case(tick, "murder", t, culprit=cid, wkind=kind, weapon=weapon, room=room, hour=hour, witnesses=seen,
                                staged=staged, instigator=instig, intended=intended, framed=framed)
+                if s.get("case"):
+                    s["case"]["wounds"] = res["wounds"]
+                    s["case"]["wound_text"] = self.wound_summary(res["wounds"])
+                    s["case"]["killer_scratched"] = bool(res["scratched"])
                 also = d.get("also")
                 if also in w.agents and also not in (cid, t) and w.agents[also]["room"] == room and s.get("case") and not s.get("spree"):
                     self.double_kill(tick, s["case"], cid, also, kind, wname, hour)
             else:
                 if not (w.agents[t].get("asleep") or w.agents[t].get("out")) and self.counter_kill(tick, cid, t, weapon, hour, here):
                     continue
-                w.agents[t]["hp"] = max(5, vhp - 35)
+                w.agents[t]["hp"] = max(5, w.agents[t]["hp"])
                 w.agents[t].setdefault("harmed_by", []).append([cid, self.day, hour])
-                if weapon and self.rng.random() < 0.5:
+                how = {"disarmed": f"{tname} wrestles the {wname} away", "escaped": f"{tname} breaks free and runs", "rescued": f"{tname}'s screams bring people running",
+                       "survived": f"{tname} fights them off"}[res["outcome"]] if res["outcome"] in ("disarmed", "escaped", "rescued", "survived") else f"{tname} survives"
+                if res["outcome"] == "disarmed" and weapon:
                     w.drop(cid, weapon, 1)
+                    w.take(t, weapon, 1)
+                elif weapon and self.rng.random() < 0.3:
+                    w.drop(cid, weapon, 1)
+                if res["outcome"] == "escaped":
+                    exits = sorted(e["room"] for e in w.adjacent(t, room) if e["ok"])
+                    if exits:
+                        w.agents[t]["room"] = self.rng.choice(exits)
+                if res["outcome"] == "rescued":
+                    self.s.setdefault("_night_noise", {})[room] = 3            # a scream wakes the house
+                wounded = ", ".join(sorted({wd["part"] for wd in res["wounds"]}))
                 self.log_event(tick, {"type": "attack", "who": cid, "room": room, "vis": "public",
-                                      "text": f"{name} attacks {tname} with {wname} but {tname} survives, wounded!"}, witnesses=here + [t], actor=cid)
+                                      "text": f"{name} attacks {tname} with {wname}, but {how}" + (f" (hurt: {wounded})" if wounded else "") + "!"}, witnesses=here + [t], actor=cid)
+                self.log_event(tick, {"type": "fight", "who": cid, "room": room, "vis": "gm", "text": self.fight_text(cid, t, res, wname, kind)})
                 w.adjust_aff(t, cid, -5)
                 for o in here:
                     w.adjust_aff(o, cid, -3)

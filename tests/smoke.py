@@ -5221,6 +5221,34 @@ case_ = w.state.get("case") or {}
 check("a fatal push is a murder with the pusher as culprit, not an accident", tv_ not in w.agents and case_.get("kind") == "murder" and case_.get("killer") == pk_
       and any(e["type"] == "fall" for e in tk_["events"]), str({k: case_.get(k) for k in ("kind", "killer")}))
 
+# ---- phase 6: fights in blows, with hit locations
+w, r, _ = fresh(196)
+ids = sorted(w.agents)
+outs_ = {}
+for kind_, asleep_ in (("sharp", True), ("sharp", False), ("hands", False)):
+    got_ = []
+    for i in range(120):
+        w.agents[ids[1]]["hp"], w.agents[ids[1]]["asleep"] = 100, asleep_
+        got_.append(r.fight(r.new_tick(14), ids[0], ids[1], "x" if kind_ != "hands" else None, kind_, 14, others=[ids[2]] if i % 2 else []))
+    outs_[(kind_, asleep_)] = got_
+kr_ = {k: sum(g["outcome"] == "killed" for g in v) / len(v) for k, v in outs_.items()}
+check("a sleeper rarely survives a blade, an awake person often does, and bare hands kill least", kr_[("sharp", True)] > 0.9 and 0.25 < kr_[("sharp", False)] < 0.75 and kr_[("hands", False)] < kr_[("sharp", False)], str(kr_))
+awake_ = [g for g in outs_[("sharp", False)]]
+check("an awake victim blocks, dodges, struggles, runs or screams, and can get away, be rescued or take the weapon",
+      {"escaped", "rescued", "disarmed"} <= {g["outcome"] for g in awake_} and {"block", "dodge", "struggle", "flee", "scream"} <= {b.get("reply") for g in awake_ for b in g["blows"]})
+check("every hit lands on a part of the body and leaves a wound", all(wd["part"] in ("head", "throat", "chest", "belly", "back", "arm", "leg", "hand") for g in awake_ for wd in g["wounds"])
+      and all(len(g["wounds"]) == sum(b["hit"] for b in g["blows"]) for g in awake_))
+check("a sleeper is hit where it counts", all(wd["part"] in ("throat", "head") for g in outs_[("sharp", True)] for wd in g["wounds"]))
+w.agents[ids[1]]["hp"], w.agents[ids[1]]["asleep"] = 100, True
+for c in ids[2:]:
+    w.agents[c]["room"] = "garden"
+w.agents[ids[0]]["room"] = w.agents[ids[1]]["room"] = "lounge"
+w.agents[ids[0]]["inv"][sharp()] = 1
+w.state["case"] = None
+r.resolve_attacks(r.new_tick(14), [(ids[0], {"target": ids[1], "method": sharp(), "frame": None})], 14)
+cs_ = w.state.get("case") or {}
+check("the case records the wounds for the autopsy", cs_.get("wounds") and cs_.get("wound_text") and ("throat" in cs_["wound_text"] or "head" in cs_["wound_text"]), str(cs_.get("wound_text")))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))
