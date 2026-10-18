@@ -62,6 +62,7 @@ from .looks import LooksMixin
 from .scenes import SceneMixin
 from .escape import EscapeWorkMixin
 from .finales import FinaleMixin
+from .outside import OutsideMixin
 from .claimtrial import ClaimTrialMixin
 from .perception import PerceptionMixin
 from .envsys import EnvironmentMixin
@@ -148,7 +149,7 @@ class Stop(Exception):
     pass
 
 
-class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, ScheduleMixin, BeliefMixin, NightLifeMixin, MurderPlanMixin, FightMixin, CarryMixin, EvidenceMixin, GearMixin, MarksMixin, LooksMixin, SceneMixin, EscapeWorkMixin, FinaleMixin, ClaimTrialMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
+class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, ScheduleMixin, BeliefMixin, NightLifeMixin, MurderPlanMixin, FightMixin, CarryMixin, EvidenceMixin, GearMixin, MarksMixin, LooksMixin, SceneMixin, EscapeWorkMixin, FinaleMixin, OutsideMixin, ClaimTrialMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
     def __init__(self, world, llm, on_tick, gate=None, should_stop=None, step=2, workers=6, seed=None,
                  murders=True, motive="", rule_mode="roulette", rule_text="", confessionals=True, mischief="occasional", chaos="normal",
                  variation=0, gm_pull=None, lean=False, call_cap=0, autodir=False, autodir_get=None, tuning_get=None):
@@ -1912,6 +1913,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                 a["hp"] = clamp(a["hp"] - 3)
                 self.stat(tick, cid, "sanity", -2, "slept rough")
         tick["events"].append({"type": "system", "who": "terevi", "room": "foyer", "vis": "public", "text": f"Day {self.day} ends."})
+        self.outside_dawn(tick)                                   # the raft crews out there (outside.py)
         # Diaries
         ids = list(w.agents.keys())
         asks = []
@@ -1998,6 +2000,9 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             if not self.revealed and hour >= 20:
                 self.emit(self.run_reveal(hour))
                 continue
+            if self.rescue_due(hour):
+                self.emit(self.run_rescue(hour))                     # help has reached the island (outside.py)
+                break
             rid = self.ready_route()
             if rid:
                 self.emit(self.run_finale(rid, hour))

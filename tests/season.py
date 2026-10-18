@@ -79,6 +79,8 @@ def one_season(job):
                 arrivals.append({"id": w.add_newcomer(spec), "day": day})
         DayRunner(w, LLM(backend="mock"), keep, step=2, murders=True, rule_mode="roulette", seed=seed * 1000 + day).run()
         day = w.state.get("day", day) + (1 if w.state.get("day", day) == day else 0)
+    if not w.state.get("over") and not w.agents:                         # the island emptied at the end of a day: the endgame decides
+        DayRunner(w, LLM(backend="mock"), keep, step=2, murders=True, rule_mode="roulette", seed=seed * 1000 + day).run_endgame(8)
     over = w.state.get("over") or {"kind": "unfinished", "title": f"still going after {MAX_DAYS} days", "day": day}
     names = {c: v["short"] for c, v in w.state["cast"].items()}
     nv = (w.state.get("npcs") or {}).get("neovi") or {}
@@ -87,6 +89,7 @@ def one_season(job):
             "survivors": sorted(c for c, a in w.state["agents"].items() if a.get("status", "alive") == "alive"),
             "graveyard": [{"id": g["id"], "day": g["day"], "how": g["how"]} for g in w.state.get("graveyard", [])],
             "trials": trials, "finales": finales, "saga": list(w.state.get("saga", [])), "names": names, "arrivals": arrivals,
+            "rafts": [{"ids": c["ids"], "stage": c["stage"], "day": c["day"]} for c in (w.state.get("outside") or {}).get("crews", [])], "rescue": w.state.get("rescue"),
             "escape": {rid: int(round(sum(r["plan"].values()) / len(r["plan"]))) for rid, r in (w.state.get("escape") or {}).get("routes", {}).items()}}
 
 
@@ -124,6 +127,9 @@ def markdown(seasons):
         out.append(f"- **Trials:** {len(tr)} in all, {sum(t['found'] for t in tr)} right verdicts.")
         out.append(f"- **Newcomers:** {round(sum(len(s['arrivals']) for s in ss) / len(ss), 1)} per season on average; "
                    f"{sum(1 for s in ss for c in s['survivors'] if c in {a['id'] for a in s['arrivals']})} of the survivors were newcomers.")
+        rafts = [c for s in ss for c in s["rafts"]]
+        out.append(f"- **Rafts launched:** {len(rafts)}" + (" (" + ", ".join(f"{k} {n}" for k, n in Counter(c['stage'] for c in rafts).most_common()) + ")" if rafts else "")
+                   + f". Rescue countdowns started: {sum(1 for s in ss if s['rescue'])}.")
         out.append(f"- **Ways out at the end:** the furthest route reached {round(statistics.mean(max(s['escape'].values() or [0]) for s in ss))}% on average "
                    f"(best {max(max(s['escape'].values() or [0]) for s in ss)}%).")
         out.append("- **Who walked out alive (seasons):** " + (", ".join(f"{k} {n}" for k, n in winners.most_common()) or "nobody") + ".\n")

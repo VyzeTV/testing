@@ -26,10 +26,10 @@ STEP_WORK = {
         "blind": {"rooms": ["generator_shed", "study"], "helps": ["hacking_drive", "laptop", "wire", "pliers"], "needs": [("aid",)]},
     },
     "raft": {
-        "materials": {"rooms": ["beach", "boathouse"], "helps": ["driftwood", "barrel", "planks", "rope", "tarp", "bed_sheets"], "needs": [("parts", 3)]},
+        "materials": {"rooms": ["beach", "boathouse"], "helps": ["driftwood", "barrel", "planks", "rope", "tarp", "bed_sheets"], "needs": [("parts", 2)]},
         "build": {"rooms": ["beach", "boathouse"], "helps": ["hammer", "rope", "wire", "duct_tape", "masking_tape", "fishing_line"], "needs": [("step", "materials")]},
-        "provisions": {"rooms": ["kitchen", "pantry", "boathouse"], "helps": ["water_bottle", "energy_bar", "life_jacket", "small_telescope"], "needs": [("parts", 2)]},
-        "launch": {"rooms": ["boathouse", "beach"], "helps": ["bolt_cutters", "crowbar", "rope"], "needs": [("step", "build"), ("aid",)]},
+        "provisions": {"rooms": ["kitchen", "pantry", "boathouse"], "helps": ["water_bottle", "energy_bar", "life_jacket", "small_telescope"], "needs": [("parts", 1)]},
+        "launch": {"rooms": ["boathouse", "beach"], "helps": ["bolt_cutters", "crowbar", "rope"], "needs": [("step", "build")]},
     },
     "ultimatum": {
         "explosives": {"rooms": ["generator_shed", "art_studio"], "helps": ["fuel_can", "chlorine", "paint_thinner", "turpentine", "flares", "matches"], "needs": [("parts", 3)]},
@@ -38,6 +38,8 @@ STEP_WORK = {
         "trigger": {"rooms": ["generator_shed"], "helps": ["wire", "battery", "pliers", "handheld"], "needs": [("parts", 1)]},
     },
 }
+# how quickly work on each route goes: a small raft is simple, a transmitter fiddly, a bomb dangerous
+PACE = {"raft": 1.6, "transmit": 1.3, "shutdown": 1.0, "ultimatum": 0.9}
 # roles that make someone good at a step
 SKILL = {("transmit", "unjam"): "Hacker", ("shutdown", "blind"): "Hacker", ("shutdown", "means"): "Hacker", ("transmit", "device"): "Hacker",
          ("shutdown", "locate"): "Urban Explorer", ("shutdown", "approach"): "Urban Explorer", ("raft", "launch"): "Urban Explorer",
@@ -191,7 +193,7 @@ class EscapeWorkMixin:
             for ev in w.search(cid, "searches the floor and walls for a hatch, a seam, a way down", 1.5):
                 self.log_event(tick, ev, actor=cid)                # looking for the hidden way down (world.search finds secret passages)
         rate = self.tune("escape_rate")
-        gain = 9 * rate + 4 * len(used) + (3 if SKILL.get((rid, step)) == w.cast[cid].get("role") else 0) + (self.facet(cid, "orderliness") - 50) / 25
+        gain = 9 * rate * PACE.get(rid, 1.0) + 4 * len(used) + (3 if SKILL.get((rid, step)) == w.cast[cid].get("role") else 0) + (self.facet(cid, "orderliness") - 50) / 25
         roll = self.rng.random()
         verdict = "progress"
         if roll < 0.08:

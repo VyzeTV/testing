@@ -302,7 +302,11 @@ class MayhemMixin:
         alive = list(w.agents)
         site = "voting_grounds"
         if not alive:
-            self._end_season(tick, "extinction", "NOBODY LEFT", "The island is silent. Nobody is left to win.", ids=[])
+            out = [c for crew in self.outside()["crews"] for c in crew["alive"] if crew["stage"] in ("sea", "ashore", "believed")]
+            if out:
+                self._end_season(tick, "raft", "ONLY THE RAFT GOT AWAY", "The island is silent. Somewhere out on the water, the only ones left are the ones who sailed away.", ids=out)
+            else:
+                self._end_season(tick, "extinction", "NOBODY LEFT", "The island is silent. Nobody is left to win.", ids=[])
             return tick
         mood = "crown" if len(alive) == 1 else self.terevi_mood()
         for cid in alive:

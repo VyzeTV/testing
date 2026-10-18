@@ -5,7 +5,7 @@ RoutesMixin is mixed into DayRunner (engine.py).
 from .data_world import ESCAPE_ROUTES, ROOMS
 
 
-GOOD_ENDINGS = {"truth", "shutdown", "ultimatum", "rescue"}
+GOOD_ENDINGS = {"truth", "shutdown", "ultimatum", "rescue"}          # "rescue_late" and "raft" are bittersweet
 BAD_ENDINGS = {"reckoning", "extinction", "battle", "sole"}
 
 
@@ -133,9 +133,9 @@ class RoutesMixin:
         rt["attempts"] += 1
         tick = self.new_tick(hour)
         tick["type"] = "finale"
-        live = rid in ("shutdown", "ultimatum")
+        live = rid in ("shutdown", "ultimatum", "raft")
         if live:
-            self.begin_practice(tick)                                # the raid and the standoff play on the live map (finales.py)
+            self.begin_practice(tick)                                # the raid, the standoff and the launch play on the live map (finales.py)
         team = self.finale_team(rid)
         site = r["room"]
         for cid in team:
@@ -177,11 +177,11 @@ class RoutesMixin:
         w, s = self.world, self.s
         esc = s["escape"]["routes"]["transmit"]["plan"]
         if ok:
-            self._end_season(tick, "truth", "THE TRUTH GETS OUT", text)
             self.fx(tick, "confetti", "lighthouse")
             for cid in w.agents:
                 self.special_boost(tick, cid, 8, "the truth got out", "comfort")
-            res = "The broadcast went out. The world is finally listening."
+            res = "The broadcast went out, and this time the world believed it. Somewhere, people are on their way."
+            self.start_rescue(tick, "broadcast", "the broadcast of the truth was believed")       # the countdown (outside.py)
         else:
             esc["unjam"] = min(esc["unjam"], 40)
             esc["device"] = max(0, esc["device"] - 40)
@@ -223,23 +223,16 @@ class RoutesMixin:
         w, s = self.world, self.s
         plan = s["escape"]["routes"]["raft"]["plan"]
         if ok:
-            names = ", ".join(self.nm(c) for c in team)
-            res = f"{names} push off from the beach and the raft slips into the dark water, out of TereVi's reach."
-            tick["raft"] = {"ids": list(team), "text": text}
-            for c in team:
-                w.end_agent(c, "escaped", "escaped on a raft")
-                s["vacancies"].append({"gender": w.cast[c]["gender"], "reason": f"{w.cast[c]['name']} sailed away"})
-            for cid, a in w.agents.items():
-                lost = a["memory"].setdefault("lost", [])
-                for c in team:
-                    lost.append({"id": c, "name": self.nm(c), "day": self.day, "how": "sailed away on a raft (nobody knows if they made it)", "close": self.close_label(a["aff"].get(c, 0))})
-                del lost[:-8]
-                self.stat(tick, cid, "sanity", -6, "friends sailed away")
-                self.moment(cid, f"watched {names} sail away")
+            crew = [c for c in (getattr(self, "_raft_crew", None) or team) if c in w.agents]
+            names = ", ".join(self.nm(c) for c in crew)
+            res = f"{names} push off from the beach and the raft slips into the dark water, out of TereVi's reach. The show goes on without them."
+            tick["raft"] = {"ids": list(crew), "text": text}
+            self.raft_away(tick, crew, self.escape_proof())                 # their journey goes on off-screen (outside.py)
             plan["materials"] = plan["build"] = plan["launch"] = 0
             plan["provisions"] = min(plan["provisions"], 30)
+            s["escape"]["routes"]["raft"]["parts"] = {}
             if not w.agents:
-                self._end_season(tick, "raft", "THE LAST RAFT", text, ids=list(team))
+                self._end_season(tick, "raft", "ONLY THE RAFT GOT AWAY", text, ids=list(crew))
         else:
             plan["build"] = 0
             plan["materials"] = min(plan["materials"], 30)

@@ -14,7 +14,7 @@ Like the gatherings (scenes.py), the engine decides each beat and the model only
 FinaleMixin is mixed into DayRunner (engine.py). routes.run_finale calls `live_finale` for these two routes.
 """
 
-LIVE_FINALES = ("shutdown", "ultimatum")
+LIVE_FINALES = ("shutdown", "ultimatum", "raft")
 
 
 class FinaleMixin:
@@ -38,8 +38,11 @@ class FinaleMixin:
         """Play the finale as a scene. Returns (ok, outcome)."""
         p, aid = self.finale_odds(rid, team)
         beats = []
-        ok, outcome = (self.raid_core(tick, team, p, aid, beats) if rid == "shutdown" else self.bomb_standoff(tick, team, p, beats))
-        site = "core_vault" if rid == "shutdown" else "generator_shed"
+        if rid == "raft":
+            ok, outcome, self._raft_crew = self.raft_launch(tick, team, p, beats)       # outside.py
+        else:
+            ok, outcome = (self.raid_core(tick, team, p, aid, beats) if rid == "shutdown" else self.bomb_standoff(tick, team, p, beats))
+        site = {"shutdown": "core_vault", "ultimatum": "generator_shed", "raft": "beach"}[rid]
         self.run_scene_live(tick, rid, site, [c for c in team if c in self.world.agents], hour, beats)
         tick["events"].append({"type": "system_notable", "who": team[0], "room": site, "vis": "gm",
                                "text": f"Finale ({rid}): base odds {int(p * 100)}%, outcome {outcome}."})

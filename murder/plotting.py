@@ -227,7 +227,7 @@ class PlotMixin:
                 continue
             sc, target, why, mk = self.plot_motive(cid)
             if sc > 0.1 and target in w.agents and not any(p["target"] == target and len(plots) >= 1 for p in plots.values()):
-                pr_ = min(0.5, sc * 0.35 * self.tune("plot_rate"))
+                pr_ = min(0.5, sc * 0.35 * self.tune("plot_rate") * (1.5 if s.get("rescue") else 1.0))     # TereVi's final episode stirs people up
                 if plots.get(target, {}).get("target") == cid:
                     pr_ *= 0.1                                              # two people plotting each other's deaths is rare, not the default outcome of a quarrel
                 cands.append((pr_, cid, target, why, mk))

@@ -5762,6 +5762,52 @@ evs_ = [e["text"] for e in tk_["events"] if e["type"] == "tease"]
 check("TereVi's counters are things people see: confiscations, a locked workroom, a punishment on air, a planted rumour",
       len(set(used_)) >= 3 and len(evs_) >= 6 and rt_["parts"]["materials"] < 4, str(sorted(set(used_))))
 
+# ---- phase 7b step 3: the raft, the outside and the rescue (outside.py)
+def raft_(seed):
+    w_, r_, _ = fresh(seed)
+    w_.state["revealed"] = True
+    rt = w_.state["escape"]["routes"]["raft"]
+    for st in rt["plan"]:
+        rt["plan"][st] = 100
+    rt["contributors"] = sorted(w_.agents)[:3]
+    rt["parts"] = {"materials": 4, "provisions": 2}
+    r_.rng = _Fixed(0.01, r_.rng)
+    t_ = r_.run_finale("raft", 6)
+    r_.rng = r_.rng.b
+    r_.emit(t_)
+    return w_, r_, t_
+w, r, t_ = raft_(254)
+crew_ = r.outside()["crews"][0]["ids"] if r.outside()["crews"] else []
+ls_ = [l for g in t_["talk"] if g.get("scene") for l in g["lines"]]
+check("the raft is small (two or three), its launch is a live scene, and the show goes on for everyone else",
+      2 <= len(crew_) <= 4 and not w.state.get("over") and len(w.agents) >= 4 and (t_.get("practice") or {}).get("room") == "beach" and any(l.get("move") == "launch" for l in ls_), str(crew_))
+check("the crew is off the show ('escaped') and has an off-screen journey", all(w.state["agents"][c]["status"] == "escaped" for c in crew_) and r.outside()["crews"][0]["stage"] == "sea")
+stages_ = []
+for d in range(8):
+    tk_ = r.new_tick(31)
+    r.outside_dawn(tk_)
+    stages_.append(r.outside()["crews"][0]["stage"])
+    r.day += 1
+check("each dawn the audience gets a snippet from out there, and the crew lands or is lost, then is believed, dismissed or silenced",
+      any(e["type"] == "outside" for e in tk_["events"]) or stages_[-1] in ("believed", "dismissed", "silenced", "lost"), str(stages_))
+w, r, _ = fresh(255)
+w.state["revealed"] = True
+tk_ = r.new_tick(12)
+r.start_rescue(tk_, "broadcast", "the broadcast was believed")
+check("a believed escape or broadcast starts a rescue countdown, and TereVi announces the final episode",
+      w.state["rescue"]["arrive"] >= r.day + 2 and any("FINAL EPISODE" in b["text"] for b in tk_["broadcasts"]))
+r.day = w.state["rescue"]["arrive"]
+check("the rescue is due once its day comes", r.rescue_due(12))
+t_ = r.run_rescue(12)
+check("rescue with enough people alive is a good ending", w.state["over"]["kind"] == "rescue" and w.state["over"]["tier"] == "good")
+w, r, _ = fresh(256)
+w.state["revealed"] = True
+w.state["rescue"] = {"arrive": r.day, "how": "raft", "why": "x", "alive_then": 8, "day": r.day}
+for c in sorted(w.agents)[2:]:
+    w.end_agent(c, "dead", "murdered")
+r.run_rescue(12)
+check("rescue that comes after most have died is bittersweet", w.state["over"]["kind"] == "rescue_late" and w.state["over"]["tier"] == "bittersweet")
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))
