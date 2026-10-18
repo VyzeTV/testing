@@ -141,6 +141,10 @@ class CaseMixin:
                                       "text": f"{name} is not thinking straight and strikes the WRONG person: {self.nm(t)} instead of {self.nm(intended)}."}, actor=cid)
             method = d["method"] or "hands"
             here = [o for o in w.occupants(room) if o not in (cid, t)]
+            if method == "push":
+                if self.push_kill(tick, cid, t) is not None:
+                    continue
+                method = "hands"
             tname = self.nm(t)
             if self.interrupted(tick, cid, t, here, hour):
                 continue
@@ -580,6 +584,11 @@ class CaseMixin:
         if s.get("case") or cid not in w.agents:
             return False
         a = w.agents[cid]
+        pushed = self.__dict__.get("_pushed_by")
+        if pushed and pushed[0] == cid and pushed[1] in w.agents:
+            # not an accident: they were pushed (the people who saw the shove are the witnesses)
+            self.open_case(tick, "murder", cid, culprit=pushed[1], wkind="blunt", room=a["room"], hour=tick["hour"], witnesses=pushed[2])
+            return True
         here = [o for o in w.occupants(a["room"]) if o != cid]
         self.open_case(tick, "accident", cid, room=a["room"], hour=tick["hour"], witnesses=here, cause=cause, detail=detail or cause)
         return True

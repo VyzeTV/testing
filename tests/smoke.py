@@ -5198,6 +5198,29 @@ r.do_snoop(tk_, sp_, 20.0)
 check("a sleeper may wake and catch the snooper at it", not w.agents[tg_].get("asleep") and any(b["k"] == "did" and b["s"] == sp_ and b["o"] == "snoop" for b in r.beliefs(tg_))
       and any(e["type"] == "snoop_caught" for e in tk_["events"]))
 
+# ---- phase 6: the murder planner
+w, r, _ = fresh(195)
+ids = sorted(w.agents)
+pk_, tv_ = ids[0], ids[1]
+T_ = r.day * 24 + 11
+r.believe(pk_, {"k": "at", "s": tv_, "r": "landing", "t0": T_, "t1": T_ + 0.25, "src": "seen", "c": 0.9, "true": True})
+r.believe(pk_, {"k": "at", "s": tv_, "r": "library", "t0": T_ + 2, "t1": T_ + 2.25, "src": "seen", "c": 0.9, "true": True})
+kinds_ = {sc["kind"]: sc for _, sc in r.plan_schemes(pk_, tv_)}
+check("the planner sees the schemes the world and the plotter's beliefs offer: asleep in their room, alone where they saw them alone, a push from a height",
+      {"asleep", "alone", "height"} <= set(kinds_) and kinds_["height"]["room"] == "landing" and kinds_["alone"]["room"] == "library", str(sorted(kinds_)))
+pl_ = {"target": tv_, "stage": "striking", "stage_ticks": 0, "plan": [], "scheme": kinds_["height"]}
+w.agents[pk_]["room"] = "library"
+check("a plotter waits for the planned place instead of striking anywhere", not r.scheme_allows(pk_, pl_))
+check("unless the deadline is on them", r.scheme_allows(pk_, pl_, urgent=True))
+w.agents[pk_]["room"] = w.agents[tv_]["room"] = "landing"
+check("in the planned place the scheme calls for a push", r.scheme_allows(pk_, pl_) and r.scheme_method(pk_, pl_) == "push")
+w.agents[tv_]["hp"] = 3
+tk_ = r.new_tick(14)
+r.resolve_attacks(tk_, [(pk_, {"target": tv_, "method": "push", "frame": None})], 14)
+case_ = w.state.get("case") or {}
+check("a fatal push is a murder with the pusher as culprit, not an accident", tv_ not in w.agents and case_.get("kind") == "murder" and case_.get("killer") == pk_
+      and any(e["type"] == "fall" for e in tk_["events"]), str({k: case_.get(k) for k in ("kind", "killer")}))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

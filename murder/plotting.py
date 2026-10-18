@@ -293,8 +293,12 @@ class PlotMixin:
                 if stage == "brooding" or ready.get(stage):
                     if self.rng.random() < (0.9 if urgent else 0.55) or p["stage_ticks"] >= MAX_TICKS[stage]:
                         nxt = STAGES[STAGES.index(stage) + 1]
+            if p["stage"] in ("preparing", "stalking", "striking") and not p.get("scheme"):
+                self.choose_scheme(tick, cid, p)                    # how they mean to do it (planner.py)
             if nxt:
                 p["stage"], p["stage_ticks"] = nxt, 0
+                if nxt == "preparing" and not p.get("scheme"):
+                    self.choose_scheme(tick, cid, p)
                 self.plan_note(p, {"preparing": "settled on a method", "stalking": "is ready and watching for a window", "striking": "will strike at the first chance"}[nxt])
                 self.log_event(tick, {"type": "plot", "who": cid, "room": a["room"], "vis": "viewer",
                                       "text": f"{self.nm(cid)} ({nxt}) against {self.nm(t)}: {p['plan'][-1].split(': ', 1)[-1]}"}, actor=cid)
@@ -364,9 +368,12 @@ class PlotMixin:
             d.update(action="knockout", target=t, method=self.plot_method(p) if not p["weapon"] or "blunt" in self.tags(p["weapon"]) else "hands", target_room="", activity="Moves on them from behind", step="knocks them out")
             self.plan_note(p, f"put {self.nm(t)} out of action ({p['window']})")
             return
+        if not self.scheme_allows(cid, p, urgent):
+            d.update(action="stay", target_room="", activity=f"Keeps an eye on {self.nm(t)} and bides their time", step="waits for the planned moment")
+            return
         if (window or urgent) and not s.get("case") and self.rng.random() < (0.8 if window else 0.5):
             p["window"] = "alone" if alone else "blind spot" if a["room"] in CAMERA_BLIND else "dark" if self.blackout_until >= self.idx else "deadline"
-            d.update(action="attack", target=t, method=self.plot_method(p), target_room="", activity="Something finally snaps into place", step="strikes")
+            d.update(action="attack", target=t, method=self.scheme_method(cid, p) or self.plot_method(p), target_room="", activity="Something finally snaps into place", step="strikes")
             self.plan_note(p, f"struck at {self.nm(t)} ({p['window']})")
         else:
             d.update(action="stay", target_room="", activity=f"Waits beside {self.nm(t)} for the right moment", step="waits for a window")

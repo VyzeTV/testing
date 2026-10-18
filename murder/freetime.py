@@ -1033,6 +1033,9 @@ class FreeTimeMixin:
         if p["stage"] == "stalking":
             p["seen"] = p.get("seen", 0) + 1
             return False
+        if not self.scheme_allows(cid, p, self.days_left() <= 0):
+            p["wait"] = p.get("wait", 0) + 0.1                   # not the planned place or time: they wait for it
+            return False
         # the longer they have waited, the less patience they have; nerves hold some people back
         wait = p.get("wait", 0)
         prob = 0.55 + 0.06 * wait + 0.12 * (self.facet(cid, "impulsiveness") - 50) / 50 + 0.1 * (self.facet(cid, "cruelty") - 50) / 50 - 0.1 * (a["sanity"] > 85)
@@ -1044,7 +1047,7 @@ class FreeTimeMixin:
         self.plan_note(p, f"struck at {self.nm(t)} ({p['window']})")
         self._slice_m = m
         try:
-            self.resolve_attacks(tick, [(cid, {"target": t, "method": self.plot_method(p), "frame": None})], hour)
+            self.resolve_attacks(tick, [(cid, {"target": t, "method": self.scheme_method(cid, p) or self.plot_method(p), "frame": None})], hour)
         finally:
             self._slice_m = None
         busy[cid] = m + SLICE

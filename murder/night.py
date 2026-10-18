@@ -51,7 +51,8 @@ class NightMixin:
         owls = [c for c in self.night_votes if c in w.agents]
         for cid, p in s.get("plots", {}).items():
             if cid in w.agents and cid not in owls:
-                if (p.get("stage") in ("stalking", "striking") and self.rng.random() < 0.65) or (p.get("stage") == "preparing" and self.rng.random() < 0.25):
+                night_plan = (p.get("scheme") or {}).get("kind") == "asleep"
+                if (p.get("stage") in ("stalking", "striking") and self.rng.random() < (0.95 if night_plan else 0.65)) or (p.get("stage") == "preparing" and self.rng.random() < 0.25):
                     owls.append(cid)
         case = s.get("case")
         for cid, a in w.agents.items():
