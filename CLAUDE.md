@@ -16,7 +16,8 @@ A Danganronpa-style killing-game simulation. **The engine decides what happens; 
      - `night.py`: bedtime at 22:00, night blocks at hours 23/25/27/29 (they run past midnight so time only moves forward; displayed with `% 24`), dawn at 31 (07:00) with diaries and the day increment. Sleep is a task, waking has reasons, and a short night leaves someone exhausted.
      - Deadline-day hourly sanity loss (`engine.tick_dread`/`deadline_hours`).
      - Viewer quiet-night skip (ask / auto / watch) and a GM "Skip quiet night" button.
-- **Next: phase 5, belief bases.** Each character gets structured beliefs fed by perception and overhearing: a fact, its source (seen / heard / told / inferred), confidence, time. False beliefs are possible (lies, misheard lines, rumours). They feed testimony, lie detection, gossip and meal news (`s["news"]` is the current simple ledger), the phase 6 murder planner and the phase 7 claim-based trial. Building blocks already exist: `perception.py`, `convo.overhear` (full / part / saw / unseen), `social.testimony_for` / `log_whereabouts`, and `schedule.spread_news`.
+- **Phase 5 has begun with its code-health step** (done: hash-seed determinism, the duplicate-method test; the suite turned out to take 45 seconds, so splitting it was dropped). Still to do in that step: extend `tests/viewer_check.js` to reach a night and the trial, and convert old saves checkpointed at the former 23:00 night turn.
+- **Then: belief bases.** Each character gets structured beliefs fed by perception and overhearing: a fact, its source (seen / heard / told / inferred), confidence, time. False beliefs are possible (lies, misheard lines, rumours). They feed testimony, lie detection, gossip and meal news (`s["news"]` is the current simple ledger), the phase 6 murder planner and the phase 7 claim-based trial. Building blocks already exist: `perception.py`, `convo.overhear` (full / part / saw / unseen), `social.testimony_for` / `log_whereabouts`, and `schedule.spread_news`.
 - Later phases (see the plan doc):
   - 6: affordances and a murder planner, plus fights in blows, carrying slots, hit locations and a small catalogue of distinct items (listed under "Phase 6 additions").
   - 7: a claim-based trial, which is also where special scenes become live "practices" instead of being written whole.
@@ -24,10 +25,11 @@ A Danganronpa-style killing-game simulation. **The engine decides what happens; 
 
 ## Running and checking
 
-- Tests (mock LLM, no network): `python tests/smoke.py` (844 checks, about 4 minutes; must end `N/N passed`) and `python tests/baseline.py` (mock calls a day; keep it at or below about 91.7. It is about 83 now).
+- Tests (mock LLM, no network): `python tests/smoke.py` (846 checks, about 45 seconds; must end `N/N passed`) and `python tests/baseline.py` (mock calls a day; keep it at or below about 91.7. It is about 83 now).
 - Browser check: `MC_DATA_DIR=<scratch dir> python server.py &` then `node tests/viewer_check.js` (expects `frozen: 0`, `errors: []`). Use a fresh data dir: a leftover session or an old server on port 8766 gives misleading results. Stop the server with `pkill -f "[s]erver.py"` in its own shell call (an unbracketed pattern kills the shell itself).
 - Playwright and Chromium are preinstalled (`/opt/node22/lib/node_modules/playwright`).
-- Mock results depend on Python's hash seed (set iteration order), so a check that relies on chance (for example "a trial happens in this mock week") is flaky. Force the outcome instead (`murder.llm.LLM.mock_murder_prob`, `murders=False`) and confirm with `PYTHONHASHSEED=1` and `=2`.
+- A game must not depend on Python's hash seed: never let set order drive a choice (iterate `sorted(...)` instead). `smoke.py` runs three mock days under `PYTHONHASHSEED=1` and `=2` and fails if they differ, and also fails if two mixins define the same method name.
+- Checks that rely on chance (for example "a trial happens in this mock week") should force the outcome (`murder.llm.LLM.mock_murder_prob`, `murders=False`) rather than hope for it.
 
 ## How the engine is put together (quick map)
 
@@ -53,7 +55,7 @@ A Danganronpa-style killing-game simulation. **The engine decides what happens; 
 - **Free time** (`freetime.free_pick`) scores activities from needs and facets.
   - At night only `NIGHT_ACTS` are allowed, plus a `sleep` act.
   - `add(..., far=True)` lets a real need search beyond the normal reach.
-- **Method names collide silently across mixins.** Before adding a method, grep for its name; `ConditionMixin.wake_up` (coming round from unconsciousness) was nearly shadowed.
+- **Method names collide silently across mixins.** Before adding a method, grep for its name; `ConditionMixin.wake_up` (coming round from unconsciousness) was nearly shadowed; `smoke.py` now checks for this.
 - **Tuning dials:** `settings.py` (`self.tune(key)`).
 - **GM actions:** `session.GM_TYPES` → `story.apply_gm`.
 - **Conventions:** comments are sparse and plain; docstrings explain intent. Docs are written in plain, short sentences. Commit messages end with the session's attribution lines.

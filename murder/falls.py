@@ -137,7 +137,7 @@ class FallMixin:
         evt = {"type": "fall", "who": cid, "room": land_room, "vis": "public", "text": text}
         if m is not None:
             evt["m"] = round(m, 1)
-        seen = [o for o in set(w.occupants(start_room)) | set(w.occupants(land_room)) if o in w.agents and o != cid]
+        seen = [o for o in sorted(set(w.occupants(start_room)) | set(w.occupants(land_room))) if o in w.agents and o != cid]
         self.log_event(tick, evt, witnesses=seen, actor=cid)
         lethal = {"stairs": "broke their neck falling down the stairs", "ladder": "fell from a ladder", "jump": "died jumping from a burning room",
                   "climb": "fell to their death climbing out of a window", "push": "was pushed to their death"}.get(cause, "died in a fall")

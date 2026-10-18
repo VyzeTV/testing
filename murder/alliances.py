@@ -32,7 +32,7 @@ class AllianceMixin:
             return
         pr = self.pressure()
         pairs = []
-        for room in {a["room"] for a in w.agents.values()}:
+        for room in sorted({a["room"] for a in w.agents.values()}):
             hs = [o for o in w.occupants(room) if o in w.agents]
             for i, x in enumerate(hs):
                 for y in hs[i + 1:]:

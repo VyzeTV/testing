@@ -5040,6 +5040,36 @@ llm_.LLM.mock_murder_prob = mmp_
 check("phase 4 gate: mock weeks fire meals, a trial, a vigil and a last call, and play quiet and wakeful nights",
       {"meal", "trial", "vigil", "lastcall", "quiet_night", "night_awake"} <= gate_kinds_, str(sorted(k for k in gate_kinds_ if k)))
 
+# ---- code health: no two mixins define the same method (the later one would silently shadow the other)
+owners_ = {}
+for cls_ in DayRunner.__mro__[1:]:
+    for k_, v_ in vars(cls_).items():
+        if callable(v_) and not k_.startswith("__"):
+            owners_.setdefault(k_, []).append(cls_.__name__)
+clash_ = {k_: v_ for k_, v_ in owners_.items() if len(v_) > 1}
+check("no two engine mixins define a method with the same name", not clash_, str(sorted(clash_.items())[:5]))
+
+# ---- code health: a game does not depend on Python's hash seed (set order must never drive a choice)
+import subprocess  # noqa: E402
+DET_ = """
+import sys, os, json, hashlib, tempfile
+sys.path.insert(0, %r); os.environ["MC_DATA_DIR"] = tempfile.mkdtemp()
+from murder.engine import DayRunner
+from murder.llm import LLM
+from murder.world import World, new_state
+w = World(new_state(3)); h = hashlib.md5()
+def dig(t):
+    h.update(json.dumps({k: v for k, v in t.items() if k != "usage"}, sort_keys=True, default=str).encode())
+for d in (3, 4, 5):
+    w.state["day"] = d
+    DayRunner(w, LLM(backend="mock"), dig, step=2, murders=True, rule_mode="roulette", seed=40 + d).run()
+    if w.state.get("over"):
+        break
+print(h.hexdigest())
+""" % os.path.dirname(HERE)
+digs_ = [subprocess.run([sys.executable, "-c", DET_], capture_output=True, text=True, env={**os.environ, "PYTHONHASHSEED": hs_}).stdout.strip() for hs_ in ("1", "2")]
+check("the same seed gives the same three days under two different hash seeds", digs_[0] and digs_[0] == digs_[1], str(digs_))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))
