@@ -5527,6 +5527,10 @@ check("each piece of evidence is shown once, and each person names who they saw 
 wh_ = [g for g in tr["talk"] if g.get("whisper")]
 check("allies whisper at the trial; a whisper is a live side conversation on the clock", all(g.get("live") and all(l.get("m") is not None for l in g["lines"]) for g in wh_))
 
+w, r, _ = fresh(213)
+check("being seen with a weapon counts at the trial only if it fits the case: the weapon itself most, the same kind a little, anything else not at all",
+      r.weapon_match("kitchen_knife", "kitchen_knife") > r.weapon_match("scissors", "kitchen_knife") > 0 and r.weapon_match("baseball_bat", "kitchen_knife") == 0)
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

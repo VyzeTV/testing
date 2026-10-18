@@ -75,7 +75,9 @@ class ClaimTrialMixin:
                     facts.append({"by": h, "about": b["s"], "kind": "near_scene", "w": 2.0 * b["c"], "text": f"I saw {self.nm(b['s'])} in the {w.room_name(room)} around {int(t % 24):02d}:00.",
                                   "true": b.get("true", True)})
                 elif b["k"] == "has" and b["s"] in ids:
-                    facts.append({"by": h, "about": b["s"], "kind": "has", "w": 1.0, "text": b.get("n", "")[:160], "true": b.get("true", True)})
+                    wt = self.weapon_match(b.get("o"), case.get("weapon"))
+                    if wt:
+                        facts.append({"by": h, "about": b["s"], "kind": "has", "w": wt, "text": b.get("n", "")[:160], "true": b.get("true", True)})
                 elif b["k"] == "lied" and b["s"] in ids:
                     what = b.get("n", "")[:120].replace("you saw", "I saw")
                     facts.append({"by": h, "about": b["s"], "kind": "lied_before", "w": 1.5, "text": f"{self.nm(b['s'])} has lied to me before: they {what}.", "true": b.get("true", True)})
@@ -86,6 +88,15 @@ class ClaimTrialMixin:
                 facts.append({"by": wit, "about": case["killer"], "kind": "witness", "w": 6.0, "text": text, "true": True})
                 seen_it += 1
         return facts
+
+    def weapon_match(self, item, weapon):
+        """How much being seen with `item` says about a death by `weapon`: the weapon itself counts, the same kind of weapon a little, anything else not at all."""
+        if not item or not weapon:
+            return 0.0
+        if item == weapon:
+            return 2.5
+        does = lambda k: {"cut", "bludgeon"} & set(self.item_caps(k)["does"])
+        return 0.6 if does(item) & does(weapon) else 0.0
 
     def weak_points(self, claims, ids, exposed):
         """[(speaker, holder, belief)]: claims that conflict with what someone else saw."""

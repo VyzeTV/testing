@@ -27,7 +27,7 @@ A Danganronpa-style killing-game simulation. **The engine decides what happens; 
 
 ## Running and checking
 
-- Tests (mock LLM, no network): `python tests/smoke.py` (925 checks, about 45 seconds; must end `N/N passed`) and `python tests/baseline.py` (mock calls a day; keep it at or below about 91.7. It is about 90 now: close to the ceiling).
+- Tests (mock LLM, no network): `python tests/smoke.py` (926 checks, about 45 seconds; must end `N/N passed`) and `python tests/baseline.py` (mock calls a day; keep it at or below about 91.7. It is about 90 now: close to the ceiling).
 - Balance numbers: `python tests/balance.py --write` (about 30 seconds) writes `docs/BALANCE.md`: deaths and how weeks end, trials and verdicts, sanity, idle time, meals, nights, beliefs and lies caught. Report them at every phase gate.
 - Browser check: `MC_DATA_DIR=<scratch dir> python server.py &` then `node tests/viewer_check.js` (expects `frozen: 0`, `errors: []`). Use a fresh data dir: a leftover session or an old server on port 8766 gives misleading results. Stop the server with `pkill -f "[s]erver.py"` in its own shell call (an unbracketed pattern kills the shell itself).
 - Playwright and Chromium are preinstalled (`/opt/node22/lib/node_modules/playwright`).
