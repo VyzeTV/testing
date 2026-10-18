@@ -49,6 +49,7 @@ T = {
     "deflect": {"*": ["Why are you asking me? Ask {t} where they were.", "That's none of your business.", "I don't remember. It's all a blur."]},
     "deny": {"*": ["That's insane. I didn't do anything!", "You've got no proof, {t}.", "I would never. Never."]},
     "counter": {"*": ["Funny, I was about to say the same about you.", "Look who's talking.", "You're pointing at me so nobody looks at you."]},
+    "freeze": {"*": ["...", "I... I don't...", "That's not... I can't..."]},
 }
 ACTS = {"comfort": "puts a hand on {t}'s shoulder", "gift": "presses the {item} into {t}'s hands", "threaten": "steps right up to {t}", "putdown": "turns away from {t}",
         "pact": "holds out a hand to {t}", "teamwork": "hands {t} a screwdriver", "flirt": "nudges {t} with an elbow", "snap": "jabs a finger at {t}",
@@ -102,7 +103,8 @@ MOVE_WORDS = {"chat": "makes small talk with", "joke": "jokes with", "comfort": 
               "teamwork": "works on the way out with", "incite": "tries to turn against someone:", "feign": "fakes friendliness toward", "side": "sides with",
               "warm": "responds warmly to", "agree": "agrees with", "laugh": "laughs with", "shrug": "shrugs off", "accept": "accepts from", "refuse": "refuses",
               "rebuff": "brushes off", "snap": "snaps at", "back_down": "backs down before", "stand_up": "stands up to", "testify": "answers", "lie": "lies to",
-              "deflect": "deflects", "deny": "denies it to", "counter": "turns it back on"}
+              "deflect": "deflects", "deny": "denies it to", "counter": "turns it back on",
+              "freeze": "freezes, trapped, in front of"}
 
 
 def beat_text(eng, i, b):

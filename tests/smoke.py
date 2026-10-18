@@ -5894,6 +5894,24 @@ r.rng = r._rng0
 check("after that no newcomers can arrive", w.state["no_newcomers"])
 r.ensure_wardrobe()
 check("Kumiko has her own looks and clothes", looks_of("kumiko", w.state["cast"]["kumiko"])["eyes"] == "red eyes" and "clothes_kumiko" in w.state["custom_items"])
+kc_ = w.state["cast"]["kumiko"]
+lk_ = looks_of("kumiko", kc_)
+check("out of uniform Kumiko looks like her picture: long dark purple hair, red eyes, short, a stuffed rabbit, a black blazer and red tie",
+      lk_["hair"] == ("long", "dark purple") and lk_["eyes"] == "red eyes" and lk_["height"] == "short" and "rabbit" in lk_["accessory"][0]
+      and "red tie" in w.state["custom_items"]["clothes_kumiko"]["name"])
+check("her sheet sets her nature outright: very curious, mild, not assertive, fragile under weight",
+      r.facet("kumiko", "curiosity") >= 85 and r.facet("kumiko", "anger") <= 20 and r.facet("kumiko", "assertiveness") <= 30
+      and r.facet("kumiko", "stress_vulnerability") >= 70 and r.has_trait("kumiko", "undecided") and not r.has_trait(sorted(w.agents)[0], "undecided"))
+other_ = next(c for c in sorted(w.agents) if c != "kumiko")
+bts_k = r.resolve_move(r.new_tick(14), {"id": "tk", "room": w.agents["kumiko"]["room"], "members": [other_, "kumiko"], "used": {}, "hour": 14}, other_, "kumiko", "accuse")
+check("accused to her face, Kumiko freezes instead of answering", bts_k[1]["move"] == "freeze")
+labs_ = []
+r._seg = lambda tk, cid, m0, m1, room, act, label, *a, **k: labs_.append(label)
+for _ in range(6):
+    w.agents["kumiko"]["room"] = "lounge"
+    r._start(r.new_tick(14), "kumiko", "look", "lounge", None, 0)
+del r._seg
+check("she does cat-like things (watching from a high shelf, staring at a corner)", labs_ and all(l in ("watching everyone from a high shelf", "staring at nothing in a corner") for l in labs_), str(labs_))
 r.run_tick(12)
 check("Kumiko plays a day as a contestant", "kumiko" in w.state["agents"])
 

@@ -36,7 +36,7 @@ MOVES = {
     "feign":    ("deception", "normal", "friendly talk"),
 }
 # replies the target gives (beats with no effects of their own)
-REPLIES = ("agree", "warm", "laugh", "shrug", "rebuff", "snap", "testify", "lie", "deflect", "deny", "counter", "back_down", "stand_up", "accept", "refuse")
+REPLIES = ("agree", "warm", "laugh", "shrug", "rebuff", "snap", "testify", "lie", "deflect", "deny", "counter", "back_down", "stand_up", "accept", "refuse", "freeze")
 LOUD_RANK = {"whisper": 0, "quiet": 1, "normal": 2, "heated": 3}
 
 
@@ -289,6 +289,8 @@ class SocialMixin:
             aff(t, a, 2)
             reply, outcome = "accept", "ok"
         elif move == "boast":
+            if self.has_trait(t, "no_talent"):
+                hurt(t, 1, f"next to {self.nm(a)}, she feels she has no talent at all")
             if outcome == "ok":
                 aff(t, a, 1 if self._fc(t, "gregariousness") >= 60 else 0) if self._fc(t, "gregariousness") >= 60 else None
                 reply = "shrug"
@@ -357,7 +359,10 @@ class SocialMixin:
         elif move == "accuse":
             fx["testimonies"] = [{"by": a, "claim": f"I think {self.nm(t)} did it."}]
             aff(t, a, -2)
-            if outcome == "ok":
+            if self.has_trait(t, "trapped"):                        # challenged head-on, she freezes instead of answering
+                hurt(t, 3, f"backed into a corner by {self.nm(a)}")
+                reply = "freeze"
+            elif outcome == "ok":
                 hurt(t, 2, "accused")
                 reply = "deny"
             else:
@@ -375,6 +380,10 @@ class SocialMixin:
                 hurt(a, 1, "faced down")
                 aff(t, a, -1)
                 reply = "stand_up"
+        elif move == "confront" and self.has_trait(t, "trapped") and outcome != "ok":
+            hurt(t, 2, f"cornered by {self.nm(a)}")
+            aff(a, t, -1)
+            reply = "freeze"
         elif move == "confront":
             if outcome == "ok":
                 aff(a, t, 1)

@@ -37,6 +37,10 @@ class _Rooms(set):
         super().add(r)
 
 # act: (label, minutes, rooms (where it can happen; also the fallback), furniture it is done at, short verb for the log)
+CATLIKE = {"sit": [("curled up in a patch of sun", "curls up in a patch of sun"), ("perched on the arm of a chair", "perches on the arm of a chair")],
+           "nap": [("napping, curled up tight", "curls up and naps")],
+           "look": [("watching everyone from a high shelf", "climbs somewhere high to watch"), ("staring at nothing in a corner", "stares at a corner nobody else is looking at")],
+           "stroll": [("following a moth around", "follows a moth"), ("walking along the top of a low wall", "walks along the top of a low wall")]}
 ACTS = {
     "eat":      ("having a meal", 30, ["dining_hall", "kitchen", "pantry"], ["chair", "table"], "sits down to eat"),
     "drink":    ("getting a drink", 15, ["kitchen", "dining_hall", "bathroom", "pantry"], [], "gets something to drink"),
@@ -790,6 +794,8 @@ class FreeTimeMixin:
             return self._start_chat(tick, cid, partner, m, why)
         if act == "explore":
             label = "exploring the " + w.room_name(room)
+        if act in CATLIKE and self.has_trait(cid, "catlike"):
+            label, verb = self.rng.choice(CATLIKE[act])
         end = m + dur
         self._seg(tick, cid, m, end, a["room"], act, label, "free", at)
         if walked and act not in ("bathroom", "shower", "bath", "nap", "dress", "flee", "rescue", "stalk"):

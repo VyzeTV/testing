@@ -63,6 +63,8 @@ def derive_mind(cid, cast):
         v = 45 + (_h(cid, "v", k) % 21) - 10
         v += 14 * min(2, sum(1 for w in VKW[k] if w in text))
         values[k] = max(5, min(95, v))
+    facets.update(cast.get("facets") or {})                             # a sheet can set facets outright (Kumiko's does)
+    values.update(cast.get("values") or {})
     return facets, values
 
 
@@ -78,6 +80,10 @@ VDESC = {"loyalty": "loyalty", "law": "rules and order", "truth": "the truth", "
 class MindMixin:
     def mind_on(self):
         return bool(self.tune("mind"))
+
+    def has_trait(self, cid, trait):
+        """A behaviour a character sheet names outright (cast `traits`), e.g. Kumiko's "undecided" or "trapped"."""
+        return trait in ((self.world.cast.get(cid) or {}).get("traits") or ())
 
     def mind(self, cid):
         a = self.world.agents[cid]

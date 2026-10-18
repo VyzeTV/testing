@@ -176,6 +176,9 @@ class BeliefMixin:
             for c in members:
                 if c != speaker and c in w.agents:
                     self.believe(c, {**base, "src": "told", "c": 0.35 + 0.3 * self.receptivity(c, speaker)})
+                    if not base["true"] and speaker in w.agents and self.has_trait(c, "observant") and self.rng.random() < 0.35:   # she reads the tell
+                        self.believe(c, {"k": "lied", "s": speaker, "n": f"something about how {self.nm(speaker)} said it was off", "src": "inferred", "c": 0.5,
+                                         "t0": self.abs_now(), "true": True})
             for c, lvl in (ln.get("heard") or {}).items():
                 if c in w.agents and c not in members:
                     if lvl == "full":

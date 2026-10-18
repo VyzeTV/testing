@@ -11,25 +11,30 @@ Each night she chooses: obey; help (slip someone a part for the way out, unlock 
 a plan to TereVi). The choice comes from her fear, her feelings, a lover, how far her resolve has come, and a little chance. Helping is risky:
 if TereVi catches her, TereVi decides the punishment: a humiliation on air, re-education (her sanity is drained hard and her feelings are
 pushed back toward obedience), or making her a participant. As a participant she is a contestant like the rest, under her own name; nobody
-is left to replace a housemaid, so no newcomers arrive for the rest of the season.
+is left to replace a housemaid, so no newcomers arrive for the rest of the season. Out of uniform she is herself: reserved, observant, undecided, a
+little cat-like, and liable to freeze when her views are challenged (cast `traits`, read by the engine through `has_trait`).
 KumikoMixin is mixed into DayRunner (engine.py).
 """
-import os
-import shutil
-
 from .data_cast import HOSTS
 from .world import BEDROOMS
 
 KUMIKO_ID = "kumiko"
 KUMIKO = {"name": "Kumiko Akimoto", "short": "Kumiko", "role": "Former Housemaid", "gender": "female", "age": 24, "origin": "Japan",
-          "persona": "Quiet, flat and watchful after years as TereVi's housemaid NeoVi; terse, uncanny, likes cats and playing dumb, hates making choices "
-                     "and disorder. Under the obedience she is frightened, lonely and furious, and she knows this house better than anyone.",
-          "secret": "She cleaned up after every death on the island, and she knows where TereVi keeps her secrets.",
-          "likes": "cats, order", "dislikes": "choices, TereVi", "speech": "Flat, terse, short sentences; rarely says more than she must.",
-          "candor": "Goes cold and silent when cornered; when she finally breaks, it is sudden and sharp.",
-          "goals": "Survive, and never be anyone's servant again.",
-          "looks": {"hair": ("long", "black"), "eyes": "red eyes", "hand": "small", "handed": "right", "height": "short",
-                    "accessory": ("red hair scrunchie", None), "shape": ["twin tails", "long hair"]}}
+          "persona": "Reserved but not shy; people find her a bit odd because she loves the mysteries of life itself. Intelligent, observant and very good at "
+                     "reading people. Otherwise an ordinary young woman who knows her pop culture, anime and video games. Does cat-like things without "
+                     "noticing. Tries to make enemies of no one, yet tries to do good and to stand up for what she thinks is right. Her weaknesses: she is "
+                     "badly undecided, relies too much on herself, and can break when the weight of a situation is too much to bear. Among successful "
+                     "celebrities she worries she has no talent at all.",
+          "secret": "She was TereVi's housemaid NeoVi: she cleaned up after every death on the island and knows where TereVi keeps her secrets.",
+          "likes": "cats, mysteries, anime, video games", "dislikes": "making choices, being put on the spot, TereVi",
+          "speech": "Quiet and even, a little deadpan; odd questions about life out of nowhere, the occasional game or anime reference, and long pauses when she cannot decide.",
+          "candor": "Polite to everyone and slow to pick a side; when her view is flipped hard or challenged directly she freezes, trapped, and goes quiet.",
+          "goals": "Survive, never be anyone's servant again, find out what she is actually good at, and do the right thing if she can work out what it is.",
+          "objection": "Wait. That doesn't add up.",
+          "traits": ["observant", "undecided", "self_reliant", "catlike", "trapped", "no_talent"],
+          "facets": {"anger": 20, "vengefulness": 20, "trust": 45, "gregariousness": 35, "altruism": 70, "assertiveness": 30, "courage": 50, "cruelty": 8,
+                     "impulsiveness": 25, "stress_vulnerability": 70, "vanity": 15, "ambition": 30, "curiosity": 88, "orderliness": 60, "humour": 45, "romantic": 50},
+          "values": {"truth": 70, "independence": 75, "knowledge": 82, "tranquility": 62, "cooperation": 45, "cunning": 30, "competition": 20}}
 CONFIDE = ("name", "blindspot", "cache", "seen", "warning")
 
 
@@ -250,19 +255,21 @@ class KumikoMixin:
         w, s = self.world, self.s
         nv = s["npcs"]["neovi"]
         spec = dict(KUMIKO)
-        cast = {k: v for k, v in spec.items() if k != "looks"}
+        cast = dict(spec)
         taken = {}
         for c in w.agents:
             taken[s["cast"][c]["home"]] = taken.get(s["cast"][c]["home"], 0) + 1
         home = min(BEDROOMS, key=lambda r: (taken.get(r, 0), r))
-        cast.update({"pron": "she", "color": HOSTS["neovi"]["color"], "card": "", "home": home, "looks": spec["looks"],
-                     "mock_lines": ["I know this house. Every inch.", "Don't touch that.", "I used to clean up after you."]})
+        cast.update({"pron": "she", "color": HOSTS["neovi"]["color"], "card": "", "home": home,
+                     "mock_lines": ["I know this house. Every inch.", "Do you ever wonder why any of us are here? Not here here. Here.",
+                                    "...I can't decide. Give me a minute.", "Everyone here is famous for something. I fold towels.",
+                                    "You blinked twice before you answered. Just saying."]})
         s["cast"][KUMIKO_ID] = cast
         aff = {c: nv["aff"].get(c, 0) for c in w.agents}
         s["agents"][KUMIKO_ID] = {"status": "alive", "room": nv.get("room") if nv.get("room") not in (None, "none") else "foyer", "hp": 90,
                                   "sanity": nv.get("sanity", 60), "inv": {"bandages": 1}, "known": list(s.get("found_edges", [])),
                                   "route": "shutdown", "drive": {"id": "survivor", "target": None, "arc": ""}, "known_secrets": [],
-                                  "activity": "Wearing her own clothes for the first time in years", "aff": aff,
+                                  "activity": "Back in her own clothes for the first time in years, rabbit in hand", "aff": aff,
                                   "memory": {"diary": [f"Day {self.day}: TereVi made me one of them. My name is Kumiko Akimoto."], "recent": [], "notes": [], "lost": [], "moments": []}}
         for c in list(w.agents):
             if c != KUMIKO_ID:
@@ -277,7 +284,6 @@ class KumikoMixin:
         vac = next((i for i, v in enumerate(s.get("vacancies", [])) if v["gender"] == "female"), None)
         if vac is not None:
             del s["vacancies"][vac]
-        self.copy_portrait()
         text = ("TereVi strips NeoVi of her uniform and her keys in front of everyone. \"Congratulations, darling. You're a contestant now.\" "
                 "For the first time, the cast hears her real name: Kumiko Akimoto.")
         self.terevi_says(tick, "Let's give a warm welcome to our newest contestant! Say hello, Kumiko. Hehe.")
@@ -288,12 +294,3 @@ class KumikoMixin:
                 self.moment(c, "watched TereVi make NeoVi (Kumiko) a contestant")
         self.saga("TereVi made NeoVi a contestant: Kumiko Akimoto. No newcomers will come after her.")
         return "participant"
-
-    def copy_portrait(self):
-        base = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "portraits")
-        src, dst = os.path.join(base, "neovi.png"), os.path.join(base, f"{KUMIKO_ID}.png")
-        if os.path.exists(src) and not os.path.exists(dst):
-            try:
-                shutil.copyfile(src, dst)
-            except OSError:
-                pass

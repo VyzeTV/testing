@@ -48,6 +48,15 @@ She is human: her real name is **Kumiko Akimoto** (`kumiko.py`). In the first da
 
 Each night she also chooses: obey, help (a missing part, every TereVi lock opened, a looped camera, covering for someone) or betray (a full report: TereVi counters the leading route). The choice follows her resolve, a lover, her friends, her fear and her own sanity. Helping can get her caught, and then TereVi decides: a humiliation on air, **re-education** (her sanity drops by 25, her fear rises, her feelings are halved) or making her a **participant**. As a participant she is a contestant under her own name, with a bedroom, looks and clothes of her own; there is no one to replace a housemaid, so **no newcomers arrive** for the rest of the season (the viewer and the season sim stop asking for them).
 
+Out of uniform Kumiko is herself: long dark purple hair with blunt bangs, red eyes, short, a black blazer with white trim, a red tie, a pleated skirt and dark purple thigh-highs, and a purple stuffed rabbit she always carries (her accessory, which can be lost like any other). She is reserved but not shy, odd, curious about the mysteries of life, a sharp reader of people, into anime and games, and worried she has no talent among celebrities. Her sheet sets her facets outright (cast `facets` and `values`) and names **traits** the engine reads (`has_trait`), which any character sheet can use:
+
+* `observant`: when someone lies to her face she may read the tell (a belief that they lied).
+* `undecided`: a close call at the vote is made at the last second (the reason says so).
+* `self_reliant`: her vote is her own; friends' leads do not sway it.
+* `catlike`: idle time looks like a cat's (curled up in the sun, watching from a high shelf, following a moth).
+* `trapped`: accused or confronted head-on she freezes instead of answering (a `freeze` reply, a sanity cost); in the trial, a contradiction she cannot answer leaves her silent, which looks bad.
+* `no_talent`: someone boasting at her costs her a little sanity.
+
 ### The player's tools
 Director panel (whisper to someone, spread a rumour, drop an item, force a twist, island events), an optional **auto-director** that nudges quiet days, scenario editor and a **scenario generator** (premise, secret twist, rules, scheduled events under a difficulty budget), save slots, rewind/export, "Previously on" recap.
 

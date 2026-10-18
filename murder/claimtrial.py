@@ -361,6 +361,10 @@ class ClaimTrialMixin:
                     mode = self.cornered_mode(s)
                     other = max((p for p in ids if p not in (s,)), key=lambda p: meter[p] if p != s else -1)
                     self.trial_beat(beats, s, CORNERED[mode].format(other=self.nm(other)), "cornered", "say" if mode != "silent" else "act")
+            elif self.has_trait(s, "trapped"):                       # challenged directly, she freezes: silence looks bad
+                self.trial_beat(beats, s, "goes very still, opens her mouth, and nothing comes out.", "freeze", "act")
+                push(s, 0.6)
+                self.stat(tick, s, "sanity", -4, "trapped in front of the whole court")
             else:
                 self.trial_beat(beats, s, f"You're mistaken. I was in the {w.room_name(cl['r'])}.", "deny")
             return True
@@ -743,7 +747,8 @@ class ClaimTrialMixin:
             sc, pick = first[v]
             if not sc:
                 continue
-            sway = Counter(first[o][1] for o in ids if o != v and w.agents[v]["aff"].get(o, 0) >= 4 and first[o][1] and first[o][1] != v)
+            sway = Counter() if self.has_trait(v, "self_reliant") else \
+                Counter(first[o][1] for o in ids if o != v and w.agents[v]["aff"].get(o, 0) >= 4 and first[o][1] and first[o][1] != v)
             final = {c: x + 0.8 * sway.get(c, 0) for c, x in sc.items()}
             if any(x.get("helper") == v for x in (self.s.get("accomplices") or {}).get(killer, [])):
                 final.pop(killer, None)                                # an accomplice never votes for the one they helped
@@ -754,5 +759,8 @@ class ClaimTrialMixin:
                 target = max(final, key=lambda c: (final[c], c))
                 why = max([f for f in facts if f["about"] == target and f["w"] > 0], key=lambda f: f["w"], default=None)
                 reason = (why["text"][:160] if why else f"{self.nm(target)} never accounted for where they were.")
+                top2 = sorted(final.values(), reverse=True)[:2]
+                if self.has_trait(v, "undecided") and len(top2) == 2 and top2[0] - top2[1] < 0.5:
+                    reason = "(could not decide until the very last second) " + reason
             votes.append({"voter": v, "target": target, "reason": reason})
         return votes

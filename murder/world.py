@@ -28,7 +28,7 @@ def clamp(v, lo=0, hi=100):
 
 
 CAST_FIELDS = ["name", "short", "role", "gender", "pron", "age", "origin", "home", "color", "card", "persona",
-               "secret", "likes", "dislikes", "speech", "candor", "goals", "mock_lines", "body", "objection"]
+               "secret", "likes", "dislikes", "speech", "candor", "goals", "mock_lines", "body", "objection", "traits", "facets", "values"]
 BEDROOMS = ["blue_room", "green_room", "yellow_room", "red_room", "violet_room", "orange_room", "grey_room", "white_room"]      # one each: nobody shares a bedroom
 NEWCOMER_COLORS = ["#d96bff", "#6bd9a0", "#ffd36b", "#6bb8ff", "#ff8f6b", "#b0e05a", "#e05a9a", "#5ad0e0"]
 

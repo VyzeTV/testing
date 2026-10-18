@@ -26,6 +26,8 @@ LOOKS = {
               "accessory": ("pair of red-framed glasses", None), "shape": ["glasses"]},
     "cail": {"hair": ("long", "orange"), "eyes": "teal eyes", "hand": "medium", "handed": "right", "height": "tall",
              "accessory": ("green hair ribbon", "green satin"), "shape": ["ponytail", "long hair"]},
+    "kumiko": {"hair": ("long", "dark purple"), "eyes": "red eyes", "hand": "small", "handed": "right", "height": "short",
+               "accessory": ("purple stuffed rabbit with button eyes", "purple plush fluff"), "shape": ["long hair", "ahoge"]},
 }
 # each character's own outfit and swimsuit (clothing.py), the fabrics the outfit sheds, and what it adds to a silhouette
 OUTFITS = {
@@ -37,6 +39,8 @@ OUTFITS = {
     "shintaro": ("brown jacket with a white fur collar", "navy swim trunks", ["white fur", "brown suede"], ["fur collar"]),
     "chloe": ("dark teal wrap top", "floral swimsuit", ["dark teal knit"], []),
     "cail": ("white sailor uniform with a green neckerchief", "designer bikini", ["white cotton", "green silk"], ["sailor collar"]),
+    "kumiko": ("black blazer with white trim, white shirt, red tie, black pleated skirt and dark purple thigh-high socks", "plain black swimsuit",
+               ["black wool", "dark purple knit"], ["pleated skirt"]),
 }
 HAIRS = (("short", "black"), ("long", "black"), ("short", "brown"), ("long", "brown"), ("short", "red"), ("long", "blond"))
 COAT_SHAPE = {"raincoat": ["hood", "long coat"], "trench_coat": ["long coat"], "jacket": [], "sheet_cloak": ["cloaked"]}
