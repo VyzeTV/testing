@@ -493,6 +493,21 @@ function feedConf(c) {
   const i = info(c.id);
   feedAdd(`<div class="n">Confessional · ${esc(i.name)}</div>${esc(c.text)}`, "conf");
 }
+// a thought (innervoice.py): over the head as a cloud, in the feed in italics; a mutter is said out loud and can be overheard
+function feedThought(c) {
+  const i = info(c.id);
+  const ov = c.heard && S.gm ? Object.entries(c.heard).map(([o, v]) => `${info(o).short || o}${v === "part" ? " (in part)" : ""}`) : [];
+  feedAdd(`<b style="--c:${i.color}">${esc(i.short || i.name)}</b> ${c.kind === "mutter" ? "mutters" : "thinks"}: <i>${esc(c.text)}</i>` + (ov.length ? `  [overheard by ${ov.map(esc).join(", ")}]` : ""), "thought");
+}
+function showThought(c) {
+  feedThought(c);
+  const ms = Math.max(2200, c.text.length * 50);
+  if (c.heard) for (const [id, lvl] of Object.entries(c.heard)) S.ears.push({ id, from: c.id, lvl, until: S.clock + ms });
+  if (S.bubbles.some((b) => b.id === c.id && b.until > S.clock && !b.think)) return ms;
+  S.bubbles = S.bubbles.filter((b) => b.id !== c.id);
+  S.bubbles.push({ id: c.id, room: c.room || null, act: false, think: c.kind === "think", mutter: c.kind === "mutter", text: c.text, until: S.clock + ms });
+  return ms;
+}
 function feedLine(id, text, kind, heard) {
   const i = info(id);
   const ov = heard && S.gm ? Object.entries(heard).filter(([, v]) => v !== "saw").map(([c, v]) => `${info(c).short || c}${v === "part" ? " (in part)" : ""}`) : [];
@@ -923,6 +938,7 @@ async function playWindow(t, tok, late) {
   for (const f of t.fx || []) items.push({ m: f.m != null ? f.m : 0, o: 3000, k: "fx", f });
   if (t.scene_body) { const be = t.events.find((e) => e.type === "body"); items.push({ m: be && be.m != null ? be.m + 0.05 : 1, o: 4000, k: "body" }); }
   (t.confessionals || []).forEach((c, i) => { if (c.m != null) items.push({ m: c.m, o: 5000 + i, k: "conf", c }); });
+  (t.inner || []).forEach((c, i) => items.push({ m: c.m, o: 6000 + i, k: "think", c }));
   t._confShown = true;
   items.sort((a, b) => a.m - b.m || a.o - b.o);
   t.events.filter((e) => e.m == null && !late.includes(e)).length && (await TileMap.dialogFor(t, { untimed: true }));
@@ -950,6 +966,8 @@ async function playWindow(t, tok, late) {
       await playBodyScene(t.scene_body, tok); if (tok !== S.token) return;
     } else if (it.k === "conf") {
       readUntil = Math.max(readUntil, S.clock + showBooth(t, it.c));
+    } else if (it.k === "think") {
+      showThought(it.c);
     }
   }
   await animateTo(dur, Math.max(0, readUntil - S.clock), per, tok);
@@ -1423,7 +1441,7 @@ function renderCast() {
     ${S.gm && (a.moments || []).length ? `<div class="row"><b>Defining moments</b><br>${a.moments.map((m) => "\u2022 " + esc(m)).join("<br>")}</div>` : ""}
     ${S.gm && a.quirk ? `<div class="row"><b>Lately</b>: <i>${esc(a.quirk)}</i></div>` : ""}
     ${S.gm && a.brain && a.brain.plan && a.brain.plan.length ? `<div class="row"><b>Plan</b><br>${a.brain.plan.map((it) => "\u2022 " + (it.done ? "<s>" : "") + esc(it.do) + (it.who ? " " + esc(info(it.who).short || it.who) : "") + (it.where ? " @ " + esc((S.W.rooms[it.where] || {}).name || it.where) : "") + ": " + esc(it.why || "") + (it.done ? "</s>" : "")).join("<br>")}</div>` : ""}
-    ${S.gm && a.beliefs && a.beliefs.length ? `<div class="row"><b>Believes</b><br>${a.beliefs.map((b) => "\u2022 " + (b.false ? '<span style="color:#ff6b6b" title="not true">\u2717</span> ' : "") + esc(b.text) + ` <span style="opacity:.6">(${esc(b.src)}${b.by ? " from " + esc(info(b.by).short || b.by) : ""}, ${Math.round(b.c * 100)}%)</span>`).join("<br>")}</div>` : ""}
+    ${S.gm && a.beliefs && a.beliefs.length ? `<div class="row"><b>Believes</b><br>${a.beliefs.map((b) => "\u2022 " + (b.false ? '<span style="color:#ff6b6b" title="not true">\u2717</span> ' : "") + (b.mind ? `<span style="color:#b48cff">[${esc(b.mind)}]</span> ` : "") + esc(b.text) + ` <span style="opacity:.6">(${esc(b.src)}${b.by ? " from " + esc(info(b.by).short || b.by) : ""}, ${Math.round(b.c * 100)}%)</span>`).join("<br>")}</div>` : ""}
     ${S.gm && a.brain && a.brain.mem && a.brain.mem.length ? `<div class="row"><b>On their mind</b><br>${a.brain.mem.map((m) => "\u2022 " + esc(m)).join("<br>")}</div>` : ""}
     ${(a.conds || []).length || a.out ? `<div class="row">Body: ${a.out ? `<b>unconscious (${esc(a.out)})</b> ` : ""}${(a.conds || []).map((x) => `<span class="pill ${x.sev >= 3 ? "w" : ""}">${esc(x.name)}${x.sev > 1 ? " " + "\u2605".repeat(x.sev - 1) : ""}</span>`).join("")}</div>` : ""}
     ${th}${gmx}<div class="row">Carrying: ${inv}</div><div class="row">Feelings toward: ${aff}</div>${bonds ? `<div class="row">Bonds: ${bonds}</div>` : ""}

@@ -81,7 +81,7 @@ class FightMixin:
                 reply = "struggle"                                               # muffled: all they can do is fight
             if reply == "block":
                 p *= 0.5
-                part = "arm" if self.rng.random() < 0.45 else part
+                part = "arm" if kind != "water" and self.rng.random() < 0.45 else part      # held under, a block only pushes the hands away
             elif reply == "dodge":
                 p *= 0.55
             elif reply == "struggle":

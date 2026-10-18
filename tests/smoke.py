@@ -5915,6 +5915,66 @@ check("she does cat-like things (watching from a high shelf, staring at a corner
 r.run_tick(12)
 check("Kumiko plays a day as a contestant", "kumiko" in w.state["agents"])
 
+# ---- the inner voice and breaking minds (innervoice.py)
+w = World(new_state(3))
+t_ = []
+DayRunner(w, LLM(backend="mock"), t_.append, step=2, murders=False, rule_mode="none", seed=7).run()
+inner_ = [x for tk in t_ for x in (tk.get("inner") or [])]
+check("now and then people's thoughts show, some said out loud", len(inner_) >= 3 and {"think"} <= {x["kind"] for x in inner_}
+      and all(x.get("room") and x.get("text") for x in inner_), str(len(inner_)))
+w, r, _ = fresh(270)
+w.state["revealed"] = True
+a_, b_, c_ = sorted(w.agents)[:3]
+w.agents[a_]["sanity"] = 30
+now_ = r.abs_now()
+r.believe(a_, {"k": "at", "s": b_, "r": "kitchen", "t0": now_, "t1": now_, "src": "seen", "c": 0.9, "true": True})
+w.agents[a_]["aff"][c_] = -5
+r.rng.seed(4)
+kinds_ = {r.warp_belief(a_) for _ in range(8)}
+check("below 40 sanity beliefs are reread through fear (a sighting gets the wrong person, a rumour hardens, a friend becomes a trap)",
+      kinds_ - {None} and any(b.get("warp") for b in r.beliefs(a_)), str(kinds_))
+w.agents[a_]["sanity"] = 10
+hk_ = [r.hallucinate(r.new_tick(14), a_) for _ in range(6)]
+hal_ = [b for b in r.beliefs(a_) if b.get("hal")]
+check("below 25 people hallucinate: false beliefs held with confidence, marked for the GM",
+      len(hal_) >= 3 and all(not b.get("true", True) and b["c"] >= 0.8 for b in hal_)
+      and any(v.get("mind") == "hallucination" for v in r.beliefs_view(a_)), str(hk_))
+w, r, _ = fresh(271)
+w.state["revealed"] = True
+ids_ = sorted(w.agents)
+k_, v_, wit_ = ids_[0], ids_[1], ids_[2]
+w.agents[k_]["room"] = w.agents[v_]["room"] = "green_room"
+tk_ = r.new_tick(15)
+r.open_case(tk_, "murder", v_, culprit=k_, wkind="sharp", weapon=sharp(), room="green_room", hour=15, witnesses=[])
+r.announce_body(tk_, 16)
+w.agents[wit_]["sanity"] = 0
+fm_ = None
+for _ in range(20):
+    fm_ = fm_ or r.false_memory(wit_)
+facts_ = r.trial_facts(w.state["case"], [c for c in ids_ if c in w.agents])
+check("a broken mind 'remembers' someone at the scene, and it goes into their testimony as an honest but false fact",
+      fm_ and any(f["by"] == wit_ and f["about"] == fm_ and f["kind"] == "near_scene" and not f["true"] for f in facts_), str(fm_))
+w, r, _ = fresh(272)
+w.state["revealed"] = True
+a_, b_ = sorted(w.agents)[:2]
+w.agents[a_]["sanity"] = 5
+r.believe(a_, {"k": "has", "s": b_, "o": "kitchen_knife", "n": "I saw them with a knife", "src": "seen", "c": 0.85, "t0": r.abs_now(), "true": False, "hal": True})
+acts_ = Counter(r.act_on_fear(r.new_tick(14), a_, 14) for _ in range(20))
+check("below 10 they act on it: hiding, or deciding to strike first", acts_["strike"] + acts_["hide"] >= 1
+      and (acts_["strike"] == 0 or w.state["plots"][a_]["target"] == b_), str(acts_))
+w.agents[a_]["sanity"] = 60
+r.rng.seed(1)
+for _ in range(6):
+    r.recover_minds(r.new_tick(31))
+check("when sanity recovers, a hallucination is seen for what it was", any(b.get("seen_through") for b in r.beliefs(a_)))
+w, r, _ = fresh(273)
+r.tuning_get = lambda: {"hallucinations": 0}
+w.state["revealed"] = True
+a_ = sorted(w.agents)[0]
+w.agents[a_]["sanity"] = 5
+r.distort_minds(r.new_tick(14), 14)
+check("the dial switches breaking minds off", not any(b.get("hal") or b.get("warp") for b in r.beliefs(a_)))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

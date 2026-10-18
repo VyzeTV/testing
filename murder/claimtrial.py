@@ -71,11 +71,12 @@ class ClaimTrialMixin:
             for b in self.beliefs(h):
                 if b["k"] == "at" and b["s"] in ids and b["s"] != h and b.get("r") == room and b["t0"] - 0.75 <= t <= b.get("t1", b["t0"]) + 0.75:
                     facts.append({"by": h, "about": b["s"], "kind": "near_scene", "w": 2.0 * b["c"], "text": f"I saw {self.nm(b['s'])} in the {w.room_name(room)} around {int(t % 24):02d}:00.",
-                                  "true": b.get("true", True)})
+                                  "true": b.get("true", True), **({"mind": True} if b.get("hal") or b.get("warp") else {})})
                 elif b["k"] == "has" and b["s"] in ids:
                     wt = self.weapon_match(b.get("o"), case.get("weapon"))
                     if wt:
-                        facts.append({"by": h, "about": b["s"], "kind": "has", "w": wt, "text": b.get("n", "")[:160], "true": b.get("true", True)})
+                        facts.append({"by": h, "about": b["s"], "kind": "has", "w": wt, "text": b.get("n", "")[:160], "true": b.get("true", True),
+                                      **({"mind": True} if b.get("hal") or b.get("warp") else {})})
                 elif b["k"] == "lied" and b["s"] in ids:
                     what = b.get("n", "")[:120].replace("you saw", "I saw")
                     facts.append({"by": h, "about": b["s"], "kind": "lied_before", "w": 1.5, "text": f"{self.nm(b['s'])} has lied to me before: they {what}.", "true": b.get("true", True)})
@@ -302,6 +303,8 @@ class ClaimTrialMixin:
         killer = case.get("killer")
         claims = self.trial_claims(case, ids)
         facts = self.trial_facts(case, ids)
+        if any(f.get("mind") for f in facts):                         # a broken mind's honest but false testimony (innervoice.py)
+            self._mstat("mind_testimony")
         cred = {p: (0.75 if any(p in self.caught_liars(o) for o in ids if o != p) else 1.0) for p in ids}
         meter = {p: 0.0 for p in ids}
         raised, exposed, burnt, lies, spoken = set(), set(), {}, Counter(), set()

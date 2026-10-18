@@ -379,7 +379,7 @@ function floorBeside(plane, x, y) { for (const [dx, dy] of [[1, 0], [-1, 0], [0,
   function activeTalks(P) {
     const by = {};
     for (const b of S.bubbles || []) {
-      if (b.until < S.clock || !P[b.id] || b.booth) continue;
+      if (b.until < S.clock || !P[b.id] || b.booth || b.think) continue;
       const k = b.room || "?"; (by[k] = by[k] || []).push(b.id);
     }
     return Object.entries(by).map(([room, ids]) => { const p = P[ids[0]]; return { room, ids, p: p.plane, x: p.x, y: p.y, names: ids.map(nameOf).join(", ") }; });
@@ -409,9 +409,15 @@ function floorBeside(plane, x, y) { for (const [dx, dy] of [[1, 0], [-1, 0], [0,
       c.font = "12px system-ui"; const words = txt.split(" "), lines = []; let cl = "";
       for (const w of words) { if (c.measureText(cl + " " + w).width > 190 && cl) { lines.push(cl); cl = w; } else cl = cl ? cl + " " + w : w; }
       lines.push(cl); const lh = 14, w = Math.min(200, Math.max(...lines.map((l) => c.measureText(l).width)) + 12), h = lines.length * lh + 8, bx = px - w / 2, by = py - h;
-      c.fillStyle = "rgba(255,255,255,.95)"; c.strokeStyle = "#333"; c.lineWidth = 1; c.beginPath(); c.roundRect ? c.roundRect(bx, by, w, h, 6) : c.rect(bx, by, w, h); c.fill(); c.stroke();
-      c.beginPath(); c.moveTo(px - 5, py - 1); c.lineTo(px, py + 5); c.lineTo(px + 5, py - 1); c.fillStyle = "rgba(255,255,255,.95)"; c.fill();
-      c.fillStyle = "#14161f"; c.textAlign = "left"; c.textBaseline = "top"; lines.forEach((l, i) => c.fillText(l, bx + 6, by + 4 + i * lh));
+      if (b.think) {                                   // a thought: a cloud with little circles trailing down to the head, text in italics
+        c.fillStyle = "rgba(232,236,255,.93)"; c.strokeStyle = "#7a7fa8"; c.lineWidth = 1; c.beginPath(); c.roundRect ? c.roundRect(bx, by - 6, w, h, h / 2 > 14 ? 14 : h / 2) : c.rect(bx, by - 6, w, h); c.fill(); c.stroke();
+        for (const [dx, dy, r] of [[2, 0, 3], [5, 6, 2]]) { c.beginPath(); c.arc(px + dx, py - 4 + dy, r, 0, 6.3); c.fill(); c.stroke(); }
+        c.fillStyle = "#2a2d45"; c.font = "italic 12px system-ui"; c.textAlign = "left"; c.textBaseline = "top"; lines.forEach((l, i) => c.fillText(l, bx + 6, by - 2 + i * lh));
+        continue;
+      }
+      c.fillStyle = b.mutter ? "rgba(255,255,255,.75)" : "rgba(255,255,255,.95)"; c.strokeStyle = "#333"; c.lineWidth = 1; c.beginPath(); if (b.mutter) c.setLineDash([3, 3]); c.roundRect ? c.roundRect(bx, by, w, h, 6) : c.rect(bx, by, w, h); c.fill(); c.stroke(); c.setLineDash([]);
+      c.beginPath(); c.moveTo(px - 5, py - 1); c.lineTo(px, py + 5); c.lineTo(px + 5, py - 1); c.fillStyle = b.mutter ? "rgba(255,255,255,.75)" : "rgba(255,255,255,.95)"; c.fill();
+      c.fillStyle = "#14161f"; if (b.mutter) c.font = "italic 12px system-ui"; c.textAlign = "left"; c.textBaseline = "top"; lines.forEach((l, i) => c.fillText(l, bx + 6, by + 4 + i * lh));
     }
   }
   function drawTokens(c, P) {

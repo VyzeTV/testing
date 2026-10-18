@@ -17,12 +17,15 @@ const pw = (() => { try { return require("playwright"); } catch (e) { return req
   await p.click('.opt[data-mode="live"]');
   await p.click("#btnGo");
   const samples = [];
+  let thoughtShot = false;
   for (let i = 0; i < 240; i++) {
     await p.evaluate(() => {
       const m = document.querySelector("#tmmodal"); if (m && m.style.display === "flex") { const btn = m.querySelector("button"); if (btn) btn.click(); }
       const ov = document.querySelector("#overlay"); if (ov && ov.style.display === "flex") { const c = document.querySelector("#ovClose"); if (c) c.click(); }
     });
-    samples.push(await p.evaluate(() => ({ m: window.TileMap ? TileMap.minute() : null, talking: (S.bubbles || []).filter((x) => x.until > S.clock).length, cursor: S.cursor })));
+    samples.push(await p.evaluate(() => ({ m: window.TileMap ? TileMap.minute() : null, talking: (S.bubbles || []).filter((x) => x.until > S.clock && !x.think).length, cursor: S.cursor,
+      thinking: (S.bubbles || []).filter((x) => x.until > S.clock && x.think).length })));
+    if (process.env.MC_SHOT && samples[samples.length - 1].thinking && !thoughtShot) { thoughtShot = true; await p.screenshot({ path: process.env.MC_SHOT }); }
     await p.waitForTimeout(500);
   }
   let talkPairs = 0, frozen = 0;
@@ -31,6 +34,7 @@ const pw = (() => { try { return require("playwright"); } catch (e) { return req
     if (a.talking && c.talking && a.cursor === c.cursor) { talkPairs++; if (c.m === a.m) frozen++; }
   }
   // then the night: fast-forward the rest of the day, step back to just before the first quiet night block, and check the "house sleeps" prompt skips it
+  const thoughts = await p.evaluate(() => document.querySelectorAll("#feed .thought").length);
   await p.click("#btnFF").catch(() => {});
   for (let i = 0; i < 120; i++) { if (await p.evaluate(() => S.done && S.cursor >= S.ticks.length - 1)) break; await p.waitForTimeout(500); }
   await p.evaluate(() => { const c = document.querySelector("#ovClose"); if (c) c.click(); });
@@ -47,7 +51,7 @@ const pw = (() => { try { return require("playwright"); } catch (e) { return req
     }
     if (night.asked) { await p.click("#qnSkip"); await p.waitForTimeout(1500); night.skipped = await p.evaluate((i) => S.cursor >= i, qi); }
   }
-  const out = { turnsPlayed: samples[samples.length - 1].cursor, talkPairs, frozen, night, errors: errs };
+  const out = { turnsPlayed: samples[samples.length - 1].cursor, talkPairs, frozen, thoughts, thoughtBubbles: samples.filter((x) => x.thinking).length, night, errors: errs };
   console.log(JSON.stringify(out, null, 1));
   await b.close();
   process.exit(errs.length || frozen || (qi > 0 && !night.skipped) ? 1 : 0);

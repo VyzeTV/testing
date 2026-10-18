@@ -156,6 +156,19 @@ Each person keeps what they think is true in `agent["beliefs"]`: a kind (`at` so
 * **Sanity** = a set point minus stress. It recovers on its own when nothing new hurts and needs are met; the old flat drain is replaced. Low sanity feeds madness (dark impulses, outbursts), slips, snapping and spree risk.
 * **Engine-made turns**: a quiet turn (nothing at stake) is decided by `routine_decision` without a model call. The model is asked when something matters (a case, an event, a hazard, a rule, a plot, a crisis, a conflict, a bond, a missing plan, a heartbeat).
 
+### The inner voice (`innervoice.py`, dial `hallucinations`)
+Now and then the viewer sees what someone is thinking: a cloud over their head on the map and an italic line in the feed. The engine picks the thought from their state (a plot, someone they lost, someone who lied to them, a crush, the way out, hunger or tiredness, what hurt them, their traits, low sanity); there is no model call, and the picks draw from their own random stream so they do not change the run. Thoughts come more often right after a shock and the lower someone's sanity. Some are said out loud: often when alone, and, once sanity is under 40, muttered in company. A mutter is a quiet line that can be overheard; a plotter muttering about their target plants a rumour in whoever hears it.
+
+Low sanity bends beliefs:
+
+| Sanity | What happens |
+|---|---|
+| Below 40 | Now and then a belief is reread through fear: a sighting gets the wrong person, a rumour hardens into certainty, a friend's kindness becomes "they're setting me up". |
+| Below 25 | Hallucinations, held with confidence: the dead walking a corridor, someone standing over the bed with a knife, TereVi whispering a name, someone in the room who was never there. After a body is found, a false memory of seeing someone at the scene. |
+| Below 10 | They act on it: hiding, or deciding to strike first (a plot with the motive "paranoia"). |
+
+These beliefs feed everything that reads beliefs, so a broken mind can give honest, false testimony at a trial. Hallucinations are kept like caught lies (vivid memories are not pushed out by new sightings). When sanity recovers to 35 and 15 above where it was, a hallucination may be seen for what it was, which stings. The GM view marks each one ("hallucination", "warped by fear", "seen through").
+
 ### Body (`conditions.py`, `nonlethal.py`)
 Afflictions (sickness, poison, panic, blindness, breathlessness, dizziness, hunger, thirst, drunkenness, exhaustion, cold) and injuries (bleeding, burns, broken bones, concussion, infection). Unconsciousness (`out`) with a cause and an **absolute** wake-up time; the unconscious are helpless, can be carried, robbed, framed and revived, and are left out of scenes. Walking speed depends on health, conditions, load and dragging someone (`move_factor`). Hunger, thirst, bladder and hygiene run in the background and are met in free time.
 

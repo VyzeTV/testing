@@ -416,6 +416,7 @@ class ConvoMixin:
             self.belief_from_talk(c, lines, beats)
         self._heard_later = []
         self.booth_hearing(tick)
+        self.inner_hearing(tick)
 
     def remember_talk(self, conv, lines, hour):
         """Members remember what was said to them; listeners remember what they caught (a fragment at the edge of earshot); a passer-by remembers seeing them talk."""

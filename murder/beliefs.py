@@ -55,7 +55,7 @@ class BeliefMixin:
         bs.append(b)
         if len(bs) > MAX_BELIEFS:
             now = self.abs_now()
-            bs.sort(key=lambda x: (x["k"] == "lied", x["c"] - 0.02 * max(0.0, now - x.get("t1", x.get("t0", now)))), reverse=True)
+            bs.sort(key=lambda x: (x["k"] == "lied" or bool(x.get("hal")) and not x.get("seen_through"), x["c"] - 0.02 * max(0.0, now - x.get("t1", x.get("t0", now)))), reverse=True)
             del bs[MAX_BELIEFS:]
         if b["src"] in ("told", "heard") and b["k"] == "at":
             self.check_claim(cid, b)
@@ -223,5 +223,8 @@ class BeliefMixin:
                 text = f"{self.nm(b['s'])} lied: {b.get('n', '')}"
             else:
                 text = b.get("n", "")
-            out.append({"text": text[:120], "src": b["src"], "c": b["c"], "false": not b.get("true", True), "by": b.get("by")})
+            v = {"text": text[:120], "src": b["src"], "c": b["c"], "false": not b.get("true", True), "by": b.get("by")}
+            if b.get("hal") or b.get("warp"):
+                v["mind"] = "seen through" if b.get("seen_through") else ("hallucination" if b.get("hal") else "warped by fear")
+            out.append(v)
         return out

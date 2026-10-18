@@ -132,6 +132,7 @@ main { flex: 1; display: grid; grid-template-columns: 1fr 390px; min-height: 0; 
 #feed .actrow { margin: 4px 0 4px 36px; font-style: italic; font-size: 13px; color: #e9d9a6; }
 #feed .actrow b { color: var(--c); font-style: normal; }
 #feed.hide-talk .actrow { display: none; }
+#feed .thought { margin: 4px 0; padding: 2px 8px; opacity: .85; font-size: 12px; border-left: 2px dashed #8b90c4; }
 #feed .conf { margin: 8px 0; padding: 8px 10px; border-left: 3px solid #d7b57a; background: rgba(215,181,122,.08); border-radius: 6px; font-style: italic; }
 #feed .conf .n { color: #d7b57a; font-style: normal; font-weight: 700; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
 #booth { position: absolute; left: 16px; bottom: 16px; width: min(420px, 60%); display: none; z-index: 6; gap: 12px; align-items: flex-start;

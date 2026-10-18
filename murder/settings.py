@@ -14,6 +14,7 @@ SETTINGS = [
     ("hook_notice", "Noticing something is wrong", "Drama", 0, 2, 0.1, 1.0, "How quickly people notice their room was searched or a lock was picked."),
     ("neovi_inspect", "NeoVi's daily inspection", "Drama", 0, 1, 1, 1, "1 = she inspects a bedroom each day and confiscates contraband; 0 = off."),
     ("experiment_quota", "Escape attempts per day", "Pacing", 0, 2, 0.1, 1.0, "Scales the daily quota of escape experiments (about 3 at 1.0)."),
+    ("hallucinations", "Breaking minds", "Drama", 0, 1, 1, 1, "Low sanity bends beliefs (below 40), brings hallucinations (below 25) and acting on them (below 10). 0 = off."),
     ("escape_rate", "Work on the ways out", "Pacing", 0, 3, 0.1, 1.0, "How fast free-time work on a way out makes progress, and how keen people are to do it. 0 = nobody works on them in free time (experiments still count)."),
     ("drain_mult", "Everyday sanity drain", "Sanity", 0, 2, 0.1, 1.0, "How fast each quiet hour wears people down. 0 = no drain."),
     ("dread_mult", "Deadline dread", "Sanity", 0, 2, 0.1, 1.0, "How hard the approaching deadline hits everyone's sanity."),
