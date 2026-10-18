@@ -391,6 +391,8 @@ Every character keeps beliefs: who they saw where and when, what they witnessed,
 
 Plotters plan how to kill from what they have seen: catch the target asleep, alone, or near a drop for a push that looks like a fall, or poison them, and they wait for the planned moment. An attack is fought blow by blow: the victim can block, dodge, struggle for the weapon, run or scream, and every wound lands on a part of the body. What people carry in their hands is seen; small things stay in pockets. At night lovers and allies meet in secret, and suspicious people go snooping. Captivity wears everyone down: a week's survivors average about 60 sanity (the "Captivity wear" dial).
 
+**The claim-based trial (phase 7).** The engine now runs the trial and the model only voices it. Everyone states where they were; claims that clash with what others saw are weak points, raised or not depending on courage and loyalty. Whoever catches a contradiction shouts a cry first ("Objection!", "Hold it!", or a character's own). The culprit lies again or is cornered, and never confesses. Besides the debate, hot seat, clash and brainstorm there is a cross-examination of the main witness, a split court when the room divides, and a climax where the accuser retells the crime step by step (gaps weaken it). Votes are computed. After the verdict a truth-against-belief report shows what really happened and who kept quiet. The trial plays live on the map: people walk to the Voting Grounds, lines run on the clock, allies whisper, and someone may slip out for a moment.
+
 ## Not built yet
 
 Hidden bodies or moving corpses, multiple simultaneous cases, and a hacker/terminal minigame for the Study.
