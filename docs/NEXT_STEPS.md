@@ -78,6 +78,8 @@ Steps 3 and 4 done: the quick clock for dead air (pause settings, 4x by default;
 2. **Done.** Investigation focus (`inquiry.py`): free time gets investigation activities (examine the scene, search a room tied to the case, question someone, compare notes); everything but real needs is cut back while a death is investigated, except for the very unstable and a killer acting calm.
 3. **Done.** Electrocution as a murder method in the planner (`electric.py`) (an appliance in an occupied bath, a live cable in a flooded room, a door handle wired to the generator), with its own marks for the trial (burns on the hands, a scorched socket, a tripped fuse at an odd hour) and the risk of killing the wrong person or causing a blackout.
 
+**To do later (the user asked, 2026-10-19):** re-tune the ending tiers back towards 40/30/30. Over 80 seasons phase G gives 29% good, 41% bittersweet, 30% bad (the end of phase E gave 35/41/24). Too few good endings and too many bittersweet ones; judge with `python tests/season.py --seeds 40` (20-seed runs swing by ten points). Dials to try: `escape_rate`, `escape.PACE`, `endings.ending_costs`, `inquiry.FOCUS`.
+
 ### Phase F: A fully live engine (later, larger; ask first)
 1. Each person decides when their own plan runs out (building on the brain setting's intentions), not everyone at minute 0.
 2. The once-per-block systems (hazards, dread, the rule referee, wake checks) become timeline events at their minute.

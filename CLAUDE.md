@@ -4,7 +4,7 @@ A Danganronpa-style killing-game simulation. **The engine decides what happens; 
 
 ## Where things stand (2026-10-18)
 
-- **Next: see `docs/NEXT_STEPS.md`** (Day 3 findings and the agreed plan, phases A to F; Phases A to E are done; Phase F, a fully live engine, is next: ask first). Phase E split the Woods (`woods`, with an old camp and the `SP-6` trapdoor to the wine cellar) and the Garden Maze (`maze`) off the outdoors, and made the boathouse the raft's workshop (`escape.raft_stage`, `wreck_raft`; flares help the signal).
+- **Next: see `docs/NEXT_STEPS.md`** (Day 3 findings and the agreed plan, phases A to F; Phases A to E are done; Phase F, a fully live engine, is next: ask first). Phase G (habits, investigation focus, electricity) is done; a re-tune of the ending tiers is pending (see NEXT_STEPS, "To do later"). Phase E split the Woods (`woods`, with an old camp and the `SP-6` trapdoor to the wine cellar) and the Garden Maze (`maze`) off the outdoors, and made the boathouse the raft's workshop (`escape.raft_stage`, `wreck_raft`; flares help the signal).
 - Work branch: **`claude/gallant-rubin-5645qr`** (all work is pushed there; `main` is the user's, never push to it; no PR has been opened).
 - The rebuild plan lives in a Claude Docs doc, **"Murder Channel: Rebuild Plan"**: https://claude.ai/code/artifact/4e557715-028c-42d6-a8dd-1b01d3671bc5 (its Roadmap section lists phases 0-8 with a gate for each; done phases say "Done: ..."). A companion doc, "Engine-First Design", explains the philosophy. In-repo design docs: `docs/GAME_DESIGN.md` (the authoritative description of how the game works), `docs/DESIGN.md`, `docs/BASELINE.md`, `README.md`.
 - **Phases 0-4 are done**:
