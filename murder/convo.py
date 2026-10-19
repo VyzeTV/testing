@@ -210,6 +210,11 @@ class ConvoMixin:
                 if busy is not None:
                     busy[cid] = max(busy.get(cid, 0), conv["end"])
                     self._seg(tick, cid, int(m), int(conv["end"]), a["room"], "chat", f"joining {', '.join(self.nm(o) for o in conv['members'][:2] if o != cid)}", "free", anchor)
+                if cid not in w.agents:
+                    if cid in conv["members"]:
+                        conv["members"].remove(cid)                     # a fall on the way over (walk hazards run as the walk is laid down)
+                    conv["joined"] = [x for x in conv["joined"] if x[1] != cid]
+                    continue
                 self._fev(tick, cid, m, f"{self.nm(cid)} comes over and joins {', '.join(self.nm(o) for o in conv['members'] if o != cid)}.", "free", "viewer")
                 if len(conv["members"]) >= 5:
                     return

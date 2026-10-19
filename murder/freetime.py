@@ -168,7 +168,9 @@ class FreeTimeMixin:
         return _Rooms(v["rooms"])
 
     def _fev(self, tick, cid, m, text, etype="free", vis="viewer", room=None, witnesses=None):
-        a = self.world.agents[cid]
+        a = self.world.agents.get(cid)
+        if a is None:
+            return                                                      # they died a moment ago (a fall on the way): nothing they do now gets told
         self._slice_m = m
         try:
             self.log_event(tick, {"type": etype, "who": cid, "room": room or a["room"], "vis": vis, "text": text}, witnesses=witnesses, actor=cid)
