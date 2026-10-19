@@ -497,6 +497,7 @@ class CaseMixin:
             case["clues"].extend(self.clothes_clue(case))
             if not self.coat_takes_blood(culprit):                  # a coat takes the blood instead (gear.py)
                 self.stain_clothes(culprit)
+            self.get_dirty(culprit, "blood" if str(wkind) in ("sharp", "blunt") else "sweat")
         if culprit and kind == "murder":
             case["clues"].extend(self.herring_clues(case))
         if culprit:

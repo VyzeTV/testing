@@ -342,6 +342,11 @@ class FreeTimeMixin:
         draw, mm = self.meal_in_turn(hour)
         if draw:
             out.append(f"{draw['label']} is at {int(hour + mm // 60) % 24:02d}:{int(mm % 60):02d} in the {w.room_name(draw['room'])}" + (" (you are expected there)." if draw["kind"] == "summons" else "."))
+        h = self.habit_of(cid)
+        if h:
+            out.append(f"YOUR HABIT: {h[2]}." + (f" You are {self.dirt_look(cid)}." if self.dirt_look(cid) else ""))
+        elif self.dirt_look(cid):
+            out.append(f"You are {self.dirt_look(cid)}.")
         ideas = []
         rid = self.tinker_option(cid)
         if rid:
@@ -517,6 +522,7 @@ class FreeTimeMixin:
         add(max(72 - b["hygiene"], 0) / 40 + 0.3 * (f("vanity") - 50) / 50, "bath", why="a long soak")
         add(max(72 - b["hygiene"], 0) / 50, "wash", why="freshening up")
         add(max(70 - mi["rest"], 0) / 40 + (0.35 if hour >= 20 else 0), "nap", home_only=True, why="tired")
+        self.habit_options(tick, cid, hour, m, add, f, b)              # dirt, what comes next, the morning and evening wash, their own habit (habits.py)
         # what suits them
         fun = (100 - mi["purpose"]) / 70 + (100 - mi["social"]) / 90
         cur, rom, cour, hum, ord_ = f("curiosity"), f("romantic"), f("courage"), f("humour"), f("orderliness")
@@ -912,6 +918,7 @@ class FreeTimeMixin:
         else:
             self._effect(tick, cid, act, m, at)
         self.plan_done_by_act(cid, act, a["room"])
+        self.habit_after(tick, cid, act, a["room"], m, end)
         if act in GAME_MOMENTS and getattr(self, "_tl", None) is not None and end - m >= 20:
             if self.rng.random() < 0.5:
                 self._tl.at(m + (end - m) / 2, self._game_moment, tick, cid, act, a["room"], "mid", prio=7)
@@ -1030,7 +1037,7 @@ class FreeTimeMixin:
             a["thirst"] = max(0, a.get("thirst", 0) - 15)
             note(f"{name} {verb}.")
         elif act == "cook":
-            a["hunger"] = max(0, a.get("hunger", 0) - 35)
+            a["hunger"] = max(0, a.get("hunger", 0) - 10)               # a taste while cooking; the meal itself comes after (habits.py)
             fed = [o for o in here if w.agents[o].get("hunger", 0) >= 30]
             for o in fed:
                 w.agents[o]["hunger"] = max(0, w.agents[o]["hunger"] - 15)

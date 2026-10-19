@@ -93,7 +93,7 @@ class LooksMixin:
         acc = (lk.get("accessory") or (None,))[0]
         acc_txt = "" if not acc else (f", {acc}" if self.wears_accessory(cid) else f", without their usual {acc.replace('pair of ', '')}")
         marks = [x for x, on in (("fresh scratches on the hands", self.has_cond(cid, "scratched")), ("bleeding", self.has_cond(cid, "bleeding")),
-                                 ("clothes visibly stained", "stained" in self.tags(worn or "x"))) if on]
+                                 ("clothes visibly stained", "stained" in self.tags(worn or "x")), (self.dirt_look(cid), bool(self.dirt_look(cid)))) if on]
         tail = f"; {', '.join(marks)}" if marks else ""
         if short:
             return f"{hair}, {outfit}{acc_txt}{tail}"

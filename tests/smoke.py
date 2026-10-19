@@ -6267,7 +6267,7 @@ check("letting the dice decide leaves it", r.gm_roll("betray", 0.4) == 0.4)
 asked_ = []
 import murder.llm as llm2_  # noqa: E402
 mp_ = llm2_.LLM.mock_plot_prob
-llm2_.LLM.mock_plot_prob = 0.1
+llm2_.LLM.mock_plot_prob = 0.2                                       # plots enough that a strike comes up within the four days
 wq_ = World(new_state(3))
 for d in (3, 4, 5, 6):
     wq_.state["day"] = d
@@ -6429,7 +6429,8 @@ rl_.run()
 for c in sorted(wl_.agents):
     rl_.looks_notable(c)                                              # a first scene after the night: the change is worth a remark once
 plain_ = [c for c in sorted(wl_.agents) if not rl_.looks_notable(c)]
-check("looks stay out of the voice card unless something is new or notable", "Looks:" not in u_ and len(plain_) >= len(wl_.agents) - 1, f"{len(plain_)} of {len(wl_.agents)} plain")
+dirty_ = [c for c in sorted(wl_.agents) if rl_.dirt_look(c)]                 # dirt from the day's work is worth a remark (habits.py)
+check("looks stay out of the voice card unless something is new or notable", "Looks:" not in u_ and len(plain_) + len(dirty_) >= len(wl_.agents) - 1, f"{len(plain_)} of {len(wl_.agents)} plain, {len(dirty_)} dirty")
 r.add_cond(r.new_tick(16), b_, "bleeding", 2, "a cut")
 check("a visible mark makes looks notable", r.has_cond(b_, "bleeding") and "bleeding" in r.looks_notable(b_), r.looks_notable(b_))
 w.agents[a_]["aff"][b_] = 9
@@ -6723,6 +6724,52 @@ st_["room_items"].pop("woods", None)
 st_["sim"] = {"pos": {cid_: ["ground", 49, 12]}}
 st_ = upgrade_state(st_)
 check("an older save puts someone standing in the woods into the Woods, and adds its things", st_["agents"][cid_]["room"] == "woods" and st_["room_items"].get("woods", {}).get("hatchet") == 1)
+
+# ---- habits: follow-ups, dirt and routines
+w, r, _ = fresh(1601)
+w.state["revealed"] = True
+hc_ = sorted(w.agents)[0]
+hb_ = sorted(w.agents)[1]
+for c in w.agents:
+    w.agents[c]["room"] = "lounge"
+tk_ = r.new_tick(14)
+tk_["free"] = {}
+
+
+def opts_(cid, hour=14, m=30):
+    got = []
+    r.habit_options(tk_, cid, hour, m, lambda sc, act, **k: got.append((act, round(sc, 2), k.get("why", ""))), lambda k: 50, r.body(cid))
+    return got
+
+
+r.habit_after(tk_, hc_, "cook", "kitchen", 0, 45)
+check("cooking leaves a pull to sit down and eat it", any(a_ == "eat" and "cooked" in y_ for a_, _s, y_ in opts_(hc_, 14, 45)))
+r.habit_after(tk_, hc_, "eat", "kitchen", 50, 80)
+check("and eating it uses that pull up", not any("cooked" in y_ for _a, _s, y_ in opts_(hc_, 14, 80)))
+check("a follow-up does not last: an hour and more later it is gone", not any(y_.startswith("rinsing") for _a, _s, y_ in opts_(hc_, 18, 0)))
+w.agents[hc_]["room"] = "generator_shed"
+r.rng.random = lambda: 0.0
+r.habit_after(tk_, hc_, "escape", "generator_shed", 0, 45)
+check("work on a way out at the Generator Shed leaves someone greasy, and it shows", w.agents[hc_].get("dirt", {}).get("kind") == "grease" and "grease" in r.looks_line(hc_))
+check("getting clean pulls them to the shower (not a sink: grease needs one)", any(a_ == "shower" for a_, _s, _y in opts_(hc_)) and not any(a_ == "wash" and "grease" in y_ for a_, _s, y_ in opts_(hc_)))
+r.habit_after(tk_, hc_, "wash", "generator_shed", 50, 65)
+check("a sink does not take grease off", w.agents[hc_].get("dirt", {}).get("kind") == "grease")
+r.habit_after(tk_, hc_, "shower", "bathroom", 70, 100)
+check("a shower does", not w.agents[hc_].get("dirt"))
+w.agents[hc_]["room"] = w.agents[hb_]["room"] = "kitchen"
+r.get_dirty(hc_, "blood")
+r.habit_after(tk_, hc_, "wash", "kitchen", 30, 45)
+check("blood scrubbed off at a sink in company is seen and remembered", not w.agents[hc_].get("dirt") and any("scrubbing blood" in x for x in str(w.agents[hb_]["memory"]).split("'"))
+      and any("scrubs blood" in e["text"] for e in tk_["events"]))
+del r.rng.random
+h1_, h2_ = r.habit_of(hc_), r.habit_of(hc_)
+check("everyone has one small habit of their own, the same every day", h1_ and h1_ == h2_ and len({r.habit_of(c)[2] for c in w.agents}) >= 2, str({c: r.habit_of(c)[2] for c in w.agents}))
+hh_ = h1_[1][0]
+check("in its hours it pulls them to it, until it is done that day", any(a_ == h1_[0] and y_ == h1_[2] for a_, _s, y_ in opts_(hc_, hh_, 30)))
+tk2_ = r.new_tick(hh_)
+r.habit_after(tk2_, hc_, h1_[0], "lounge", 30, 60)
+check("and once done it does not pull again that day", not any(y_ == h1_[2] for _a, _s, y_ in opts_(hc_, hh_, 75)))
+check("a morning wash and a wash before bed are part of the day", any("morning wash" in y_ for _a, _s, y_ in opts_(hb_, 8, 20)) and any("before bed" in y_ for _a, _s, y_ in opts_(hb_, 20, 60)))
 
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]

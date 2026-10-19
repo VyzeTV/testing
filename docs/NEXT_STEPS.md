@@ -73,6 +73,11 @@ Steps 3 and 4 done: the quick clock for dead air (pause settings, 4x by default;
 3. A purpose for the boathouse, the user's call (the raft route's workshop with visible progress, a locked motorboat as a harder way out, flares for the signal route).
 4. Check: map validator, routes between every pair of rooms, labels in the browser.
 
+### Phase G: Habits, investigation focus and electricity (agreed 2026-10-19, before F)
+1. **Done.** Logical sequences and light routines (`habits.py`): follow-ups (cook then eat, a swim or a workout then a shower, a meal then washing up), dirt that shows and pulls people to wash (a sink for the light kinds, a shower for mud, grease and soot; blood scrubbed off at a sink is seen), a morning and a bedtime wash, and one signature habit per person.
+2. Investigation focus: free time gets investigation activities (examine the scene, search a room tied to the case, question someone, compare notes); everything but real needs is cut back while a death is investigated, except for the very unstable and a killer acting calm.
+3. Electrocution as a murder method in the planner (an appliance in an occupied bath, a live cable in a flooded room, a door handle wired to the generator), with its own marks for the trial (burns on the hands, a scorched socket, a tripped fuse at an odd hour) and the risk of killing the wrong person or causing a blackout.
+
 ### Phase F: A fully live engine (later, larger; ask first)
 1. Each person decides when their own plan runs out (building on the brain setting's intentions), not everyone at minute 0.
 2. The once-per-block systems (hazards, dread, the rule referee, wake checks) become timeline events at their minute.
