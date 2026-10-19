@@ -1,6 +1,6 @@
 # Next steps (after the real Day 3, 2026-10-19)
 
-Where the work stands, what the real-model days showed, and the agreed plan. Phases A, B and C are done (A and B with their follow-ups); Phase D steps 1-4 are done, its real-model check next. Ask the user before starting each phase; commit each step with tests passing (`python tests/smoke.py`, `python tests/baseline.py` at or below about 91.7 calls a day, `python tests/balance.py`).
+Where the work stands, what the real-model days showed, and the agreed plan. Phases A, B and C are done (A and B with their follow-ups); Phase D is done; Phase E (map areas) is next and needs the user's choices for the Woods and the boathouse. Ask the user before starting each phase; commit each step with tests passing (`python tests/smoke.py`, `python tests/baseline.py` at or below about 91.7 calls a day, `python tests/balance.py`).
 
 ## Already done (commits 96ad566 and after)
 
@@ -59,7 +59,7 @@ Steps 3 and 4 done: the quick clock for dead air (pause settings, 4x by default;
 6. Check: forced mock tests (intruder with the owner awake, snooper by a sleeper, stalker by a sleeper); balance deaths and snoopers caught.
 
 ### Phase D: NeoVi
-**Steps 1-4 done** (2026-10-19, `neoviday.py`; see `docs/GAME_DESIGN.md`, "NeoVi's day"). On mock days she speaks about two or three times a day, mostly at the table. Mock calls 86.4 a day.
+**Phase D is done** (2026-10-19). Steps 1-4 (2026-10-19, `neoviday.py`; see `docs/GAME_DESIGN.md`, "NeoVi's day"). On mock days she speaks about two or three times a day, mostly at the table. Mock calls 86.4 a day. Step 5: a real afternoon and evening (`tests/real_neovi_day.py`, 43 calls): she was spoken to at both meals and answered in character (`docs/REAL_RUN.md`).
 1. She can join live conversations: speaks when addressed, on duty, or with a confidence to share; voiced from her own sheet.
 2. Visible chores at set times (serving meals, cleaning rooms, laundry rounds), shown on Who's where, putting her among people.
 3. A decision that wants a word with NeoVi sends the person to find her.

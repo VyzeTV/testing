@@ -222,3 +222,19 @@ A confidence now carries real content (above, Chloe's secret; in the second even
 - Noah called Cail "amigo" once. His sheet now says "amigo" to a man and "amiga" to a woman; in the second evening he said "amiga" to Cail and Vixen every time.
 - Chloe's secret called Cail "him": Cail was not in that conversation, so her pronouns were not in the prompt. The prompt now lists everyone a beat mentions who is not there, with their pronouns.
 - Ayden warned Chloe about Noah twice in one conversation. The same warning, gossip or reveal about the same person now comes once per conversation.
+
+# A real-model afternoon with NeoVi (2026-10-19, phase D)
+
+`tests/real_neovi_day.py` plays 12:00 to dawn with someone NeoVi trusts (Chloe), someone fond of her (Ayden) and someone who dislikes her (Szymon). 43 calls, no errors. She works her chores and is spoken to at both meals she serves; her lines ride each table's one voicing call.
+
+> **Ayden:** Could you leave the blinds open? The noon light on the table is perfect.
+> **NeoVi:** Until the lunch bell. Then they close. Those are the rules.
+> **Ayden:** You stand still like a good photograph. Sorry, that sounded silly.
+> **NeoVi:** I am a maid. I do not know what a photograph is.
+> **Ayden:** Chloe, I just charmed the housemaid into sunlight. Call that a talent.
+
+> **Cail:** Neovi, babe, could you leave the shutters open? I want to see the sunset.
+> **NeoVi:** Shutters? I only dust them. Dusk is at seven.
+> **Cail:** Szymon, she said no like a bouncer. Hire her for your next stunt.
+
+Three lines in an afternoon and evening, all at the table: she answers someone she likes and plays dumb otherwise. Chloe never sought her out alone, so the confidence path (tested in `tests/smoke.py`) did not come up in this run.
