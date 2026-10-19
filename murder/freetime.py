@@ -200,6 +200,8 @@ class FreeTimeMixin:
                 busy[cid] = self.free_pick(tick, cid, hour, m)
         if getattr(self, "_tl", None) is not None and tick.get("phase") != "night":
             self._tl.at(m + PICK_SPREAD, self._gather_check, tick, m + PICK_SPREAD, busy, prio=6)
+        if tick.get("phase") == "night":
+            self.night_watch(tick, m)                                   # a noise or someone in the room may wake a sleeper (intrusion.py)
 
     def _gather_check(self, tick, m, busy):
         """People who drifted together for company and are idling in one room start talking, as one group conversation (one per block)."""
@@ -867,6 +869,8 @@ class FreeTimeMixin:
         a.pop("heading", None)
         if walked:
             m += SLICE // 2 if dur > SLICE else 0
+            if self.arrival_reaction(tick, cid, a["room"], act, m):
+                return m + SLICE                                  # sent away (intrusion.py)
         if act in ("bathroom", "shower", "bath") and self._occupied_alone(tick, a["room"], m):
             act, label, dur, verb, at = "look", "waiting for the bathroom", 15, "waits for the bathroom", None
         if act == "chat" and partner not in w.agents:
@@ -1192,6 +1196,10 @@ class FreeTimeMixin:
         if not window:
             p["wait"] = p.get("wait", 0) + 0.25
             return False
+        if p["stage"] == "stalking" and ta.get("asleep") and alone and p.get("held_back") != self.day:
+            if not self.stalker_at_bedside(tick, cid, p, m):                 # now or never (intrusion.py)
+                busy[cid] = m + SLICE
+                return True
         if p["stage"] == "stalking":
             p["seen"] = p.get("seen", 0) + 1
             return False

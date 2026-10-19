@@ -39,7 +39,7 @@ STEP_WORK = {
     },
 }
 # how quickly work on each route goes: a small raft is simple, a transmitter fiddly, a bomb dangerous
-PACE = {"raft": 1.6, "transmit": 1.3, "shutdown": 1.0, "ultimatum": 0.7}
+PACE = {"raft": 1.6, "transmit": 1.3, "shutdown": 1.0, "ultimatum": 0.55}
 # roles that make someone good at a step
 SKILL = {("transmit", "unjam"): "Hacker", ("shutdown", "blind"): "Hacker", ("shutdown", "means"): "Hacker", ("transmit", "device"): "Hacker",
          ("shutdown", "locate"): "Urban Explorer", ("shutdown", "approach"): "Urban Explorer", ("raft", "launch"): "Urban Explorer",

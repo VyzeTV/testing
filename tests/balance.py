@@ -69,6 +69,8 @@ def run_week(seed, violent):
                 o["trials"] += 1
                 o["right"] += bool(tr.get("found"))
                 o["wrong"] += bool(tr.get("wrongful"))
+    for k, v in (w.state.get("intrusions") or {}).items():
+        o["intr:" + k] += v
     for k, v in (w.state.get("pastimes") or {}).items():
         o["past:" + k.rsplit("_", 1)[-1]] += v
         o["pastimes"] += v
@@ -114,6 +116,7 @@ def summarize(label, weeks):
         "lies_caught_real_false": [t["lies_real"], t["lies_false"]],
         "secret_meetings_per_week": round(t["meet"] / n, 1),
         "snoops_per_week_caught": [round(t["snoop"] / n, 1), t["snoop_caught"]],
+        "intrusions": {k[5:]: v for k, v in sorted(t.items(), key=lambda kv: -kv[1]) if k.startswith("intr:")},
         "pastimes_per_week": round(t["pastimes"] / n, 1),
         "pastime_outcomes": {k[5:]: v for k, v in sorted(t.items(), key=lambda kv: -kv[1]) if k.startswith("past:")},
     }
@@ -127,6 +130,7 @@ ROWS = [("Model calls per day", "calls_per_day"), ("Deaths per week", "deaths_pe
         ("Exhausted at dawn (share of the living)", "exhausted_at_dawn"), ("Beliefs per survivor at the end", "beliefs_per_survivor"),
         ("False beliefs (share)", "false_belief_share"), ("Lies caught: real / honest people wrongly caught", "lies_caught_real_false"),
         ("Secret meetings per week", "secret_meetings_per_week"), ("Snooping per week / snoopers caught (all weeks)", "snoops_per_week_caught"),
+        ("Intrusions and waking (all weeks)", "intrusions"),
         ("Pastimes per week (films, sunsets, talks, journals...)", "pastimes_per_week"), ("How pastimes went (all weeks)", "pastime_outcomes")]
 
 

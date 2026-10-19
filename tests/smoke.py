@@ -5194,7 +5194,9 @@ w.agents[tg_]["inv"][knife_] = 1
 w.agents[sp_]["snoop"] = {"on": tg_, "day": r.day}
 r.rng = _Fixed(0.99, r.rng)
 tk_ = r.new_tick(25, phase="night")
+r.snoop_care = lambda c_: "careful"                      # a careful search finds everything (a careless one may miss things)
 found_ = r.do_snoop(tk_, sp_, 10.0)
+del r.snoop_care
 check("going through a sleeper's things finds what they keep, and it becomes a belief (and a suspicion)", knife_ in (found_ or []) and any(b["k"] == "has" and b["o"] == knife_ for b in r.beliefs(sp_))
       and tg_ in r.suspects(sp_) and w.agents[tg_].get("asleep"))
 w.agents[sp_]["snoop"] = {"on": tg_, "day": r.day}
@@ -6323,6 +6325,8 @@ check("someone sworn to protect steps in even without a close bond", saved_ and 
 wk2_ = World(new_state(3))
 for d in (3, 4, 5):
     wk2_.state["day"] = d
+    hp_ = sorted(wk2_.agents)[:2]
+    wk2_.state.setdefault("ties", []).append({"a": hp_[0], "b": hp_[1], "kind": "helped", "text": "helped them (staged for the test)", "day": d})   # something to reflect on
     DayRunner(wk2_, LLM(backend="mock"), lambda t: None, step=2, murders=False, rule_mode="roulette", seed=340 + d).run()
 check("over a few mock nights the engine's reflections make choices", sum((wk2_.state.get("reflect_stats") or {}).values()) >= 1, str(wk2_.state.get("reflect_stats")))
 
@@ -6537,6 +6541,90 @@ for d in (3, 4):
 kinds_ = {k.split("_")[0] for k in (wp_.state.get("pastimes") or {})}
 check("over two mock days people take up several different pastimes", len(kinds_) >= 4, str(wp_.state.get("pastimes")))
 r._tl = None
+
+# ---- phase C: intrusions and waking (intrusion.py)
+w, r, _ = fresh(400)
+w.state["revealed"] = True
+own_, intr_ = "chloe", "szymon"
+home_ = w.cast[own_]["home"]
+for c in sorted(w.agents):
+    w.agents[c]["room"] = "foyer"
+w.agents[own_]["room"] = home_
+w.agents[own_]["aff"][intr_] = 0
+r0_ = r.rng
+r.rng = _Fixed(0.99, r0_)
+tk_ = r.new_tick(14)
+w.agents[intr_]["room"] = home_
+sent_ = r.arrival_reaction(tk_, intr_, home_, "snoop", 30.0)
+check("an awake owner confronts someone who walks into their room, and sees through a snooper's excuse",
+      sent_ and any(e["type"] == "intrude" and "What are you doing in my room?" in e["text"] for e in tk_["events"])
+      and any(b["k"] == "lied" and b["s"] == intr_ for b in r.beliefs(own_)) and w.agents[intr_]["room"] != home_)
+w.agents[intr_]["room"] = home_
+w.agents[own_]["aff"]["noah"] = 6
+w.agents["noah"]["room"] = home_
+n0_ = len(tk_["events"])
+check("a friend walking in is welcome", not r.arrival_reaction(tk_, "noah", home_, "chat", 32.0) and not any(e["type"] == "intrude" for e in tk_["events"][n0_:]))
+# a sleeper and a noise in the night
+tkn_ = r.new_tick(25, phase="night")
+w.agents[own_]["asleep"] = True
+w.agents[intr_]["room"] = "foyer"
+w.agents["noah"]["room"] = "foyer"
+tkn_["events"].append({"type": "fight", "who": "ayden", "room": home_, "m": 40.0, "text": "a fight"})
+r.rng = _Fixed(0.0, r0_)
+r.night_watch(tkn_, 45)
+check("a noise in the room wakes a sleeper during the block, not only when a block starts", not w.agents[own_].get("asleep")
+      and any(e["type"] == "wake" and "a noise" in e["text"] for e in tkn_["events"]))
+# woken by an intruder: a scream wakes the neighbours
+w.agents[own_]["asleep"] = True
+nb_ = sorted({e["b"] if e["a"] == home_ else e["a"] for e in w.edges if home_ in (e["a"], e["b"])} - {home_})[0]
+w.agents["cail"]["room"], w.agents["cail"]["asleep"] = nb_, True
+w.agents[intr_]["room"] = home_
+r.rng = _Fixed(0.3, r0_)
+how_ = None
+for _ in range(40):
+    w.agents[own_]["asleep"] = True
+    w.agents["cail"]["asleep"] = True
+    w.agents[intr_]["room"] = home_
+    r.rng = r0_
+    how_ = r.woken_reaction(tkn_, own_, intr_, 50.0)
+    if how_ == "scream":
+        break
+check("a woken person may scream (an outburst others can hear)", how_ == "scream" and any(e["type"] == "outburst" and "screams" in e["text"] for e in tkn_["events"]))
+check("whatever they do, they remember who was in their room", any(b["k"] == "did" and b["s"] == intr_ for b in r.beliefs(own_))
+      and any(t["a"] == own_ and t["b"] == intr_ and t["kind"] == "wronged" for t in w.state.get("ties", [])))
+# careful or careless snooping
+for c, fac in (("vixen", {"orderliness": 80, "impulsiveness": 20}), ("szymon", {"orderliness": 20, "impulsiveness": 85})):
+    r.mind(c)["facets"].update(fac)
+check("snooping is careful or careless by temperament", r.snoop_care("vixen") == "careful" and r.snoop_care("szymon") == "careless")
+# a stalker at a sleeper's bedside
+w, r, _ = fresh(401)
+w.state["revealed"] = True
+st_, tg_ = "seul", "chloe"
+room_ = w.cast[tg_]["home"]
+for c in sorted(w.agents):
+    w.agents[c]["room"] = "foyer"
+w.agents[st_]["room"] = w.agents[tg_]["room"] = room_
+w.agents[tg_]["asleep"] = True
+w.state["plots"] = {st_: {"target": tg_, "stage": "stalking", "stage_ticks": 0, "reason": "x", "plan": [], "seen": 0}}
+tks_ = r.new_tick(25, phase="night")
+tks_["free"], tks_["free_chats"] = {}, []
+r.rng = _Fixed(0.0, r.rng)
+r.plot_slice(tks_, st_, 25, 30, {})
+check("a stalker who finds the target asleep and alone moves to strike", w.state["plots"].get(st_, {}).get("stage") == "striking" or bool(w.state.get("case"))
+      or any(e["type"] in ("attack", "body", "death") for e in tks_["events"]), str(w.state["plots"].get(st_)))
+w, r, _ = fresh(402)
+w.state["revealed"] = True
+for c in sorted(w.agents):
+    w.agents[c]["room"] = "foyer"
+w.agents[st_]["room"] = w.agents[tg_]["room"] = room_
+w.agents[tg_]["asleep"] = True
+w.state["plots"] = {st_: {"target": tg_, "stage": "stalking", "stage_ticks": 0, "reason": "x", "plan": [], "seen": 0}}
+tks_ = r.new_tick(25, phase="night")
+tks_["free"], tks_["free_chats"] = {}, []
+r.rng = _Fixed(0.999, r.rng)
+r.plot_slice(tks_, st_, 25, 30, {})
+check("or loses their nerve, and the choice is recorded", w.state["plots"][st_].get("held_back") == r.day and w.state["plots"][st_]["stage"] == "stalking"
+      and any("could not do it" in x for x in w.state["plots"][st_]["plan"]) and w.agents[st_]["room"] != room_)
 
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]

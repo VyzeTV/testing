@@ -11,7 +11,7 @@ from .data_world import ROOMS
 
 CRITICAL = {"body", "discover", "death", "verdict", "execution", "attack", "arrival", "reveal", "deadline", "case", "trial", "newcomer"}
 IMPORTANT = {"fire", "flood", "wreck", "plot", "madness", "faint", "punish", "frame", "carry", "rob", "assault", "sabotage", "outburst", "island", "drive", "system_notable", "inspection", "condition", "snap"}
-NOTABLE = {"interrogation", "friction", "hook", "alliance", "betrayal", "treat", "experiment", "occasion", "rumor", "secret", "lock", "give", "director", "tease", "hide", "frisk", "conceal", "stash", "craft", "reaction", "door", "embarrassed"}
+NOTABLE = {"interrogation", "friction", "hook", "alliance", "betrayal", "treat", "experiment", "occasion", "rumor", "secret", "lock", "give", "director", "tease", "hide", "frisk", "conceal", "stash", "craft", "reaction", "door", "embarrassed", "intrude", "snoop_caught"}
 CHRON_MAX = 4000
 BROADCAST_CRITICAL = {"verdict", "trial", "trial_open", "reveal", "deadline", "finale", "last_call", "endgame", "execution", "spree_death", "arrival"}
 

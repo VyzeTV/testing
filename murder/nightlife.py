@@ -113,24 +113,29 @@ class NightLifeMixin:
         sn["done"] = True
         t = sn.get("on")
         room = a["room"]
+        care = self.snoop_care(cid)
         self.log_event(tick, {"type": "snoop", "who": cid, "room": room, "vis": "viewer", "m": float(m),
-                              "text": f"{self.nm(cid)} searches the {w.room_name(room)} quietly" + (f", looking for something on {self.nm(t)}." if t else ".")})
+                              "text": (f"{self.nm(cid)} searches the {w.room_name(room)} carefully, putting everything back" if care == "careful"
+                                       else f"{self.nm(cid)} rummages through the {w.room_name(room)}") + (f", looking for something on {self.nm(t)}." if t else ".")})
         self.reveal_clues(tick, cid)
         self.search_for_hidden(tick, cid, "")
         if t not in w.agents or w.agents[t]["room"] != room:
             return None
         ta = w.agents[t]
         found = sorted(k for k in ta["inv"] if {"weapon", "poison"} & set(w.item_spec(k).get("tags", [])))
+        if care == "careless":
+            found = [k for k in found if self.rng.random() < 0.6]                  # in a hurry, they miss things
         tnow = round(self.abs_now() + m / 60, 2)
         for k in found:
             self.believe(cid, {"k": "has", "s": t, "o": k, "n": f"{self.nm(t)} keeps a {w.item_name(k)}", "src": "seen", "c": 0.9, "t0": tnow, "true": True})
             w.remember(cid, f"Going through {self.nm(t)}'s things at night, you found a {w.item_name(k)}.")
-        if ta.get("asleep") and self.rng.random() < 0.15 + 0.25 * self.facet(t, "stress_vulnerability") / 100:
+        wake = (0.15 + 0.25 * self.facet(t, "stress_vulnerability") / 100) * (0.5 if care == "careful" else 1.6) * self.light_sleeper(t)
+        if ta.get("asleep") and self.rng.random() < min(0.9, wake):
             self.rouse(tick, t, "someone in the room", m)
             self.believe(t, {"k": "did", "s": cid, "o": "snoop", "r": room, "t0": tnow, "n": f"{self.nm(cid)} was going through your things", "src": "seen", "c": 0.95, "true": True})
-            if cid in ta["aff"]:
-                w.adjust_aff(t, cid, -2)
             self.add_tie(t, cid, "wronged", f"caught them going through their things on night {self.day}")
-            self.log_event(tick, {"type": "snoop_caught", "who": t, "room": room, "vis": "public", "m": float(m),
-                                  "text": f"{self.nm(t)} wakes and catches {self.nm(cid)} going through their things."}, witnesses=[t], actor=cid)
+            how = self.woken_reaction(tick, t, cid, m, "snoop")                       # confront, scream, pretend to sleep, or fight back (intrusion.py)
+            if how != "pretend":
+                self.log_event(tick, {"type": "snoop_caught", "who": t, "room": room, "vis": "public", "m": float(m),
+                                      "text": f"{self.nm(t)} wakes and catches {self.nm(cid)} going through their things."}, witnesses=[t], actor=cid)
         return found
