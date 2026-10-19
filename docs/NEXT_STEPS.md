@@ -1,6 +1,6 @@
 # Next steps (after the real Day 3, 2026-10-19)
 
-Where the work stands, what the real-model days showed, and the agreed plan. Phase A is next. Ask the user before starting each phase; commit each step with tests passing (`python tests/smoke.py`, `python tests/baseline.py` at or below about 91.7 calls a day, `python tests/balance.py`).
+Where the work stands, what the real-model days showed, and the agreed plan. Phase A is done; Phase B is next. Ask the user before starting each phase; commit each step with tests passing (`python tests/smoke.py`, `python tests/baseline.py` at or below about 91.7 calls a day, `python tests/balance.py`).
 
 ## Already done (commits 96ad566 and after)
 
@@ -29,7 +29,7 @@ The user confirmed on Day 3: movement is easier to follow, simultaneous conversa
 ## The plan
 
 ### Phase A: Dialogue
-Steps 1 to 4 done (2026-10-19): turns, the voice prompt, confidences, looks and catchphrases (see `docs/GAME_DESIGN.md`, Conversations). Also fixed: a staged scene gave lines to someone never walked there (`claimtrial.stage_trial_live`). Mock calls a day 92.3 on the standard seeds (91.4 on seeds 44-66): random-sequence noise, no new calls.
+**Phase A is done** (2026-10-19). Steps 1 to 4: turns, the voice prompt, confidences, looks and catchphrases (see `docs/GAME_DESIGN.md`, Conversations). Also fixed: a staged scene gave lines to someone never walked there (`claimtrial.stage_trial_live`). Step 5: two real evenings (`tests/real_evening.py`, 67 calls) had no one answering their own line, no "morning" after noon, no repeated pet names or looks remarks; Noah's sheet and the pronouns of people mentioned but absent were fixed after the first (`docs/REAL_RUN.md`). Mock calls a day 91.8.
 1. Speakers alternate between exchanges (`convo.py`, `social.py`): the next exchange opens with someone other than the last speaker unless they are alone or holding the floor; if one person speaks twice in a row, the voice prompt marks it as going on, not a reply.
 2. The voice prompt (`voice.py`) shows the time of day, a marker between exchanges ("a few minutes later"), whom each beat is said to, and each person's gender and pronouns.
 3. Confidences pay off: a partner or close friend rarely rebuffs "a big deal"; an accepted confide carries its content (the secret or worry) into the beat; a rebuffed one is remembered and may come back.

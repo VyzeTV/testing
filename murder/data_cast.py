@@ -61,7 +61,7 @@ CHARACTERS = {
         "persona": "Beloved Portuguese pop singer, songwriter and producer, known as the kindest artist in the industry. Warm, playful, improvises constantly, always humming. Hates loneliness and feeling powerless.",
         "secret": "His label contract means leaving mid-project would cost millions. He is quietly panicking. His lyric notebook has verses about the island.",
         "likes": "improvising, playing guitar", "dislikes": "loneliness, feeling powerless",
-        "speech": "Warm and musical, puns, hums mid-sentence, offers songs and snacks, calls people 'amigo/amiga' now and then.",
+        "speech": "Warm and musical, puns, hums mid-sentence, offers songs and snacks, now and then calls a man 'amigo' and a woman 'amiga'.",
         "candor": 'Charming and soft-spoken, but when cornered, scared or reminded of his label, the mask slips: bitter, sweary, self-loathing, and sharp-tongued about the music industry.',
         "goals": "Make friends, find out why Ayden froze at the cliff photo, solve the puzzle of Vixen, write a real song.",
         "start": {"hp": 100, "sanity": 88},

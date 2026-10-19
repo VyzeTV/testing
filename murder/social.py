@@ -198,7 +198,10 @@ class SocialMixin:
         if plan and plan.get("target") == t:
             opts.append((1.2, "feign", None))
         out = []
+        told = conv.setdefault("told", [])
         for wgt, mv, about in opts:
+            if mv in ("warn", "gossip", "reveal") and [a, mv, about] in told:
+                continue                                                # the same warning about the same person once is enough
             wgt = wgt / (1 + 1.5 * used.get(mv, 0))                     # people do not repeat themselves in one conversation
             if wgt > 0.05:
                 out.append((wgt, mv, about))
@@ -446,6 +449,8 @@ class SocialMixin:
             else:
                 reply = "rebuff"
         conv["used"][move] = conv["used"].get(move, 0) + 1
+        if move in ("warn", "gossip", "reveal"):
+            conv.setdefault("told", []).append([a, move, about])
         u = MOVE_URGE.get(move)
         if u and outcome != "fail":
             self.booth_note(t, u[0], u[1], a)                    # something to tell the camera about

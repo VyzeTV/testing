@@ -174,6 +174,10 @@ def voice_prompt(eng, conv, beats):
         lk = eng.looks_notable(p)
         cards.append(f"- {p} = {c['name']} ({c.get('gender', 'person')}, {pron}), {c['role']}." + (f" Notable right now: {lk}." if lk else "")
                      + f" Speech: {c['speech']} Mood: {eng.mood_text(a)}. Feelings: {rel or 'n/a'}.")
+    named = sorted({x for b in beats for x in (b.get("about"), b.get("to"), b.get("against")) if x in w.cast and x not in conv["members"]}
+                   | {x for x in w.cast if x not in conv["members"] and any(eng.nm(x) in str(b.get("shares") or "") + str(b.get("claim") or "") for b in beats)})
+    if named:
+        cards.append("Mentioned but not here: " + "; ".join(f"{eng.nm(x)} ({w.cast[x].get('gender', 'person')}, {PRONOUNS.get(w.cast[x].get('pron'), 'they/them')})" for x in named) + ".")
     sysm = (eng.bible() + " You voice a scene the game has already decided: you write the words, never the outcomes. Plain, natural, short spoken lines, each in the speaker's own voice. "
             "Reply with a single JSON object and nothing else.")
     rule = (eng.s.get("rule") or {}).get("text")

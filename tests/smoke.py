@@ -6441,6 +6441,10 @@ for _ in range(20):
 check("a rebuffed confidence is remembered, and can come back as a confrontation", any(x["a"] == a_ and x["b"] == c_ and x["kind"] == "rebuffed" for x in w.state.get("ties", []))
       and any(o[1] == "confront" for o in r.move_options({"used": {}}, a_, c_)))
 
+cvw_ = {"members": ["ayden", "chloe"], "room": "lounge", "used": {}, "beats": []}
+r.resolve_move(r.new_tick(16), cvw_, "ayden", "chloe", "warn", "noah")
+check("the same warning about the same person comes once per conversation", not any(o[1] == "warn" and o[2] == "noah" for o in r.move_options(cvw_, "ayden", "chloe")))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

@@ -196,3 +196,29 @@ Noah was voted guilty, which was right. Cail led the climax but had little to sh
 - A story read "Vixen loves Szymon, who only has eyes for Cail" although Vixen and Szymon were a couple and Szymon was only fond of Cail. A couple is no longer a triangle. When someone loves a person who is closer to a friend but not their lover, it reads "who is closer to Cail".
 - A reflection said "decides to trust Vixen again" when trust had never been lost. Now it reads "trusts Vixen a little more".
 - A reread ("Noah is dangerous") was always stored as a false belief. It is now true when the person has killed or is plotting.
+
+# Two real-model evenings: the dialogue fixes (2026-10-19, phase A)
+
+`tests/real_evening.py` plays 16:00 to dawn with a couple (Noah and Cail) and close friends (Ayden and Chloe), then counts what Day 3 got wrong. Two runs (seeds 93 and 94): 31 and 36 calls, 14 conversations, 121 lines.
+
+| Check | Day 3 | Evening 1 | Evening 2 |
+|---|---|---|---|
+| Someone answers their own line | several | 0 | 0 |
+| "Morning" after noon | yes | 0 | 0 |
+| A pet name twice by one person in one scene | "babe" in 29 of 174 lines | 0 | 0 |
+| Remarks on hair or clothes | most openers | 0 | 0 |
+| "Amigo" to a woman | yes | 1 | 0 |
+
+Lines now carry the hour ("Four o'clock light's gone all gold through the window", "Evening, Cail"). A line where the same person goes on reads as going on:
+
+> **Chloe:** shrugs and turns back to the easel without answering.
+> **Chloe:** Please don't laugh. I'm a fan of Cail. I have a sketchbook of him; he found a page yesterday.
+> **Ayden:** Thank you for trusting me. Your secret's safe with me.
+
+A confidence now carries real content (above, Chloe's secret; in the second evening, Ayden's: "Diego took that famous cliff sunset, never got credit. We haven't spoken in two years.").
+
+## Fixed after the first evening
+
+- Noah called Cail "amigo" once. His sheet now says "amigo" to a man and "amiga" to a woman; in the second evening he said "amiga" to Cail and Vixen every time.
+- Chloe's secret called Cail "him": Cail was not in that conversation, so her pronouns were not in the prompt. The prompt now lists everyone a beat mentions who is not there, with their pronouns.
+- Ayden warned Chloe about Noah twice in one conversation. The same warning, gossip or reveal about the same person now comes once per conversation.
