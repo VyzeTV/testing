@@ -6393,6 +6393,54 @@ r.climax(beats_, a_, {"raised": []}, [], {p: 1.0 for p in w.agents}, lambda *x: 
 gaps_ = [bt for bt in beats_ if bt["move"] == "climax_gap"]
 check("missing steps in a row are said once in the climax", len(gaps_) == 1, str(gaps_))
 
+# ---- phase A: dialogue (turns, the voice prompt, confidences, looks)
+own_reply = conts = pairs = 0
+for t in live_week(41, days=(3, 4)):
+    for g in t.get("talk") or []:
+        if not g.get("chat") and not g.get("conv"):
+            continue
+        ls = [l for l in g["lines"] if "ex" in l]
+        for x, y in zip(ls, ls[1:]):
+            if x["speaker"] == y["speaker"]:
+                pairs += 1
+                if y["ex"] == x["ex"] or not y.get("cont"):
+                    own_reply += 1
+                conts += bool(y.get("cont"))
+check("nobody answers their own line: a second line in a row only opens a new exchange, marked as going on", own_reply == 0 and pairs >= 1, f"{own_reply} of {pairs}")
+w, r, _ = fresh(360)
+w.state["revealed"] = True
+a_, b_ = "noah", "cail"
+conv_ = {"members": [a_, b_], "room": "lounge", "hour": 16, "m0": 10, "why": "they happen to be together"}
+beats_ = [{"who": a_, "to": b_, "move": "chat", "outcome": "ok", "ex": 0, "m": 10.0}, {"who": b_, "to": a_, "move": "warm", "reply_to": "chat", "outcome": "ok", "ex": 0, "m": 10.7},
+          {"who": b_, "to": a_, "move": "joke", "outcome": "ok", "ex": 1, "m": 15.0, "cont": True}, {"who": a_, "to": b_, "move": "laugh", "reply_to": "joke", "outcome": "ok", "ex": 1, "m": 15.7}]
+from murder.voice import voice_prompt as vp_
+_, u_ = vp_(r, conv_, beats_)
+check("the voice prompt has the time of day, a pause between exchanges, pronouns, and marks a line that goes on",
+      "16:10, afternoon" in u_ and "(a few minutes later)" in u_ and "he/him" in u_ and "she/her" in u_ and "not a reply to themselves" in u_, u_[:300])
+wl_ = World(new_state(3))
+rl_ = DayRunner(wl_, LLM(backend="mock"), lambda t: None, step=2, murders=False, rule_mode="none", seed=361)
+rl_.run()
+for c in sorted(wl_.agents):
+    rl_.looks_notable(c)                                              # a first scene after the night: the change is worth a remark once
+plain_ = [c for c in sorted(wl_.agents) if not rl_.looks_notable(c)]
+check("looks stay out of the voice card unless something is new or notable", "Looks:" not in u_ and len(plain_) >= len(wl_.agents) - 1, f"{len(plain_)} of {len(wl_.agents)} plain")
+r.add_cond(r.new_tick(16), b_, "bleeding", 2, "a cut")
+check("a visible mark makes looks notable", r.has_cond(b_, "bleeding") and "bleeding" in r.looks_notable(b_), r.looks_notable(b_))
+w.agents[a_]["aff"][b_] = 9
+w.agents[b_]["aff"][a_] = 9
+cv_ = {"members": [a_, b_], "room": "lounge", "used": {}, "beats": []}
+oks_ = sum(r.resolve_move(r.new_tick(16), cv_, a_, b_, "confide")[0]["outcome"] == "ok" for _ in range(30))
+check("partners rarely turn a confidence away", oks_ >= 27, f"{oks_}/30")
+bt_ = r.resolve_move(r.new_tick(16), cv_, a_, b_, "confide")[0]
+check("a confidence carries what is shared (their secret, between people this close)", bt_.get("shares", "").startswith("their secret"), str(bt_.get("shares")))
+c_ = "chloe"
+w.agents[c_]["aff"][a_] = -6
+w.agents[a_]["aff"][c_] = 5
+for _ in range(20):
+    r.resolve_move(r.new_tick(16), {"members": [a_, c_], "room": "lounge", "used": {}, "beats": []}, a_, c_, "confide")
+check("a rebuffed confidence is remembered, and can come back as a confrontation", any(x["a"] == a_ and x["b"] == c_ and x["kind"] == "rebuffed" for x in w.state.get("ties", []))
+      and any(o[1] == "confront" for o in r.move_options({"used": {}}, a_, c_)))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

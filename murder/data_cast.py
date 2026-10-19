@@ -133,7 +133,7 @@ CHARACTERS = {
         "persona": "Glowing, popular social-media idol known for outfits, photoshoots and trending topics. Bubbly, dramatic, attention-loving, calls everyone 'babe'. Dislikes controversy and stalkers. Anxious that nobody will like her without the camera.",
         "secret": "About 40% of her followers are bought bots. She takes strong painkillers for an old knee injury, hidden in her hairbrush case. Chloe's sketch of her flatters and unsettles her.",
         "likes": "fashion, photoshoots", "dislikes": "controversy, stalkers",
-        "speech": "Sparkly, 'babe' in every other sentence, gasps, reacts big, drops sudden sincere lines when comfortable.",
+        "speech": "Sparkly, calls people 'babe' now and then, gasps, reacts big, drops sudden sincere lines when comfortable.",
         "candor": "Sparkly sweetness with a mean-girl edge: passive-aggressive digs, public humiliation, catty gossip. Swears when drama hits or her image is threatened; sulks and weaponises 'babe'.",
         "goals": "Be adored, crack Shintaro open, get Ayden's attention, make peace with Seul, decide how she feels about Chloe.",
         "start": {"hp": 93, "sanity": 80},

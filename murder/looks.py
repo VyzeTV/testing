@@ -100,6 +100,18 @@ class LooksMixin:
         tall = {"short": "short", "medium": "of medium height", "tall": "tall"}[lk["height"]]
         return f"{tall}, {hair}, {lk['eyes']}; wearing {outfit}{acc_txt}{tail}"
 
+    def looks_notable(self, cid):
+        """How someone looks, only when it is worth a remark: marks, someone else's or stained clothes, a missing accessory, or a change since their last scene."""
+        a = self.world.agents.get(cid)
+        if not a:
+            return ""
+        line = self.looks_line(cid, short=True)
+        sig = [self.worn(cid), self.wears_accessory(cid)]
+        changed = a.get("looks_seen") not in (None, sig)
+        a["looks_seen"] = sig
+        odd = any(k in line for k in ("; ", "not their own", "without their usual"))
+        return line if odd or changed else ""
+
     def accessory_item(self, cid):
         return f"acc_{cid}" if self.looks(cid).get("accessory") else None
 

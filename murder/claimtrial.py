@@ -531,6 +531,12 @@ class ClaimTrialMixin:
         sm = self.sim_turn(tick)
         trial = room == "voting_grounds"
         groups = [g for g in tick.get("talk") or [] if (g.get("segment") or g.get("scene")) and g.get("room") == room]
+        nav = sm.nav
+        away = lambda c: c in sm.tracks and c not in arrivals and nav.room_at(*sm.pos_at(c, sm.dur - 1.0)) != room
+        for g in groups:                                              # nobody speaks in a scene they were never walked to
+            g["lines"] = [ln for ln in g["lines"] if not away(ln["speaker"])]
+        tick["talk"] = [g for g in tick["talk"] if g["lines"] or g not in groups]
+        groups = [g for g in groups if g["lines"]]
         n = sum(len(g["lines"]) for g in groups)
         if not n:
             return

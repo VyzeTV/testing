@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from .data_cast import HOSTS, STORY_BIBLE
 from .data_world import ROOMS, CAMERA_BLIND, ESCAPE_ROUTES as ESCAPE_ROUTES_
 from .llm import LLMError
+from .voice import PRONOUNS, part_of_day
 from . import rules as rulelib
 from .world import MOVE_BUDGET, clamp, deadline_for_death
 from .data_world import COMMON_ITEMS
@@ -647,7 +648,9 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                     extra = (f" YOU ARE THE ONE RESPONSIBLE for {self.nm(case['victim'])}'s death ({case['method']}"
                              f"{', unintended' if case['kind'] == 'manslaughter' else ''}); defend yourself, lie or break down, as you would; never confess lightly.")
                 cards.append(
-                    f"- {pid} = {c['name']}, {c['role']}. {c['persona']} Looks: {self.looks_line(pid)}. Speech: {c['speech']} "
+                    f"- {pid} = {c['name']} ({c.get('gender', 'person')}, {PRONOUNS.get(c.get('pron'), 'they/them')}), {c['role']}. {c['persona']} "
+                    + (f"Looks: {self.looks_line(pid)}. " if mode == "intro" else (lambda lk: f"Notable right now: {lk}. " if lk else "")(self.looks_notable(pid)))
+                    + f"Speech: {c['speech']} "
                     f"When stressed or provoked: {c.get('candor', '')} Secret to protect: {c['secret']} Mood: health {a['hp']}, sanity {a['sanity']} ({self.mood_text(a)}). "
                     f"Doing: {a['activity']}. Carrying: {', '.join(w.item_name(k) + (' (hidden on them: nobody sees it)' if k in a.get('concealed', {}) else '') for k in list(a['inv'])[:10]) or 'nothing'}. "
                     f"Wants: {intents.get(pid, 'just be around people')}. "
@@ -721,7 +724,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             ruleline = ("TODAY'S RULE (everyone knows it and NeoVi punishes clear violations): " + rule["text"] +
                         " The characters remember this while they talk: they usually obey, and only bend or defy it knowingly, with the risk in mind.\n")
         return (
-            f"SCENE: Day {self.day}, {hhmm(hour)}, {w.room_name(room)}. Items visible: {self.items_text(s['room_items'].get(room, {}))}.\n"
+            f"SCENE: Day {self.day}, {hhmm(hour)} ({part_of_day(hour)}), {w.room_name(room)}. Items visible: {self.items_text(s['room_items'].get(room, {}))}.\n"
             + ctxline + ruleline + self.house_line() + self.tone_paragraph(group) + "PEOPLE PRESENT:\n" + "\n".join(cards) + "\n"
             + (f"EARLIER IN THIS ROOM: {' / '.join(prev[-4:])}\n" if prev else "")
             + f"Write the next stretch of conversation among them as a short scene: {count}, "
@@ -734,7 +737,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
               "HOW REAL PEOPLE TALK: plain, natural speech, the way people talk when they are scared, tired, annoyed or kind. Short sentences, mostly about concrete things: what they saw, want, fear, plan or owe. "
               "Each line answers what the previous speaker actually said (or clearly dodges it). NO stacked metaphors, NO clever quip in every line, NO wordplay for its own sake, NO hashtags or internet slang, "
               "NO pet name in every sentence, NO non-sequiturs and no line that only sounds witty. People repeat themselves, trail off, interrupt, misunderstand each other and say less than they feel; "
-              "they do not explain their own emotions in poetic terms. Voices differ by vocabulary and rhythm (check each card), not by catchphrases. Action lines are specific and physical, never poetic. "
+              "they do not explain their own emotions in poetic terms. Voices differ by vocabulary and rhythm (check each card), not by catchphrases: a pet name or catchphrase at most once per person. Use each person's pronouns. Remark on looks only where a card lists something notable. Action lines are specific and physical, never poetic. "
               "Each card gives the tone that fits that person toward each other person; follow it. Swearing is fine when it fits. No slurs against protected groups. "
               "PROPS: a person can only use, hold, hand over or pull out what their card lists under Carrying, what is listed as visible in the scene, or this room's ordinary supplies; never invent an object (no binoculars from a jacket unless they are listed). "
               "TereVi (if present) is on the monitor: she meddles and teases. NeoVi (if present) is frightened, terse and secretly sympathetic. "

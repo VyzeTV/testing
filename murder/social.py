@@ -12,6 +12,8 @@ from .drama import GIFT_ITEMS
 from .booth import MOVE_URGE
 
 # move: (family, loudness, short topic used when somebody only half hears it)
+HOLD_FLOOR = 0.2              # chance the last speaker goes on and opens the next exchange too
+
 MOVES = {
     "chat":     ("bonding", "normal", "small talk"),
     "joke":     ("bonding", "normal", "a joke"),
@@ -179,7 +181,7 @@ class SocialMixin:
             opts.append((1.6 + f("assertiveness") / 60, "accuse", None))
         if aff <= -5 and (f("anger") >= 60 or a in plots):
             opts.append((0.8 + (f("anger") - 50) / 50, "threaten", None))
-        if any(x["a"] == a and x["b"] == t and x["kind"] in ("wronged", "betrayed") for x in s.get("ties", [])) or any(
+        if any(x["a"] == a and x["b"] == t and x["kind"] in ("wronged", "betrayed", "rebuffed") for x in s.get("ties", [])) or any(
                 r["by"] == t and r["about"] == a and a in r.get("heard", []) for r in s.get("rumors", [])[-8:]):
             opts.append((1.3 * f("assertiveness") / 50, "confront", None))
         if aff >= 3 and back >= 3 and (self.dread_level() >= 2 or inv_case) and not any({b["a"], b["b"]} == {a, t} and b["kind"] == "pact" for b in s.get("bonds", [])):
@@ -230,7 +232,7 @@ class SocialMixin:
         roll = self.rng.random()
         outcome = "ok" if roll < p else ("backfire" if roll > 1 - 0.25 * (1 - r) else "fail")
         fx = {}
-        reply, claim, claim_at = "shrug", None, None
+        reply, claim, claim_at, shares = "shrug", None, None, None
         aff = lambda x, y, d: fx.setdefault("affinity", []).append({"from": x, "to": y, "delta": d})
         special = lambda kind, who, depth=1, why="": fx.setdefault("special", []).append({"kind": kind, "who": who, "depth": depth, "why": why or kind})
         hurt = lambda x, d, why: (fx.setdefault("sanity", {}).__setitem__(x, fx.get("sanity", {}).get(x, 0) - d), fx.setdefault("why", {}).__setitem__(x, why))
@@ -263,16 +265,20 @@ class SocialMixin:
             else:
                 reply = "rebuff"
         elif move == "confide":
+            if outcome != "ok" and self.close_pair(a, t) and self.rng.random() < 0.8:
+                outcome = "ok"                                     # a partner or close friend rarely turns a confidence away
+            shares = self.confidence_of(a, t, depth)
             if outcome == "ok":
                 special("confession", [a, t], depth, "opened up")
                 aff(t, a, 2)
                 aff(a, t, 1)
                 reply = "warm"
-                if self._aff(a, t) >= 6 and self.rng.random() < 0.25:
+                if shares.startswith("their secret") or self._aff(a, t) >= 6 and self.rng.random() < 0.25:
                     fx["reveals"] = [{"by": a, "about": a, "to": [t]}]
             else:
                 hurt(a, 1, "rebuffed")
                 reply = "rebuff"
+                self.add_tie(a, t, "rebuffed", f"turned them away when they opened up on day {self.day}")
         elif move == "flirt":
             if outcome == "ok":
                 aff(t, a, 2)
@@ -449,9 +455,30 @@ class SocialMixin:
         about_ = about if isinstance(about, str) and about in w.cast else None
         b1 = {"who": a, "to": t, "move": move, "about": about_, "item": about if move == "gift" else None, "outcome": outcome, "loud": loud_,
               "topic": topic.format(x=self.nm(about_) if about_ else "someone")}
+        if move == "confide":
+            b1["shares"] = shares
         b2 = {"who": t, "to": a, "move": reply, "reply_to": move, "outcome": outcome, "loud": "heated" if reply in ("snap", "stand_up", "counter") else ("quiet" if loud == "whisper" else loud),
               "topic": b1["topic"], **({"claim": claim} if claim else {}), **({"claim_at": claim_at} if claim_at else {})}
         return [b1, b2]
+
+    def close_pair(self, a, t):
+        """Partners, or friends who are close both ways."""
+        return any({b["a"], b["b"]} == {a, t} and b["kind"] == "romance" for b in self.s.get("bonds", [])) or min(self._aff(a, t), self._aff(t, a)) >= 7
+
+    def confidence_of(self, a, t, depth):
+        """What `a` actually opens up about: their secret to someone very close, otherwise what weighs on them most right now."""
+        w = self.world
+        sec = (w.cast.get(a) or {}).get("secret") or ""
+        if depth >= 3 and sec:
+            return "their secret: " + sec.split(". ")[0].rstrip(".") + "."
+        if self.mind_on():
+            low = sorted((th for th in self.mind(a)["thoughts"] if th["w"] < 0), key=lambda th: th["w"] * th["t"] / th["t0"])
+            if low:
+                return f"what weighs on them: {low[0]['c']}"
+        A = w.agents[a]
+        if A["memory"].get("lost"):
+            return "how much they miss someone they lost here"
+        return "that they are more frightened than they let anyone see" if A["sanity"] < 60 else "how much they miss home and who is waiting there"
 
     def chime_in(self, tick, conv, a, t, c):
         """A third person takes a side after a move: warmer toward whoever they agree with."""
@@ -469,15 +496,23 @@ class SocialMixin:
         members = [m for m in conv["members"] if m in w.agents and not w.agents[m].get("out")]
         if len(members) < 2:
             return []
-        turn = conv.setdefault("turn", 0)
-        a = members[turn % len(members)] if turn else (conv.get("initiator") if conv.get("initiator") in members else members[0])
-        conv["turn"] = turn + 1
+        last = conv["beats"][-1]["who"] if conv.get("beats") else None
+        opens = conv.setdefault("opens", {})
+        if last is None:
+            a = conv.get("initiator") if conv.get("initiator") in members else members[0]
+        elif last in members and self.rng.random() < HOLD_FLOOR:
+            a = last                                                # they hold the floor and go on; the voice is told it is not a reply
+        else:
+            a = min((m for m in members if m != last), key=lambda m: (opens.get(m, 0), members.index(m)))
+        opens[a] = opens.get(a, 0) + 1
         want = (w.agents[a].get("want_talk") or {})
         pref = [x for x in want.get("who", []) if x in members and x != a] if want.get("day") == self.day else []
         others = [m for m in members if m != a]
         t = pref[0] if pref else max(others, key=lambda o: (abs(self._aff(a, o)), o))
         mv, about = self.pick_move(conv, a, t)
         beats = self.resolve_move(tick, conv, a, t, mv, about)
+        if a == last:
+            beats[0]["cont"] = True
         third = [m for m in members if m not in (a, t)]
         if third and MOVES[mv][0] in ("conflict", "status", "information") and self.rng.random() < 0.5:
             beats.append(self.chime_in(tick, conv, a, t, self.rng.choice(third)))

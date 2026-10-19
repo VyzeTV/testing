@@ -25,7 +25,7 @@ from murder.world import World, new_state    # noqa: E402
 
 KINDS = ("decide", "converse", "voice", "react", "summarize", "host_json", "reflect", "adjudicate", "confess", "neovi_plan", "judge", "vote", "broadcast", "propose")
 AIMLESS = {"look", "stay", "walk", "explore"}
-SEEDS = (11, 22, 33)
+SEEDS = tuple(int(x) for x in os.environ.get("MC_SEEDS", "11,22,33").split(","))
 DAYS = 7
 
 

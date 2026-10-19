@@ -97,6 +97,15 @@ def template_line(eng, beat, rng):
     return {"speaker": beat["who"], "kind": "say", "text": text}
 
 
+def spoken_line(eng, beat, rng):
+    """A template line that is speech, never an action."""
+    for _ in range(6):
+        ln = template_line(eng, beat, rng)
+        if ln["kind"] == "say":
+            return ln
+    return {"speaker": beat["who"], "kind": "say", "text": "Mm."}
+
+
 MOVE_WORDS = {"chat": "makes small talk with", "joke": "jokes with", "comfort": "comforts", "confide": "confides in", "flirt": "flirts with", "gift": "gives a gift to",
               "boast": "boasts to", "mock": "mocks", "putdown": "insults", "probe": "questions", "gossip": "gossips with", "warn": "warns", "reveal": "lets a secret slip to",
               "accuse": "accuses", "threaten": "threatens", "confront": "confronts", "pact": "proposes a pact to", "recruit": "quietly asks for help from",
@@ -117,11 +126,39 @@ def beat_text(eng, i, b):
         s += f" (the {eng.world.item_name(b['item'])})"
     if b["move"] in MOVE_WORDS and b.get("reply_to") is None and b["move"] not in ("side",):
         s += {"ok": " - it lands", "fail": " - it falls flat", "backfire": " - it backfires"}.get(b.get("outcome"), "")
+    if b.get("cont"):
+        s += " - they go on from their own last line; this is not a reply to themselves"
+    if b.get("shares"):
+        s += f"; what they open up about: {b['shares']}"
     if b.get("claim"):
         s += f'; they say, in substance: "{b["claim"]}"' + (" (a LIE)" if b["move"] == "lie" else "")
     if b.get("loud") in ("whisper", "heated"):
         s += f" [{'whispered' if b['loud'] == 'whisper' else 'raised voice'}]"
     return s
+
+
+PRONOUNS = {"he": "he/him", "she": "she/her", "they": "they/them"}
+
+
+def part_of_day(h):
+    h = h % 24
+    return "early morning" if 5 <= h < 9 else "morning" if h < 12 else "afternoon" if h < 17 else "evening" if h < 21 else "night"
+
+
+def scene_time(conv, beats):
+    t = conv.get("hour", 12) + (beats[0]["m"] if beats else conv.get("m0", 0)) / 60
+    return f"{int(t % 24):02d}:{int(t * 60) % 60:02d}, {part_of_day(t)}"
+
+
+def beats_block(eng, beats):
+    """The beats, numbered, with a marker where minutes pass between exchanges."""
+    out, prev = [], None
+    for i, b in enumerate(beats):
+        if prev is not None and b.get("ex") != prev.get("ex") and b["m"] - prev["m"] >= 2.5:
+            out.append("   (a few minutes later)")
+        out.append(beat_text(eng, i, b))
+        prev = b
+    return "\n".join(out)
 
 
 def voice_prompt(eng, conv, beats):
@@ -133,14 +170,20 @@ def voice_prompt(eng, conv, beats):
             continue
         c, a = w.cast[p], w.agents[p]
         rel = "; ".join(f"{eng.nm(o)} {a['aff'].get(o, 0):+d}" for o in conv["members"] if o != p and o in w.agents)
-        cards.append(f"- {p} = {c['name']}, {c['role']}. Looks: {eng.looks_line(p, short=True)}. Speech: {c['speech']} Mood: {eng.mood_text(a)}. Feelings: {rel or 'n/a'}.")
+        pron = PRONOUNS.get(c.get("pron"), "they/them")
+        lk = eng.looks_notable(p)
+        cards.append(f"- {p} = {c['name']} ({c.get('gender', 'person')}, {pron}), {c['role']}." + (f" Notable right now: {lk}." if lk else "")
+                     + f" Speech: {c['speech']} Mood: {eng.mood_text(a)}. Feelings: {rel or 'n/a'}.")
     sysm = (eng.bible() + " You voice a scene the game has already decided: you write the words, never the outcomes. Plain, natural, short spoken lines, each in the speaker's own voice. "
             "Reply with a single JSON object and nothing else.")
     rule = (eng.s.get("rule") or {}).get("text")
-    user = (f"SCENE: Day {eng.day}, {w.room_name(conv['room'])}. Why they are talking: {conv.get('why') or 'they happen to be together'}.\n"
+    user = (f"SCENE: Day {eng.day}, {scene_time(conv, beats)}, {w.room_name(conv['room'])}. Why they are talking: {conv.get('why') or 'they happen to be together'}.\n"
             + (f"TODAY'S RULE (they know it): {rule}\n" if rule else "")
-            + "PEOPLE:\n" + "\n".join(cards) + "\nBEATS (in order; each already happened exactly as stated):\n" + "\n".join(beat_text(eng, i, b) for i, b in enumerate(beats)) + "\n"
-            "Write exactly one line per beat, spoken (or done) by that beat's person: max 20 words, plain speech, reacting to the line before. A beat whose person mostly acts may be an "
+            + "PEOPLE:\n" + "\n".join(cards) + "\nBEATS (in order; each already happened exactly as stated):\n" + beats_block(eng, beats) + "\n"
+            "Write exactly one line per beat, spoken (or done) by that beat's person to the person named in it: max 20 words, plain speech. A reply answers the other person's line "
+            "before it; a new move after a pause starts something new; nobody ever answers their own line. Greetings and talk of the time must fit the time of day. Use the right "
+            "pronouns and gendered words for each person. A pet name, catchphrase or verbal tic at most once per person in the whole scene; do not comment on anyone's looks unless "
+            "it is listed as notable right now. A beat whose person mostly acts may be an "
             "action line instead (kind \"act\", starts with a verb, no name, max 14 words). Never add events, never change who wins or loses, never reveal anything not in the beats. "
             'Reply as JSON: {"lines": [{"beat": 0, "speaker": "<id>", "kind": "say|act", "text": "..."}]}')
     return sysm, user

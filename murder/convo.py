@@ -9,7 +9,7 @@ they lower their voices and drop what they should not be saying. Friends who fin
 The engine resolves every move as it happens (social.py); after the turn each conversation is voiced in one call (voice.py), or by the template voice.
 """
 from .social import MOVES
-from .voice import voice_prompt, check_lines
+from .voice import voice_prompt, check_lines, spoken_line
 from .data_world import ROOMS
 
 INTERRUPTS = {"attack", "body", "punish", "island", "outburst", "fall", "assault", "madness", "faint", "fire"}
@@ -106,6 +106,7 @@ class ConvoMixin:
         # the exchange itself
         beats = self.run_exchange(tick, conv) if not conv.get("wary") else self.wary_exchange(tick, conv)
         for i, b in enumerate(beats):
+            b["ex"] = conv["exchanges"]
             b["m"] = round(min(sm.dur - 0.5, m + 0.7 * i), 2)
             p = sm.pos_at(b["who"], b["m"])
             b["room"] = nav.room_at(*p) if p else conv["room"]
@@ -381,9 +382,16 @@ class ConvoMixin:
             lines, fixed = check_lines(self, beats, got.get(c["id"]), self.rng)
             for bi, (ln, b) in enumerate(zip(lines, beats)):
                 ln["text"] = self.clean_line(ln["speaker"], ln["kind"], ln["text"]) or ln["text"]
-                ln["m"], ln["room"], ln["move"], ln["b"] = b["m"], b.get("room") or c["room"], b["move"], bi
+                ln["m"], ln["room"], ln["move"], ln["b"], ln["ex"] = b["m"], b.get("room") or c["room"], b["move"], bi, b.get("ex", 0)
+                if b.get("cont"):
+                    ln["cont"] = True
             people = list(dict.fromkeys([b["who"] for b in beats] + [x[1] for x in c["joined"]] + c["members"]))
-            lines = self.filter_props(tick, c["room"], people, lines)
+            kept = {id(l) for l in self.filter_props(tick, c["room"], people, lines)}
+            for i, ln in enumerate(lines):                          # a dropped line gets a plain one in its place, so no reply is left answering nothing
+                if id(ln) not in kept:
+                    sub = spoken_line(self, beats[ln["b"]], self.rng)
+                    sub.update({k: ln[k] for k in ("m", "room", "move", "b", "ex", "cont") if k in ln})
+                    lines[i] = sub
             if not lines:
                 continue
             self.tape_record(c["room"], lines)

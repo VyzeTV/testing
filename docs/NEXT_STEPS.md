@@ -29,6 +29,7 @@ The user confirmed on Day 3: movement is easier to follow, simultaneous conversa
 ## The plan
 
 ### Phase A: Dialogue
+Steps 1 to 4 done (2026-10-19): turns, the voice prompt, confidences, looks and catchphrases (see `docs/GAME_DESIGN.md`, Conversations). Also fixed: a staged scene gave lines to someone never walked there (`claimtrial.stage_trial_live`). Mock calls a day 92.3 on the standard seeds (91.4 on seeds 44-66): random-sequence noise, no new calls.
 1. Speakers alternate between exchanges (`convo.py`, `social.py`): the next exchange opens with someone other than the last speaker unless they are alone or holding the floor; if one person speaks twice in a row, the voice prompt marks it as going on, not a reply.
 2. The voice prompt (`voice.py`) shows the time of day, a marker between exchanges ("a few minutes later"), whom each beat is said to, and each person's gender and pronouns.
 3. Confidences pay off: a partner or close friend rarely rebuffs "a big deal"; an accepted confide carries its content (the secret or worry) into the beat; a rebuffed one is remembered and may come back.
