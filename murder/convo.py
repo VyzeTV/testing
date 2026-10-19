@@ -11,6 +11,8 @@ The engine resolves every move as it happens (social.py); after the turn each co
 from .social import MOVES
 from .voice import voice_prompt, check_lines, spoken_line
 from .data_world import ROOMS
+from .llm import LLMError
+from concurrent.futures import ThreadPoolExecutor
 
 INTERRUPTS = {"attack", "body", "punish", "island", "outburst", "fall", "assault", "madness", "faint", "fire"}
 LOUD_OF = {"whisper": "whisper", "quiet": "quiet", "normal": "normal", "heated": "loud"}
@@ -25,6 +27,7 @@ class ConvoMixin:
 
     def convo_reset(self):
         self._convos, self._convo_n = [], 0
+        self._voice_futs, self._voice_taken = {}, set()
 
     def in_convo(self, cid):
         return next((c for c in self.convos() if c["state"] == "talking" and cid in c["members"]), None)
@@ -214,6 +217,7 @@ class ConvoMixin:
     def convo_end(self, tick, conv, why, m):
         conv["state"] = "ended"
         conv["ended"] = [round(min(m, self.sim().dur - 0.5), 1), why]
+        self.voice_submit(tick, conv)                                   # its lines are written now, while the block goes on (phase F3)
         busy = getattr(self, "_free_busy", None)
         if busy is not None:
             for cid in conv["members"]:
@@ -355,33 +359,67 @@ class ConvoMixin:
     def hh(self):
         return f"{int(self.s.get('_hour', 12)):02d}:{int(self.minute() or 0) % 60:02d}"
 
-    # ------------------------------------------------------------------ voicing, after the turn
+    # ------------------------------------------------------------------ voicing
+    def voice_pool(self):
+        pool = self.__dict__.get("_voice_pool")
+        if pool is None:
+            pool = self._voice_pool = ThreadPoolExecutor(max_workers=max(1, self.workers))
+        return pool
+
+    def voice_submit(self, tick, c):
+        """Ask the model for a conversation's lines as soon as it ends, on a worker thread (one call, as before). Nothing about the world changes here: the answer is
+        used later, in a fixed order, so a seeded run is the same whatever order the calls come back in."""
+        futs = self.__dict__.setdefault("_voice_futs", {})
+        if c["id"] in futs or not c["beats"]:
+            return
+        beats = c["beats"][:MAX_BEATS + 4]
+        try:
+            sysm, user = voice_prompt(self, c, beats)
+        except Exception as e:
+            tick["errors"].append(f"voicing {c['id']} failed: {str(e)[:80]}")
+            futs[c["id"]] = None
+            return
+        ctx = {"beats": len(beats)}
+        futs[c["id"]] = self.voice_pool().submit(self.llm.voice, sysm, user, ctx)
+
     def voice_convos(self, tick, hour):
-        """Voice every conversation of the turn (one call each, in parallel), then let the words do what words do: members and listeners remember them, the tape rolls."""
+        """The end of the turn: whatever is still being said ends, and the lines of every conversation not collected yet are taken in."""
+        for c in self.convos():
+            if c["beats"] and c["state"] == "talking":
+                self.convo_end(tick, c, "turn over", self.sim().dur - 1.0)
+        self.voice_collect(tick, hour)
+
+    def voice_collect(self, tick, hour, upto=None):
+        """Take in the lines of the conversations that have ended (by minute `upto`, or all), in the order they ended, then let the words do what words do: members and
+        listeners remember them, the tape rolls. Waits for an answer still on its way, so the result does not depend on how fast the model is."""
         w = self.world
-        done = [c for c in self.convos() if c["beats"]]
+        taken = self.__dict__.setdefault("_voice_taken", set())
+        order = {c["id"]: i for i, c in enumerate(self.convos())}
+        done = sorted((c for c in self.convos() if c["beats"] and c["state"] != "talking" and c["id"] not in taken and c.get("ended")
+                       and (upto is None or c["ended"][0] <= upto)), key=lambda c: (c["ended"][0], order[c["id"]]))
         if not done:
             return
-        if any(c["state"] == "talking" for c in done):
-            for c in done:
-                if c["state"] == "talking":
-                    self.convo_end(tick, c, "turn over", self.sim().dur - 1.0)
-        asks = []
         for c in done:
-            beats = c["beats"][:MAX_BEATS + 4]
-            try:
-                sysm, user = voice_prompt(self, c, beats)
-            except Exception as e:
-                tick["errors"].append(f"voicing {c['id']} failed: {str(e)[:80]}")
-                sysm = user = None
-            ctx = {"beats": len(beats)}
-            if sysm:
-                asks.append((c["id"], lambda sysm=sysm, user=user, ctx=ctx: self.llm.voice(sysm, user, ctx)))
+            taken.add(c["id"])
         got = {}
-        for cid, (res, err) in self.ask_parallel(asks).items():
-            got[cid] = res if err is None else None
-            if err is not None:
-                tick["errors"].append(f"voicing {cid} fell back to the template voice: {str(err)[:80]}")
+        futs = self.__dict__.setdefault("_voice_futs", {})
+        for c in done:
+            self.voice_submit(tick, c)
+            fut = futs.get(c["id"])
+            if fut is None:
+                continue
+            if self.should_stop():
+                raise self.StopExc()
+            try:
+                got[c["id"]] = fut.result()
+            except LLMError as e:
+                if e.fatal:
+                    raise
+                got[c["id"]] = None
+                tick["errors"].append(f"voicing {c['id']} fell back to the template voice: {str(e)[:80]}")
+            except Exception as e:
+                got[c["id"]] = None
+                tick["errors"].append(f"voicing {c['id']} fell back to the template voice: {str(e)[:80]}")
         for c in done:
             beats = c["beats"][:MAX_BEATS + 4]
             lines, fixed = check_lines(self, beats, got.get(c["id"]), self.rng)

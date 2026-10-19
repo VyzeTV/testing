@@ -6898,6 +6898,28 @@ for key_, d_, h_, past_ in snaps_:
 check("in a day block, once the clock has passed a minute nobody's position before it changes (forward-only positions)", checked_ > 1000 and not moved_, f"{len(moved_)} of {checked_}: {moved_[:4]}")
 check("walks asked for a minute already past are rare", sum((t.get("live") or {}).get("late", 0) for t in tf_) <= 6)
 
+# ---- phase F3: conversations voiced as they end
+subm_ = []
+_vs = DayRunner.voice_submit
+
+
+def _rec_submit(self, tick, c):
+    if c["id"] not in self.__dict__.get("_voice_futs", {}) and c["beats"]:
+        subm_.append((tick.get("phase"), float(self._m or 0.0), c["ended"][0] if c.get("ended") else None))
+    return _vs(self, tick, c)
+
+
+DayRunner.voice_submit = _rec_submit
+wv_ = World(new_state(3))
+tv_ = []
+wv_.state["day"] = 3
+DayRunner(wv_, LLM(backend="mock"), tv_.append, step=2, murders=False, rule_mode="roulette", seed=919).run()
+DayRunner.voice_submit = _vs
+day_ = [x for x in subm_ if x[0] != "night"]
+check("a conversation's lines are asked for when it ends, while the block goes on (not all at the end)", len(day_) >= 3 and sum(1 for x in day_ if x[1] < 100) >= len(day_) // 2
+      and all(x[2] is None or abs(x[1] - x[2]) < 3.0 for x in day_), f"{len(day_)} asked, {sum(1 for x in day_ if x[1] < 100)} before minute 100")
+check("and every conversation of the day still gets its lines", all(g["lines"] for t in tv_ for g in t.get("talk") or [] if g.get("live")))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))
