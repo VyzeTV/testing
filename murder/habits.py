@@ -123,6 +123,8 @@ class HabitMixin:
         if not a:
             return
         hour = int(tick["hour"])
+        if act in ("shower", "bath"):
+            a["bathing"] = [self.abs_min(hour, m), self.abs_min(hour, end), room]      # who is in the water, and until when (electric.py)
         if act in ("wash", "shower", "bath"):
             self.wash_off(tick, cid, act, m)
             ws = a.setdefault("washed", {})

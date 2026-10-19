@@ -11,8 +11,8 @@ from .world import clamp
 TOOLS = ("crowbar", "pipe_wrench", "hammer", "wire", "sledgehammer")
 DRINKS = ("wine_bottle", "champagne", "spirits", "water_bottle", "sparkling_water", "energy_drink")
 FALL_ROOMS = {"upper_landing", "landing", "lookout", "water_tower", "basement_hall", "boiler_room", "pool", "attic", "wine_cellar", "lighthouse"}
-TRAP_WHAT = {"fall": "the stairs, railing or footing", "drink": "a bottle", "blade": "the doorway", "snare": "the floor by the door"}
-TRAP_CAUSE = {"fall": "trap_fall", "drink": "trap_drink", "blade": "trap_blade"}
+TRAP_WHAT = {"fall": "the stairs, railing or footing", "drink": "a bottle", "blade": "the doorway", "snare": "the floor by the door", "shock": "a live wire"}
+TRAP_CAUSE = {"fall": "trap_fall", "drink": "trap_drink", "blade": "trap_blade", "shock": "trap_shock"}
 ARC_STAGES = ["servile", "doubting", "secretly helping", "defiant", "ready to act"]
 BLIND_STEP = {"transmit": "unjam", "shutdown": "blind", "raft": "launch", "ultimatum": "leverage"}
 HARDEN = {"transmit": {"unjam": 20, "device": 10}, "shutdown": {"approach": 20, "means": 10}, "raft": {"build": 20, "launch": 25},
@@ -40,6 +40,8 @@ class MayhemMixin:
             opts.append("blade")
         if self.snare_ready(cid):
             opts.append("snare")
+        if self.can_rig_shock(cid):
+            opts.append("shock")                                         # electric.py
         return opts
 
     def rig_lines(self, cid):
@@ -50,7 +52,8 @@ class MayhemMixin:
             return []
         return ["TRAPS: you can rig a trap here instead of attacking in person (action 'rig' with \"rig\": {\"kind\": \"" + "|".join(opts) + "\", \"target\": \"<person id or empty>\"}). "
                 "It kills later, without you present (so you can have an alibi), but it leaves tampering that investigators can find and it may catch the wrong person. "
-                "A fall needs a tool, a drink needs poison and a bottle, a blade needs a sharp weapon and wire, tape or rope, a snare (kind 'snare') needs mouse traps and string, wire or tape and only hurts."]
+                "A fall needs a tool, a drink needs poison and a bottle, a blade needs a sharp weapon and wire, tape or rope, a snare (kind 'snare') needs mouse traps and string, wire or tape and only hurts, "
+                "a live wire (kind 'shock') needs an extension cord, wire or jump leads and the power on, and trips the fuses when it goes off."]
 
     def do_rig(self, tick, cid, d):
         w, s = self.world, self.s
@@ -80,6 +83,12 @@ class MayhemMixin:
             if a["inv"][bd] <= 0:
                 del a["inv"][bd]
             items = ["mouse_traps", bd]
+        elif kind == "shock":
+            lw = self.live_wire_item(cid)
+            a["inv"][lw] -= 1
+            if a["inv"][lw] <= 0:
+                del a["inv"][lw]
+            items = [lw]
         elif kind == "blade":
             tk = next(t for t in ("wire", "masking_tape", "rope") if a["inv"].get(t, 0) > 0)
             a["inv"][tk] -= 1
@@ -131,9 +140,13 @@ class MayhemMixin:
                 if t["by"] in w.agents:
                     self.new_hook(tick, "snare", [victim], t["by"], room, f"Someone rigged a trap for whoever came through the door of the {w.room_name(room)}.", ["The cord was tied off neatly, with string or wire from somewhere."], [])
                 continue
-            p = {"fall": 0.5, "drink": 0.75, "blade": 0.65}[t["kind"]] + (0.2 if a["hp"] < 50 else 0)
+            p = {"fall": 0.5, "drink": 0.75, "blade": 0.65, "shock": 0.6}[t["kind"]] + (0.2 if a["hp"] < 50 else 0)
             good, luck = self.roll(t["by"], min(0.95, p))
             others = [o for o in present if o != victim]
+            if t["kind"] == "shock":
+                if not self.shock_trap_hit(tick, t, victim, hour, others, good) and t["by"] in w.agents:
+                    w.remember(t["by"], f"{_hh(hour)} (private) Your live wire in the {w.room_name(room)} went off, but it did not kill.")
+                continue
             if good and t["by"] in w.all_agents:
                 self.open_case(tick, "murder", victim, culprit=t["by"] if t["by"] in w.agents else None, wkind=TRAP_CAUSE[t["kind"]], weapon=None, room=room, hour=hour,
                                witnesses=others, trap=t, mistaken=(t["target"] is not None and victim != t["target"]))

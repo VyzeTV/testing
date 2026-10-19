@@ -29,6 +29,8 @@ BODY_DESC = {
                "lies rigid, skin grey and slick with sweat, a bitter chemical smell on the breath"],
     "suicide": ["hangs or lies in the aftermath of their own choice, the room terribly quiet",
                 "lies still, the last act of a person who decided, with nobody there to stop it"],
+    "shock": ["lies half out of the water, every muscle locked rigid, a smell of scorched hair in the air",
+              "is sprawled where the current threw them, the fingers curled into claws, small grey burns where it went in and out"],
     "accident": ["lies broken where the accident left them, limbs bent the wrong way",
                  "lies still at the foot of the danger that took them, the stillness already wrong"],
 }
@@ -36,10 +38,13 @@ GORE_TAIL = {"sharp": ["and something pale shows through the deepest cut", "the 
              "blunt": ["one eye pushed half out of its socket by the swelling", "teeth scattered across the floor like dice"],
              "hands": ["the face gone a mottled blue-black", "blood dried in the corners of the eyes where the vessels burst"],
              "poison": ["the bedding soaked through with what came up", "the jaw locked open mid-scream"],
-             "water": ["the skin wrinkled and grey, a pink froth at the nostrils"]}
+             "water": ["the skin wrinkled and grey, a pink froth at the nostrils"],
+             "shock": ["the tongue bitten through", "the soles of the feet split and blackened where the current left"]}
 CAUSES = {"trap_fall": "a shattering fall from something that had been tampered with",
           "trap_drink": "agonising poisoning from a tainted drink",
           "trap_blade": "a rigged blade that opened them up",
+          "trap_shock": "electrocution from a live wire someone had rigged",
+          "shock": "burns where the current went in and out, every muscle locked",
           "sharp": "deep stab and slash wounds", "blunt": "a fractured skull from a heavy blow",
           "hands": "bruises around the throat", "poison": "froth at the lips and a bitter smell",
           "water": "water in the lungs and bruises on the shoulders where they were held down"}
@@ -157,6 +162,12 @@ class CaseMixin:
             here = [o for o in w.occupants(room) if o not in (cid, t)]
             if method == "push":
                 if self.push_kill(tick, cid, t) is not None:
+                    continue
+                method = "hands"
+            if method == "shock":
+                if self.electric_item(cid) and self.bathing(t) and self.power_on():       # electric.py
+                    if not self.interrupted(tick, cid, t, [o for o in w.occupants(room) if o not in (cid, t)], hour):
+                        self.shock_kill(tick, cid, t, hour, intended)
                     continue
                 method = "hands"
             drown = method == "drown" and room in ("pool", "bathroom", "beach", "water_tower")
@@ -430,7 +441,8 @@ class CaseMixin:
             clues.extend(cl2)
             what = {"fall": "Fresh tool marks show the footing was deliberately loosened before it gave way.",
                     "drink": "A bottle in the room was recently re-corked; the dregs smell wrong.",
-                    "blade": "A wire-and-blade mechanism was hidden at the doorway, strung by someone patient."}[trap["kind"]]
+                    "blade": "A wire-and-blade mechanism was hidden at the doorway, strung by someone patient.",
+                    "shock": "A cord had been spliced into the mains and laid where someone would touch it."}[trap["kind"]]
             prov = self.provenance_text(trap["items"][0], culprit) if trap["items"] and trap["items"][0] in self.s.get("item_log", {}) else ""
             clues.append({"room": trap["room"], "scene": True, "found_by": [], "kind": "tamper", "text": what + prov})
         innocents = [c for c in w.agents if c not in (culprit, victim)]
@@ -490,7 +502,7 @@ class CaseMixin:
                 else (true_cause if (kind in ("suicide", "accident") or trap) else str(wkind)))
         case = self.new_case(kind, victim, culprit, room, hour, witnesses, method=desc, cause=shown, true_cause=true_cause, weapon=weapon,
                              staged=staged, instigator=instigator, intended=intended, note=note, detail=detail, culprit_aware=aware,
-                             trap=trap, mistaken=mistaken, self_defense=self_defense, aggressor=aggressor, body_key={"trap_fall": "blunt", "trap_drink": "poison", "trap_blade": "sharp"}.get(wkind))
+                             trap=trap, mistaken=mistaken, self_defense=self_defense, aggressor=aggressor, body_key={"trap_fall": "blunt", "trap_drink": "poison", "trap_blade": "sharp", "trap_shock": "shock", "shock": "shock"}.get(wkind))
         case["m"] = round(self.minute() or 0.0, 1)                     # the minute of the turn it happened (testimony asks about that moment)
         self.build_clues(case, tick)
         if culprit and culprit in w.agents:

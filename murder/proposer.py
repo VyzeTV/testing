@@ -13,7 +13,7 @@ from the same options, sometimes impossibly, so the checks are exercised. Propos
 from .data_world import ROOMS
 from .planner import COMBOS, ROPES
 
-SCHEMES = ("asleep", "alone", "height", "drown", "lure", "trap", "hang", "bath", "poison")
+SCHEMES = ("asleep", "alone", "height", "drown", "lure", "trap", "hang", "bath", "shock", "poison")
 STEP_VERBS = ("go", "fetch", "wait", "watch", "lure", "rig", "strike", "hide", "clean", "alibi")
 WATER = ("pool", "bathroom", "beach", "water_tower")
 SOCIAL = ("comfort", "confide", "flirt", "gift", "warn", "reveal", "accuse", "confront", "pact", "recruit", "probe", "gossip", "threaten", "putdown")
@@ -114,6 +114,9 @@ class ProposerMixin:
             return False, "no poison", None
         if kind in COMBOS and not any(exists(k) for k in COMBOS[kind][0]):
             return False, f"nothing to {kind} with", None
+        from .electric import ELECTRIC
+        if kind == "shock" and not any(exists(k) for k in ELECTRIC):
+            return False, "nothing live to drop into a bath", None
         if kind in ("alone", "trap") and not room:
             return False, "no place given", None
         if kind in ("alone", "height", "drown") and room not in self.seen_target_in(cid, t):
@@ -127,7 +130,7 @@ class ProposerMixin:
                "height": f"push {self.nm(t)} from the {w.room_name(room)}", "drown": f"drown {self.nm(t)} in the {w.room_name(room)}",
                "lure": f"lure {self.nm(t)} somewhere quiet at night", "trap": f"rig a trap in the {w.room_name(room)}",
                "hang": f"hang {self.nm(t)} and make it look like suicide", "bath": f"drug {self.nm(t)} and drown them in the bath",
-               "poison": f"poison {self.nm(t)} with the {w.item_name(item)}"}[kind]
+               "shock": f"drop something live into {self.nm(t)}'s bath", "poison": f"poison {self.nm(t)} with the {w.item_name(item)}"}[kind]
         sc = {"kind": kind, "room": room, "when": r.get("when") if r.get("when") in ("day", "night", "any") else "any", "why": why + " (the model's idea)",
               "proposed": True}
         if kind == "poison":
@@ -139,6 +142,8 @@ class ProposerMixin:
             sc["rig"] = rig[0]
         if kind in COMBOS:
             sc.update(needs=list(COMBOS[kind][0]), staged=COMBOS[kind][1])
+        if kind == "shock":
+            sc.update(room="bathroom", needs=list(ELECTRIC), staged="accident")
         return True, "", sc
 
     # ------------------------------------------------------------------ a social move

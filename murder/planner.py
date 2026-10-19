@@ -11,6 +11,7 @@ the deadline is on them or they have waited too long. A push sends the target ov
 culprit; anyone who saw it is a witness. MurderPlanMixin is mixed into DayRunner (engine.py).
 """
 from .data_world import ROOMS
+from .gridnav import _h
 
 PATIENCE = 10
 ROPES = ("rope", "clothes_line", "extension_cord", "fishing_line")
@@ -85,14 +86,19 @@ class MurderPlanMixin:
             out.append((1.0 + 0.1 * min(6, trust), {"kind": "lure", "room": None, "when": "night", "why": f"{self.nm(t)} trusts them enough to meet them alone at night"}))
         rig = self.rig_options(cid)
         if rig and home in ROOMS:
-            out.append((1.3, {"kind": "trap", "room": home if "fall" not in rig else w.agents[cid]["room"], "rig": rig[0], "when": "any",
-                              "why": f"a rigged {rig[0]} where {self.nm(t)} will walk into it, with an alibi elsewhere"}))
+            kind_ = rig[_h(cid, t, "rig") % len(rig)]
+            out.append((1.3, {"kind": "trap", "room": home if kind_ != "fall" else w.agents[cid]["room"], "rig": kind_, "when": "any",
+                              "why": f"a rigged {kind_} where {self.nm(t)} will walk into it, with an alibi elsewhere"}))
         for kind, (needs, _, story) in COMBOS.items():                # items combined (a rope and the gallery, pills and the bath)
             have = any(w.agents[cid]["inv"].get(k, 0) > 0 for k in needs)
             known = self.item_room(cid, needs)
             if have or known:
                 out.append((1.45 if have else 1.15, {"kind": kind, "room": home if kind == "hang" else "bathroom", "when": "night" if kind == "hang" else "any",
                                                      "needs": list(needs), "staged": COMBOS[kind][1], "why": f"{self.nm(t)} {story}"}))
+        from .electric import ELECTRIC
+        if self.has_any(cid, ELECTRIC) or self.item_room(cid, ELECTRIC):
+            out.append((1.65 if self.has_any(cid, ELECTRIC) else 1.45, {"kind": "shock", "room": "bathroom", "when": "any", "needs": list(ELECTRIC), "staged": "accident",
+                                                                       "why": f"something live dropped into {self.nm(t)}'s bath would look like an accident"}))
         item, where = self.poison_source(cid)
         if item:
             out.append((1.1 if not where else 0.8, {"kind": "poison", "item": item, "room": where, "when": "any",
@@ -113,7 +119,8 @@ class MurderPlanMixin:
         self.plan_note(p, {"asleep": lambda: "will come for them in the night", "alone": lambda: f"will catch them alone in the {rn()}",
                            "height": lambda: f"will push them from the {rn()}", "poison": lambda: "will poison them", "drown": lambda: f"will drown them in the {rn()}",
                            "lure": lambda: "will lure them to a quiet room at night", "trap": lambda: f"will rig a {best.get('rig')} trap",
-                           "hang": lambda: "will hang them and make it look like suicide", "bath": lambda: "will drug them and drown them in the bath"}[best["kind"]]())
+                           "hang": lambda: "will hang them and make it look like suicide", "bath": lambda: "will drug them and drown them in the bath",
+                           "shock": lambda: "will drop something live into their bath"}[best["kind"]]())
         self.log_event(tick, {"type": "plot", "who": cid, "room": self.world.agents[cid]["room"], "vis": "gm",
                               "text": f"{self.nm(cid)} plans the murder of {self.nm(t)}: {best['why']}."}, actor=cid)
         return best
@@ -134,6 +141,9 @@ class MurderPlanMixin:
             return night and bool(mt) and a["room"] == mt["room"]
         if sc["kind"] == "trap":
             return False                                            # the trap does the work; they keep their distance
+        if sc["kind"] == "shock":
+            t = p.get("target")
+            return bool(t in self.world.agents and self.world.agents[t]["room"] == a["room"] and self.bathing(t) and self.electric_item(cid))
         if sc["kind"] in COMBOS:
             ta = self.world.agents.get(sc.get("target") or p.get("target")) or {}
             helpless = bool(ta.get("asleep") or ta.get("out") or self.restrained(p.get("target")))
@@ -155,6 +165,8 @@ class MurderPlanMixin:
             return "drown"
         if sc.get("kind") == "hang":
             return "hands"
+        if sc.get("kind") == "shock" and self.bathing(p.get("target")) and self.electric_item(cid):
+            return "shock"
         return None
 
     def scheme_staging(self, p):

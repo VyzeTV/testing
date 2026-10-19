@@ -1227,6 +1227,8 @@ class FreeTimeMixin:
             return False
         a, ta = w.agents[cid], w.agents[t]
         self.plot_defaults(p)
+        if p["stage"] == "striking" and (p.get("scheme") or {}).get("kind") == "shock" and a["room"] != ta["room"] and self.shock_window(tick, cid, t, hour, m, busy):
+            return True                                                 # the target is in the bath: now (electric.py)
         if a["room"] != ta["room"]:
             p["wait"] = p.get("wait", 0) + (0.25 if p["stage"] == "striking" else 0)
             return False

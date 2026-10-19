@@ -6805,6 +6805,59 @@ check("a killer relaxing over a game while the others hunt for clues strikes the
 w.state["case"]["resolved"] = True
 check("once the case is closed, free time goes back to normal", r.inquiry_focus(ik_, sc_) == sc_)
 
+# ---- electricity
+w, r, _ = fresh(1801)
+w.state["revealed"] = True
+ids_ = sorted(w.agents)
+ek_, ev_, eo_ = ids_[0], ids_[1], ids_[2]
+for c in ids_:
+    w.agents[c]["room"] = "lounge"
+w.agents[ek_]["room"] = w.agents[ev_]["room"] = "bathroom"
+w.agents[ek_]["inv"]["bedside_lamp"] = 1
+tk_ = r.new_tick(14)
+tk_["free"] = {}
+r.habit_after(tk_, ev_, "bath", "bathroom", 10, 55)
+r.s["_hour"] = 14
+r._slice_m = 30
+check("someone in the bath is in the water until the bath is over", r.bathing(ev_) and not r.bathing(ek_))
+pl_ = {"target": ev_, "stage": "striking"}
+sch_ = [x[1] for x in r.plan_schemes(ek_, ev_)]
+check("a plotter with a lamp on a cord can plan to drop it into the target's bath", any(x["kind"] == "shock" and x["staged"] == "accident" for x in sch_))
+pl_["scheme"] = next(x for x in sch_ if x["kind"] == "shock")
+check("and waits until the target is in the water, in the same room", r.scheme_allows(ek_, pl_) and r.scheme_method(ek_, pl_) == "shock")
+r.rng.random = lambda: 0.2
+r.resolve_attacks(tk_, [(ek_, {"target": ev_, "method": "shock", "frame": None, "staged": "accident"})], 14)
+del r.rng.random
+case_ = w.state.get("case") or {}
+kinds_ = {c["kind"] for c in case_.get("clues", [])}
+check("a lamp dropped into the bath electrocutes them, dressed up as an accident", case_.get("victim") == ev_ and case_.get("killer") == ek_ and case_.get("staged") == "accident"
+      and "electrocut" not in case_.get("cause", "") and {"burns", "socket", "fuse"} <= kinds_, str((case_.get("cause"), sorted(kinds_))))
+check("the current trips the fuses: the house goes dark and everyone remembers when", not r.power_on() and any("fuses tripped" in x for x in str(w.agents[eo_]["memory"]).split("'"))
+      and any("lamp" in c["text"] and "socket" in c["text"] for c in case_.get("clues", [])))
+w2, r2, _ = fresh(1802)
+w2.state["revealed"] = True
+ids2_ = sorted(w2.agents)
+rk_, rv_ = ids2_[0], ids2_[1]
+for c in ids2_:
+    w2.agents[c]["room"] = "lounge"
+w2.agents[rk_]["room"] = "kitchen"
+w2.agents[rk_]["inv"]["extension_cord"] = 1
+check("an extension cord and the power on make a live-wire trap possible", "shock" in r2.rig_options(rk_))
+tk2_ = r2.new_tick(14)
+r2.rng.random = lambda: 0.2
+r2.do_rig(tk2_, rk_, {"rig": {"kind": "shock", "target": rv_}})
+check("rigging it uses the cord up", w2.agents[rk_]["inv"].get("extension_cord", 0) == 0 and any(t["kind"] == "shock" for t in w2.state["traps"]))
+w2.agents[rk_]["room"] = "lounge"
+tk3_ = r2.new_tick(16)
+w2.agents[rv_]["room"] = "kitchen"
+tk3_["moves"][rv_] = {"from": "lounge", "path": ["lounge", "kitchen"], "to": "kitchen"}
+r2.resolve_traps(tk3_, 16)
+del r2.rng.random
+c2_ = w2.state.get("case") or {}
+check("whoever walks into it is electrocuted; the case knows it was a rigged live wire", c2_.get("victim") == rv_ and "live wire" in c2_.get("cause", "")
+      and any(c["kind"] == "tamper" and "mains" in c["text"] for c in c2_.get("clues", [])) and not r2.power_on())
+check("an electrocuted body is described as one", "shock" == c2_.get("body_key") and r2.body_desc(c2_))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

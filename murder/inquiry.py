@@ -11,7 +11,7 @@ from .gridnav import _h
 
 FOCUS = 0.3                     # what leisure counts for while a death is investigated
 NEEDS = {"eat", "drink", "snack", "bathroom", "wash", "shower", "bath", "sleep", "nap", "dress", "flee", "rescue", "fight", "warn", "stalk",
-         "examine", "inquire", "question", "talk", "chat", "gather", "company", "seek_nv"}
+         "examine", "inquire", "question", "talk", "chat", "gather", "company", "seek_nv", "escape"}
 CALM_ACTS = {"game", "chess", "darts", "music", "jukebox", "art", "read", "sit", "stroll", "swim", "radio", "stargaze", "mirror"}
 
 
