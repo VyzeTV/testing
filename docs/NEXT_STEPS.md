@@ -120,6 +120,7 @@ A `s["game_mode"]` chosen on the start screen: **Classic** (today's rules), **Da
 * Check: mock seasons end with one survivor or nobody, and no trial ever opens.
 
 ### H4: TereVi's torments for participants
+**Done (2026-10-19), as option 1** (`torments.py`): dares are checkable tasks (go to a room, talk with someone, give up an item, confess a secret) with a deadline; a willing person is pulled toward theirs in free time; a dare done gives +3 sanity; a failed one is only listed for the GM (Director > Torment, "ignored a dare") and the auto-director may torment that person (at most once a day). Torments happen only from the GM or the auto-director: humiliation, secret on every screen, a treasure taken, a shock collar, a friend turned. No boredom or favourite-target triggers and no `torment_rate` dial (the user's choice). No model calls.
 **Possible today?** Only partly. The Director's "Twist" asks TereVi's model to tease, and a tease can be a whisper, a **dare**, a gift, a motive video, an announcement or a blackout. But nothing checks whether a dare was done and nothing happens if it was not, and there is no torment aimed at one participant (the nearest is the rule's punishment, and NeoVi's torment, which is hers alone).
 The plan (`torments.py`, reusing NeoVi's `nv_torment` pattern):
 * **Challenges the engine can judge**: TereVi's dares become structured tasks with a deadline (go somewhere, spend the night somewhere, eat or drink something, tell a secret, insult or kiss someone, hand over an item). The engine checks them from the world state.

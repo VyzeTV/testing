@@ -39,6 +39,12 @@ class DirectorMixin:
         """Count quiet turns; after a few, step in (at most twice a day, never during a case, a spree or the evening)."""
         if not self.auto_dir or not self.revealed or self.s.get("over"):
             return
+        if self.dares_failed() and not self.s.get("case") and hour < 20 and self.rng.random() < 0.5:     # someone ignored TereVi's dare (torments.py)
+            who = self.dares_failed()[0]["who"]
+            kind = self.torment_auto(tick)
+            if kind:
+                self.log_event(tick, {"type": "director", "who": "terevi", "room": "foyer", "vis": "viewer",
+                                      "text": f"Auto-director: {self.nm(who)} ignored TereVi's dare, so TereVi torments them ({kind})."})
         busy = sum(1 for e in tick["events"] if e["type"] in NOTABLE)
         self.quiet = max(0, self.quiet - 1) if busy else self.quiet + 1
         if (self.quiet < 3 or self.dir_used >= 2 or self.s.get("case") or self.s.get("spree") or hour >= 20 or len(self.world.agents) < 4):

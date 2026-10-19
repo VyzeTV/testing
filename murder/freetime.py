@@ -534,6 +534,7 @@ class FreeTimeMixin:
         add(max(72 - b["hygiene"], 0) / 50, "wash", why="freshening up")
         add(max(70 - mi["rest"], 0) / 40 + (0.35 if hour >= 20 else 0), "nap", home_only=True, why="tired")
         self.habit_options(tick, cid, hour, m, add, f, b)              # dirt, what comes next, the morning and evening wash, their own habit (habits.py)
+        self.dare_options(tick, cid, hour, m, add)                     # TereVi's dare (torments.py)
         # what suits them
         fun = (100 - mi["purpose"]) / 70 + (100 - mi["social"]) / 90
         cur, rom, cour, hum, ord_ = f("curiosity"), f("romantic"), f("courage"), f("humour"), f("orderliness")

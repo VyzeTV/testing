@@ -188,6 +188,7 @@ class NightMixin:
             self.voice_convos(tick, hour)
             self.sim_talk(tick)
             self.reaction_pass(tick, hour)
+            self.dare_check(tick)
             self.inner_turn(tick, hour)
         if first:
             self.intimacy_night(tick)                                # intimacy.py

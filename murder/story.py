@@ -427,6 +427,8 @@ class StoryMixin:
                     self.gm_schedule(tick, it, hour)
                 elif t == "goal":
                     self.set_goal(tick, it, hour)                         # goals.py
+                elif t == "torment" and it.get("a") in w.agents:
+                    self.torment(tick, it["a"], it.get("kind") or None)        # torments.py
                 elif t == "propose" and it.get("a") in w.agents:
                     s.setdefault("propose_requests", []).append({"who": it["a"]})    # proposer.py
                 elif t == "announce":

@@ -771,4 +771,5 @@ class World:
             "found_edges": list(s["found_edges"]),
             "built": [dict(b) for b in s.get("built", [])],
             "unlocked": list(s["unlocked"]),
+            "dares": [{k: d.get(k) for k in ("who", "task", "status", "day", "due")} for d in (s.get("dares") or [])[-8:]],
         }

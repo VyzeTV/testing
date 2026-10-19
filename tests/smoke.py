@@ -7124,6 +7124,76 @@ k_ = w.agents["kumiko"]
 check("when she joins the cast her health, sanity and what she told carry over; TereVi keeps her keys",
       k_["hp"] == 55 and k_["sanity"] == 33 and not k_["inv"].get("master_key") and any("You told" in m for m in k_["memory"]["recent"]))
 
+# ---- TereVi's dares and torments (torments.py)
+w, r, _ = fresh(2501)
+w.state["revealed"] = True
+r.day = 4
+w.state["_hour"] = 12
+c_ = sorted(w.agents)[0]
+tk_ = r.new_tick(12)
+d_ = r.dare_set(tk_, c_, "Prove you are brave.")
+check("a dare from TereVi gets a task the engine can judge, with a deadline the same day", d_["kind"] in ("go", "talk", "give_up", "confess") and d_["due"] <= r.day * 24 + 22
+      and d_["task"] and r.dare_open(c_) is d_, str(d_))
+w.state["dares"] = []
+r.rng.seed(3)
+d_ = None
+while not d_ or d_["kind"] != "go":
+    w.state["dares"] = []
+    d_ = r.dare_set(tk_, c_)
+d_["willing"] = True
+pulls_ = []
+r.dare_options(tk_, c_, 12, 30, lambda sc, act, **k: pulls_.append((act, k.get("room"))))
+check("someone willing feels the pull of their dare in free time", ("look", d_["room"]) in pulls_, str(pulls_))
+s0_ = w.agents[c_]["sanity"]
+w.agents[c_]["room"] = d_["room"]
+r.dare_check(tk_)
+check("a dare done is rewarded a little", d_["status"] == "done" and w.agents[c_]["sanity"] > s0_)
+d2_ = r.dare_set(tk_, c_)
+d2_["willing"] = False
+w.agents[c_]["room"] = "foyer"
+w.state["_hour"] = 23
+r.dare_check(r.new_tick(23))
+check("a dare ignored past its deadline is failed, and nothing happens to them on its own", d2_["status"] in ("failed", "done") and (d2_["status"] == "done" or r.dares_failed()[0] is d2_)
+      and not w.state.get("torments"), d2_["status"])
+w.state["_hour"] = 14
+sec_, torn_ = Counter(), True
+for k_ in ("humiliate", "secret", "taken", "collar", "turned"):
+    w, r, _ = fresh(2502)
+    w.state["revealed"] = True
+    v_, f_ = sorted(w.agents)[0], sorted(w.agents)[1]
+    w.agents[v_]["aff"][f_] = 5
+    w.agents[f_]["aff"][v_] = 5
+    w.agents[v_]["inv"]["sweets"] = 1
+    w.state["dares"] = [{"who": v_, "kind": "go", "status": "failed", "task": "x", "day": r.day, "due": 0}]
+    s0_, aff0_ = w.agents[v_]["sanity"], w.agents[f_]["aff"][v_]
+    n0_ = len(w.agents[v_]["inv"])
+    tk_ = r.new_tick(14)
+    got_ = r.torment(tk_, v_, k_)
+    sec_[got_] += 1
+    ok_ = got_ == k_ and w.agents[v_]["sanity"] < s0_ and w.state["dares"][0]["status"] == "tormented"
+    if k_ == "secret":
+        ok_ = ok_ and any(k["of"] == v_ for k in w.agents[f_]["known_secrets"])
+    if k_ == "taken":
+        ok_ = ok_ and len(w.agents[v_]["inv"]) < n0_
+    if k_ == "turned":
+        ok_ = ok_ and w.agents[f_]["aff"][v_] < aff0_
+    torn_ = torn_ and ok_
+check("each torment does what it says (humiliation, secret on every screen, a treasure taken, a collar, a friend turned) and answers the failed dare", torn_, str(sec_))
+w, r, _ = fresh(2503)
+w.state["revealed"] = True
+v_ = sorted(w.agents)[0]
+w.state["dares"] = [{"who": v_, "kind": "go", "status": "failed", "task": "x", "day": r.day, "due": 0},
+                    {"who": sorted(w.agents)[1], "kind": "go", "status": "failed", "task": "x", "day": r.day, "due": 0}]
+tk_ = r.new_tick(14)
+check("the auto-director torments someone who ignored a dare, at most once a day", r.torment_auto(tk_) and r.torment_auto(tk_) is None and len(w.state["torments"]) == 1)
+w, r, _ = fresh(2504)
+w.state["revealed"] = True
+v_ = sorted(w.agents)[0]
+w.state["gm_pending"] = [{"type": "torment", "a": v_, "kind": "collar"}]
+tk_ = r.new_tick(10)
+r.apply_gm(tk_, 10)
+check("the GM's Director action 'torment' torments the chosen person", (w.state.get("torments") or [{}])[-1].get("who") == v_ and w.agents[v_].get("collared") == r.day)
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

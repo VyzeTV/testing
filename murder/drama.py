@@ -391,8 +391,9 @@ class DramaMixin:
         elif kind == "dare":
             room = w.agents[target]["room"]
             s["challenge"] = {"text": text, "day": self.day, "who": [target]}
+            dare = self.dare_set(tick, target, text)                     # a task the engine can judge (torments.py)
             self.log_event(tick, {"type": "tease", "who": target, "room": room, "vis": "public",
-                                  "text": f"TereVi dares {self.nm(target)} on air."}, witnesses=everyone, actor=target)
+                                  "text": f"TereVi dares {self.nm(target)} on air: {dare['task']}, before {dare['due'] % 24:02d}:00."}, witnesses=everyone, actor=target)
             for cid in everyone:
                 w.remember(cid, f"{hour_} TereVi announced a dare for {self.nm(target)}: \"{text[:200]}\"")
             self.tease_rooms.add(room)

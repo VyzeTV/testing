@@ -175,7 +175,7 @@ class Game:
         return out
 
     # ---------- the director (game master) ----------
-    GM_TYPES = ("rumor", "item", "whisper", "announce", "twist", "event", "schedule", "goal", "propose")
+    GM_TYPES = ("rumor", "item", "whisper", "announce", "twist", "event", "schedule", "goal", "propose", "torment")
 
     def gm_action(self, act):
         if act.get("type") not in self.GM_TYPES:
