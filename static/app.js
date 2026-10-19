@@ -1527,7 +1527,9 @@ function renderHosts(st) {
   }).join("");
   const clues = (esc_.clues || []).slice(-4).map((c) => `<div class="row">\u2022 ${esc(info(c.by).short || c.by)}: ${esc(c.text)}</div>`).join("");
   el.innerHTML = `<div class="hdr2" style="margin-top:0">Hosts (GM view)</div>
-    <div class="row"><b>NeoVi</b> in the ${esc((S.W.rooms[nv.room] || {}).name || "?")} \u00b7 fear ${nv.fear ?? "?"}/10</div>
+    <div class="row"><b>NeoVi</b> ${nv.dead ? `is dead (${esc(nv.dead.how)}, Day ${nv.dead.day})` : nv.room === "none" ? "is gone" : `in the ${esc((S.W.rooms[nv.room] || {}).name || "?")}`} \u00b7 fear ${nv.fear ?? "?"}/10</div>
+    ${nv.room !== "none" ? `<div class="planrow"><span>health</span>${bar("pl", nv.hp ?? 100)}<em>${nv.hp ?? 100}</em></div><div class="planrow"><span>sanity</span>${bar("pl", nv.sanity ?? 70)}<em>${nv.sanity ?? 70}</em></div>
+    <div class="row">Grudge against TereVi ${nv.tv_grudge ?? 0}/100${(nv.kills || []).length ? ` \u00b7 killed ${(nv.kills || []).map((k) => esc(info(k.who).short || k.who)).join(", ")}` : ""}</div>` : ""}
     <div class="thought">${esc(nv.scheme || "No scheme yet.")}</div>
     <div class="row">Feelings: ${aff}</div><div class="row">Pockets: ${inv}</div>
     <div class="row"><b>Ways out</b>: best route at ${esc_.progress}% (any can fail)</div>${planBars}${clues}

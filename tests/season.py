@@ -88,7 +88,8 @@ def one_season(job):
             "neovi": ((nv.get("arc") or {}).get("fate") or "none"), "romances": sum(1 for b in w.state.get("bonds", []) if b.get("kind") == "romance"),
             "minds": dict(w.state.get("mind_stats") or {}), "stories": [e["kind"] for e in (w.state.get("stories") or {}).values()], "twists": dict(w.state.get("twists") or {}), "intimacy": dict(w.state.get("intimacy") or {}),
             "nv": {"helped": nv.get("helped", 0), "punished": [p["kind"] for p in nv.get("punished", [])], "named": sum(1 for v in (nv.get("told") or {}).values() if "name" in v),
-                   "lover": bool(nv.get("lovers"))},
+                   "lover": bool(nv.get("lovers")), "fights": len(nv.get("fights") or []), "kills": len(nv.get("kills") or []), "dead": (nv.get("dead") or {}).get("how"),
+                   "sanity": nv.get("sanity", 70), "sabotaged": nv.get("sabotaged", 0)},
             "survivors": sorted(c for c, a in w.state["agents"].items() if a.get("status", "alive") == "alive"),
             "graveyard": [{"id": g["id"], "day": g["day"], "how": g["how"]} for g in w.state.get("graveyard", [])],
             "trials": trials, "finales": finales, "saga": list(w.state.get("saga", [])), "names": names, "arrivals": arrivals,
@@ -146,6 +147,10 @@ def markdown(seasons):
         ko = [k for s in ss for k in s["killers_out"]]
         out.append(f"- **Killers the show let go:** {len(ko)}; {sum(s['twists'].get('killer_helps', 0) for s in ss)} tried to help from outside "
                    f"(believed {sum(1 for k in ko if k['stage'] == 'believed')}, dismissed {sum(1 for k in ko if k['stage'] == 'dismissed')}), the rest kept quiet or gave up.")
+        out.append(f"- **NeoVi's body and mind:** fights {sum(s['nv'].get('fights', 0) for s in ss)}, people she killed {sum(s['nv'].get('kills', 0) for s in ss)}, "
+                   f"sabotage of TereVi {sum(s['nv'].get('sabotaged', 0) for s in ss)}; she died in {sum(1 for s in ss if s['nv'].get('dead'))} seasons "
+                   f"({', '.join(f'{k} {n}' for k, n in Counter(s['nv']['dead'] for s in ss if s['nv'].get('dead')).most_common()) or 'none'}); "
+                   f"her sanity at the end: median {sorted(s['nv'].get('sanity', 70) for s in ss)[len(ss) // 2]}.")
         out.append(f"- **NeoVi joined the cast** after the fourth trial in {sum(1 for s in ss if s['nv_joined'] == 'fourth trial')} seasons, as a punishment in "
                    f"{sum(1 for s in ss if s['nv_joined'] == 'punishment')}. Seasons that ran the full 28 days: {sum(1 for s in ss if s['capped'])}.")
         sk = Counter(k for s in ss for k in s["stories"])
