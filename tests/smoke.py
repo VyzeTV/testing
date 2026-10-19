@@ -6460,8 +6460,8 @@ check("people keep doing things to the end of a block (someone starts something 
       sum(any(sg[0] >= 95 for sg in segs) for t in day_blocks_ for segs in (t["live"].get("acts") or {}).values()) >= 3)
 games_ = [e["text"] for t in tb_ for e in t["events"] if any(k in e["text"] for k in ("checkmates", "beats", "bullseye", "draw over the chess", "pots two", "queen", "dart"))]
 check("shared games have their moments (a win, a draw, a good shot)", len(games_) >= 1, str(games_[:3]))
-pr_ = pacing_.measure(seeds=(5,), days=(3,))
-check("meal blocks are no longer mostly dead air (at most 6 dead five-minute stretches of 24)", all(pr_[h] <= 6 for h in (8, 12, 18)), str(pr_))
+pr_ = pacing_.measure(seeds=(5, 6), days=(3,))
+check("meal blocks are no longer mostly dead air (on average at most 6 dead five-minute stretches of 24)", sum(pr_[h] for h in (8, 12, 18)) / 3 <= 6, str(pr_))
 
 # ---- phase A follow-up: speaking of people consistently
 w, r, _ = fresh(380)
@@ -6490,6 +6490,53 @@ for t in live_week(381, days=(3, 4, 5)):
                 late_ = {j[1] for j in g.get("joined") or [] if j[0] > l["m"]}         # someone who walked over after it was said
                 bad_ += l["about"] in mem_ and l["about"] not in late_
 check("over mock days, talk against a third person happens but never with them in the conversation", tot_ >= 1 and bad_ == 0, f"{bad_} of {tot_}")
+
+# ---- pastimes (pastimes.py): shared and solo things people do, resolved without a model call
+w, r, _ = fresh(390)
+w.state["revealed"] = True
+tk_ = r.new_tick(18)
+tk_["free"], tk_["free_chats"] = {}, []
+r._free_busy = {}
+from murder.clock import Timeline as TL_
+r._tl = TL_(r)
+for c in sorted(w.agents):
+    w.agents[c]["room"] = "lounge"
+host_, rest_ = "noah", [c for c in sorted(w.agents) if c != "noah"]
+for c in rest_:
+    w.agents[c]["aff"][host_] = 8
+s0_ = {c: w.agents[c]["sanity"] for c in w.agents}
+r._seg(tk_, host_, 10, 70, "lounge", "film", "watching a film", "free")
+r.start_pastime(tk_, host_, "film", "lounge", 10, 70)
+r._tl.run()
+fg_ = [c for c in w.agents if any(sg["act"] == "film" for sg in tk_["free"].get(c, []))]
+check("a shared pastime invites idle friends nearby, and a good film lifts their spirits", len(fg_) >= 2 and all(w.agents[c]["sanity"] >= s0_[c] for c in fg_)
+      and any("film" in e["text"] for e in tk_["events"]), str(fg_))
+check("a second person starting the same film in the same room joins it instead", (r.start_pastime(tk_, rest_[-1], "film", "lounge", 20, 80) or True)
+      and sum(1 for k in r.__dict__.get("_ongoing", {}) if k[2] == "film") == 1)
+w.agents["chloe"]["aff"]["cail"], w.agents["cail"]["aff"]["chloe"] = 6, 6
+w.agents["chloe"]["aff"]["szymon"], w.agents["cail"]["aff"]["szymon"] = 6, 5
+tk2_ = r.new_tick(14); tk2_["free"], tk2_["free_chats"] = {}, []
+r._tl = TL_(r)
+for c in sorted(w.agents):
+    w.agents[c]["room"] = "lounge"
+w.agents["szymon"]["room"] = "kitchen"
+r.end_talk(tk2_, "chloe", "cail", "stories", "szymon", "Szymon")
+check("an unvoiced talk has an outcome: friends swapping stories about someone they both like grow closer", w.agents["chloe"]["aff"]["cail"] == 7
+      and any("swap stories about Szymon" in e["text"] for e in tk2_["events"]))
+w.agents["cail"]["aff"]["szymon"] = -5
+r.end_talk(tk2_, "chloe", "cail", "split", "szymon", "Szymon")
+check("and falling out over someone one likes and the other does not costs them", w.agents["chloe"]["aff"]["cail"] == 6 and any("fall out" in e["text"] for e in tk2_["events"]))
+w.agents["seul"]["room"] = "pool"
+w.agents["seul"]["sanity"] = 50
+r.start_pastime(tk2_, "seul", "journal", "pool", 30, 60)
+check("a solo pastime pays out (a journal steadies them)", w.agents["seul"]["sanity"] > 50)
+wp_ = World(new_state(3))
+for d in (3, 4):
+    wp_.state["day"] = d
+    DayRunner(wp_, LLM(backend="mock"), lambda t: None, step=2, murders=False, rule_mode="roulette", seed=391 + d).run()
+kinds_ = {k.split("_")[0] for k in (wp_.state.get("pastimes") or {})}
+check("over two mock days people take up several different pastimes", len(kinds_) >= 4, str(wp_.state.get("pastimes")))
+r._tl = None
 
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]

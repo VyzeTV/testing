@@ -4,7 +4,7 @@ A Danganronpa-style killing-game simulation. **The engine decides what happens; 
 
 ## Where things stand (2026-10-18)
 
-- **Next: see `docs/NEXT_STEPS.md`** (Day 3 findings and the agreed plan, phases A to F; Phases A and B are done, each with an open follow-up; Phase C is next).
+- **Next: see `docs/NEXT_STEPS.md`** (Day 3 findings and the agreed plan, phases A to F; Phases A and B are done with their follow-ups; Phase C is next).
 - Work branch: **`claude/gallant-rubin-5645qr`** (all work is pushed there; `main` is the user's, never push to it; no PR has been opened).
 - The rebuild plan lives in a Claude Docs doc, **"Murder Channel: Rebuild Plan"**: https://claude.ai/code/artifact/4e557715-028c-42d6-a8dd-1b01d3671bc5 (its Roadmap section lists phases 0-8 with a gate for each; done phases say "Done: ..."). A companion doc, "Engine-First Design", explains the philosophy. In-repo design docs: `docs/GAME_DESIGN.md` (the authoritative description of how the game works), `docs/DESIGN.md`, `docs/BASELINE.md`, `README.md`.
 - **Phases 0-4 are done**:
@@ -31,7 +31,7 @@ A Danganronpa-style killing-game simulation. **The engine decides what happens; 
 
 ## Running and checking
 
-- Tests (mock LLM, no network): `python tests/smoke.py` (1072 checks, about 45 seconds; must end `N/N passed`) and `python tests/baseline.py` (mock calls a day; keep it at or below about 91.7. It is about 91 now, at the ceiling: proposals add about 0.3).
+- Tests (mock LLM, no network): `python tests/smoke.py` (1084 checks, about 45 seconds; must end `N/N passed`) and `python tests/baseline.py` (mock calls a day; keep it at or below about 91.7. It is about 91 now, at the ceiling: proposals add about 0.3).
 - Balance numbers: `python tests/balance.py --write` (about 30 seconds) writes `docs/BALANCE.md`: deaths and how weeks end, trials and verdicts, sanity, idle time, meals, nights, beliefs and lies caught. Report them at every phase gate. Its 16 weeks give fewer than 20 trials, so verdict counts swing a lot between runs; over 80 extra weeks (seeds 101-140, both configurations) after phase 7 the trial got 75 of 101 verdicts right (74%), 24 wrong, 2 with no verdict. Whole seasons from Day 1 to the ending: `docs/SEASONS.md` (`python tests/season.py --write`, about three minutes; the cast is refilled with newcomers each week as the viewer requires; ways out are reached only rarely). Who kills and who dies per character: `docs/CAST_STATS.md` (`python tests/cast_stats.py --write`, a few minutes; for curiosity only).
 - Pacing: `python tests/pacing.py` (dead five-minute stretches per block on mock days; meal blocks about 4 of 24 after phase B) and, with a server running, `node tests/pace_check.js` (real seconds per block and how long the map stands still at a block start).
 - Browser check: `MC_DATA_DIR=<scratch dir> python server.py &` then `node tests/viewer_check.js` (expects `frozen: 0`, `errors: []`). Use a fresh data dir: a leftover session or an old server on port 8766 gives misleading results. Stop the server with `pkill -f "[s]erver.py"` in its own shell call (an unbracketed pattern kills the shell itself).

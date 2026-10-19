@@ -26,6 +26,8 @@ FINALE = 75
 FREE_HOURS = (8, 10, 12, 14, 16, 18, 20)          # every daytime block; a meal or summons happens inside its block
 
 
+from .pastimes import PASTIME_ACTS, QUIET
+
 class _Rooms(set):
     """The rooms somebody has been in today, kept as a list inside the character so it is saved with them."""
     def __init__(self, lst):
@@ -84,6 +86,7 @@ ACTS = {
     "fight":    ("fighting the fire", 15, [], [], "tackles the fire"),
     "warn":     ("warning the others", 15, [], [], "shouts a warning"),
 }
+ACTS.update(PASTIME_ACTS)
 CAP = {"sofa": 2, "bench": 2, "table": 4, "poolTable": 2, "chessTable": 2, "firepit": 3, "fireplace": 3, "bed": 1}
 SEATS = ["sofa", "armchair", "bench", "deckChair", "firepit", "fireplace", "table", "chair", "hammock"]       # where a conversation likes to happen
 IDLE_ACTS = {"look", "explore", "stroll", "gather", "stay", "sit", "walk", "jukebox", "mirror"}               # an activity somebody can be talked out of
@@ -95,9 +98,10 @@ GAME_MOMENTS = {      # act: (a win, a draw or None, a moment midway, playing al
     "darts": ("{w} hits the bullseye and takes the game from {l}.", None, "{a}'s dart bounces off the wire; {b} laughs.", "{a} lands three darts in the treble twenty."),
 }
 GATHERINGS = 1                       # group conversations a free block may start (the meal's table talk is one; two more while a death is investigated); each is a voicing call
+NEAR_UNTIL = 1.5                     # below this best score, any choice within NEAR of it may be taken
 LAST_START = TICK_MIN - 12           # no new chat or gathering this close to the end of the block
 NIGHT_ACTS = {"eat", "drink", "snack", "wash", "bathroom", "read", "sit", "look", "explore", "stargaze", "radio", "tinker", "mirror", "confess", "chat", "gather", "company",
-              "stalk", "flee", "rescue", "fight", "warn", "sleep", "snoop"}                                  # what people do in a sleeping house (nothing loud)
+              "stalk", "flee", "rescue", "fight", "warn", "sleep", "snoop"} | QUIET                          # what people do in a sleeping house (nothing loud)
 MAIN_DUR = {"experiment": 90, "craft": 45, "rest": 60, "search": 30, "spy": 45, "treat": 30, "frisk": 30, "stash": 30, "retrieve": 30, "build": 45, "hide": 45, "lock": 15,
             "unlock": 15, "barricade": 30, "give": 15, "take": 15, "use": 15, "drop": 15, "wear": 15, "stay": 15, "attack": 15, "knock": 15, "pick": 30, "break": 30}
 
@@ -435,6 +439,7 @@ class FreeTimeMixin:
         gr = f("gregariousness")
         home = w.cast[cid]["home"]
         recent = a.setdefault("free_recent", [])
+        stuck = (a.get("stuck") or {}).get("rooms", []) if (a.get("stuck") or {}).get("tick") == f"{tick['day']}:{tick['hour']}" else []
         sc = []                                          # (score, act, room, at, why, partner)
 
         def add(score, act, rooms=None, kinds=None, why="", partner=None, room=None, home_only=False, far=False):
@@ -458,7 +463,7 @@ class FreeTimeMixin:
                 r = self._nearest(cid, [here] if late else rooms, reach_) if not (late and here not in rooms) else None
             else:
                 r = here
-            if not r:
+            if not r or (r != here and r in stuck):
                 return
             if r != here and act not in ("rescue", "fight", "warn", "flee") and (self._unsafe(r) or r in self.smoky_rooms()):
                 return                                                   # nobody walks back into a fire for a game of chess or a plan
@@ -484,6 +489,10 @@ class FreeTimeMixin:
         # a fire is burning somewhere else: the brave put it out, the kind pull people out, the alert wake the sleepers
         for act_, room_, why_, sc_ in self.fire_duties(tick, cid, reach, m):
             add(sc_, act_, room=room_, why=why_)
+        hd = a.get("heading")
+        if hd and not sc and hd.get("tick") == f"{tick['day']}:{tick['hour']}" and m - hd["since"] <= 30 and hd["room"] in ROOMS and not self._unsafe(hd["room"]):
+            return self._start(tick, cid, hd["act"], hd["room"], tuple(hd["at"]) if hd.get("at") else None, m, hd.get("why", ""), hd.get("partner"))     # on their way: they carry on
+        a.pop("heading", None)
         # half-dressed
         if self.worn(cid) is None and not self.rule_is_underwear() and (a["inv"].get(f"clothes_{cid}", 0) > 0 or here == home):
             add(2.5, "dress", room=home if here != home else here)
@@ -519,6 +528,7 @@ class FreeTimeMixin:
         add(0.2 + (f("vanity") - 40) / 110, "mirror", why="a look in the mirror")
         if 11 <= hour <= 17 and self.worn(cid) is not None:
             add(0.35 + (cour - 40) / 150, "swim", why="a swim")
+        self.pastime_options(tick, cid, hour, m, add, f, mi, here)       # films, sunsets, karaoke, talks, a journal... (pastimes.py)
         # work: whatever they were at in their last decision goes on, and things they could make
         tk = self.tinker_option(cid)
         if tk:
@@ -594,6 +604,9 @@ class FreeTimeMixin:
         if not sc:
             return self._start(tick, cid, "look", here, None, m)
         best = max(sc, key=lambda x: x[0])
+        if best[0] < NEAR_UNTIL:                                 # nothing pressing: any of the options that are nearly as good will do
+            near = sorted((x for x in sc if x[0] >= best[0] - 0.12), key=lambda x: (-x[0], x[1], x[2] or ""))
+            best = near[self.rng.randrange(len(near))]
         _, act, room, at, why, partner = best
         recent.append(act)
         del recent[:-6]
@@ -845,7 +858,13 @@ class FreeTimeMixin:
             return m + SLICE                                  # they died on the way (a fall, a trap)
         if not arrived:
             self._seg(tick, cid, m, m + SLICE, a["room"], "walk", f"heading for {w.room_name(room)}")
+            if a["room"] == start_room:
+                a.pop("heading", None)                          # no way through (a lock, a blocked door): they give up on it for this block
+                a["stuck"] = {"tick": f"{tick['day']}:{tick['hour']}", "rooms": sorted(set((a.get("stuck") or {}).get("rooms", []) if (a.get("stuck") or {}).get("tick") == f"{tick['day']}:{tick['hour']}" else []) | {room})}
+            else:
+                a["heading"] = {"act": act, "room": room, "at": list(at) if at else None, "why": why, "partner": partner, "since": m, "tick": f"{tick['day']}:{tick['hour']}"}
             return m + SLICE
+        a.pop("heading", None)
         if walked:
             m += SLICE // 2 if dur > SLICE else 0
         if act in ("bathroom", "shower", "bath") and self._occupied_alone(tick, a["room"], m):
@@ -854,6 +873,10 @@ class FreeTimeMixin:
             act, label, dur, verb, at = "look", "looking around", 15, "looks around", None     # the one they meant to talk to died meanwhile
         if act == "chat":
             return self._start_chat(tick, cid, partner, m, why)
+        if act == "talk":
+            if self.start_talk(tick, cid, partner, m, dur):
+                return m + dur
+            act, label, dur, verb, at = "look", "looking around", 15, "looks around", None
         if act == "explore":
             label = "exploring the " + w.room_name(room)
         if act in CATLIKE and self.has_trait(cid, "catlike"):
@@ -864,7 +887,10 @@ class FreeTimeMixin:
             self.companion_for(tick, cid, start_room, m_go, end)         # a close friend may come along
         if cid not in w.agents:
             return end                                                   # the way there killed them (a fall, a trap)
-        self._effect(tick, cid, act, m, at)
+        if act in PASTIME_ACTS:
+            self.start_pastime(tick, cid, act, a["room"], m, end)
+        else:
+            self._effect(tick, cid, act, m, at)
         self.plan_done_by_act(cid, act, a["room"])
         if act in GAME_MOMENTS and getattr(self, "_tl", None) is not None and end - m >= 20:
             if self.rng.random() < 0.5:
