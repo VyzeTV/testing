@@ -208,7 +208,7 @@ class ChaosMixin:
         if kind == "hurt":
             t = imp["target"] if imp.get("target") in here else self.rng.choice(here)
             self.do_assault(tick, cid, t, None, hour)
-        elif kind == "wreck" and room == "boathouse" and self.wreck_raft(tick, cid, self.rng.choice(["kicks the raft's frame apart", "slashes the lashings", "smashes the deck"])):
+        elif kind == "wreck" and room in ("boathouse", "beach") and self.wreck_raft(tick, cid, self.rng.choice(["kicks the raft's frame apart", "slashes the lashings", "smashes the deck"])):
             self.fx(tick, "shake", room, cid)
         elif kind == "wreck":
             pool = [k for k, q in s["room_items"].get(room, {}).items() if q > 0 and not set(w.item_spec(k).get("tags", [])) & {"key", "mystery"}]

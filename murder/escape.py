@@ -130,7 +130,12 @@ class EscapeWorkMixin:
         if "core_vault" in rooms and "SP-5" not in self.s.get("found_edges", []):
             rooms = [r for r in rooms if r != "core_vault"] or ["lighthouse"]
         here = self.world.agents[cid]["room"]
-        return here if here in rooms else rooms[0]
+        if here in rooms:
+            return here
+        if step == "launch":
+            return rooms[0]                                  # the boats are in the boathouse: getting in is part of the way out
+        near = self.world.reachable_rooms(cid, 40)
+        return next((r for r in rooms if r in near), rooms[0])        # the workshop while the boathouse is locked is the beach
 
     def escape_work_score(self, cid, mi, f):
         """How much someone wants to spend free time on a way out now."""
@@ -249,22 +254,25 @@ class EscapeWorkMixin:
             return
         rt["stage"] = stage
         look = RAFT_STAGES[stage - 1][1]
-        here = [o for o in self.world.occupants("boathouse") if o in self.world.agents]
-        self.log_event(tick, {"type": "raft", "who": cid, "room": "boathouse", "vis": "public", "m": float(m),
-                              "text": f"In the boathouse, the raft is now {look}."}, witnesses=here, actor=cid)
+        site = self.world.agents[cid]["room"] if self.world.agents[cid]["room"] in ("boathouse", "beach") else "boathouse"
+        rt["site"] = site
+        here = [o for o in self.world.occupants(site) if o in self.world.agents]
+        self.log_event(tick, {"type": "raft", "who": cid, "room": site, "vis": "public", "m": float(m),
+                              "text": f"{'In the boathouse' if site == 'boathouse' else 'On the beach'}, the raft is now {look}."}, witnesses=here, actor=cid)
 
     def wreck_raft(self, tick, cid, how="pulls the lashings apart"):
         """Someone wrecks the raft in the workshop. Returns True if there was a raft to wreck."""
         w = self.world
         rt = ((self.s.get("escape") or {}).get("routes") or {}).get("raft")
-        if not rt or rt["plan"].get("build", 0) < RAFT_STAGES[0][0] or w.agents[cid]["room"] != "boathouse":
+        site = (rt or {}).get("site", "boathouse")
+        if not rt or rt["plan"].get("build", 0) < RAFT_STAGES[0][0] or w.agents[cid]["room"] != site:
             return False
         rt["plan"]["build"] = max(0, rt["plan"]["build"] - 30)
         rt["plan"]["launch"] = min(rt["plan"].get("launch", 0), 50)
         rt["stage"] = sum(1 for p, _ in RAFT_STAGES if rt["plan"]["build"] >= p)
-        here = [o for o in w.occupants("boathouse") if o in w.agents and o != cid]
-        self.log_event(tick, {"type": "sabotage", "who": cid, "room": "boathouse", "vis": "public" if here else "gm",
-                              "text": f"{self.nm(cid)} {how}: the raft in the boathouse is wrecked ({rt['plan']['build']}% of the build left)."},
+        here = [o for o in w.occupants(site) if o in w.agents and o != cid]
+        self.log_event(tick, {"type": "sabotage", "who": cid, "room": site, "vis": "public" if here else "gm",
+                              "text": f"{self.nm(cid)} {how}: the raft on the {'beach' if site == 'beach' else 'boathouse floor'} is wrecked ({rt['plan']['build']}% of the build left)."},
                        witnesses=here, actor=cid)
         for o in rt.get("contributors", []):
             if o in here and o != cid:

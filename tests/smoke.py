@@ -3443,6 +3443,7 @@ def pos_at(tr, t):
         if t < tr[i][0]:
             return tr[i - 1] if tr[i - 1][1] != tr[i][1] else tr[i - 1]
     return tr[-1]
+from murder.sim import pos_on as _pos_on  # noqa: E402
 remote = checked = 0
 for seed_ in (31, 32, 33):
     for t in live_week(seed_, days=(3, 4, 5, 6)):
@@ -3454,7 +3455,7 @@ for seed_ in (31, 32, 33):
             p_ = pos_at(tr, sp["m"])
             nx_ = next((q for q in tr if q[0] > sp["m"]), p_)          # mid-step through a doorway: the waypoint on the other side counts too
             checked += 1
-            if nav_.room_at(p_[1], p_[2], p_[3]) != sp["room"] and not (nx_[0] - sp["m"] < 0.1 and nav_.room_at(nx_[1], nx_[2], nx_[3]) == sp["room"]):
+            if nav_.room_at(*_pos_on(tr, sp["m"])) != sp["room"] and nav_.room_at(p_[1], p_[2], p_[3]) != sp["room"] and not (nx_[0] - sp["m"] < 0.1 and nav_.room_at(nx_[1], nx_[2], nx_[3]) == sp["room"]):
                 remote += 1
                 print("REMOTE", seed_, t["day"], t["hour"], t.get("segment"), sp["who"], sp["m"], sp["room"], nav_.room_at(p_[1], p_[2], p_[3]), tr[-3:], (L.get("acts") or {}).get(sp["who"]))
 check("nobody speaks from a different room than the one they are talking in (property over many turns)", checked > 100 and remote == 0, f"{remote} of {checked}")
