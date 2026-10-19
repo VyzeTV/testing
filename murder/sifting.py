@@ -18,6 +18,7 @@ class SiftingMixin:
         ids = sorted(A)
         nm = self.nm
         aff = lambda x, y: A[x]["aff"].get(y, 0) if x in A else 0
+        lovers = lambda x, y: any(bd["kind"] == "romance" and {bd["a"], bd["b"]} == {x, y} for bd in self.s.get("bonds", []))
         out = []
 
         def add(kind, people, text, heat):
@@ -33,8 +34,11 @@ class SiftingMixin:
                 continue
             rest = [o for o in ids if o not in (a, b)]
             c = max(rest, key=lambda o: (aff(b, o), o)) if rest else None
+            if lovers(a, b):
+                continue                                          # a couple: closeness to a friend is not a triangle
             if c and aff(b, c) >= 7 and aff(b, c) > aff(b, a):
-                add("triangle", [a, b, c], f"{nm(a)} loves {nm(b)}, who only has eyes for {nm(c)}.", 0.6 + 0.04 * (aff(a, b) - 7))
+                add("triangle", [a, b, c], f"{nm(a)} loves {nm(b)}, who " + (f"only has eyes for {nm(c)}." if lovers(b, c) else f"is closer to {nm(c)}."),
+                    0.6 + 0.04 * (aff(a, b) - 7))
             elif aff(b, a) <= 0:
                 add("unrequited", [a, b], f"{nm(a)} has fallen for {nm(b)}, who feels nothing of the kind.", 0.4)
         # two people who hate each other, both alone right now

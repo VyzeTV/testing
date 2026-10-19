@@ -6376,6 +6376,23 @@ for o in sorted(w.agents)[1:]:
     w.state["agents"][o]["status"] = "dead"
 check("a trial with one person left has no debate and no votes", r.run_claim_trial(r.new_tick(20), 20, {"killer": "x", "kind": "murder"}) == [])
 
+# ---- after the real director day: couples, trust wording, the climax's gaps
+w, r, _ = fresh(352)
+w.state["revealed"] = True
+a_, b_, c_ = sorted(w.agents)[:3]
+w.agents[a_]["aff"][b_] = 9
+w.agents[b_]["aff"][a_] = 8
+w.agents[b_]["aff"][c_] = 10
+w.state.setdefault("bonds", []).append({"a": a_, "b": b_, "kind": "romance", "since": 1})
+check("a couple is not a triangle because one of them is fond of a friend", not any(st[1] == "triangle" and a_ in st[2] and b_ in st[2] and c_ in st[2] and st[2][0] == a_
+                                                                                   for st in r.sift_stories()))
+tk_ = r.new_tick(31)
+check("trust that was never lost is not trusted 'again'", "a little more" in r.apply_choices(c_, tk_, [{"kind": "trust", "about": a_, "dir": "up"}])[0])
+beats_ = []
+r.climax(beats_, a_, {"raised": []}, [], {p: 1.0 for p in w.agents}, lambda *x: None, {"room": "library", "victim": c_}, sorted(w.agents), set(), {})
+gaps_ = [bt for bt in beats_ if bt["move"] == "climax_gap"]
+check("missing steps in a row are said once in the climax", len(gaps_) == 1, str(gaps_))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

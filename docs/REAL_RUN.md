@@ -153,3 +153,46 @@ Two days (day 5 and day 6) with the new tone guide, `gore` 2 and `flirt_level` 2
 - *(Shintaro, after the murder, a false memory)* Seul near the Foyer when it happened. Nobody else saw it. Why did nobody else see it?
 
 After this run: a hallucination's thought no longer reads "Did I just see I saw...", generic causes ("events") no longer become thoughts, and the fear and calm thoughts have more lines. Once, the model invented a cast member ("You saw me smile at Mara") who is in no prompt.
+
+# A third real-model run: the director (2026-10-19, phase 8)
+
+Two days (days 5 and 6) to check the director upgrade, staged by `tests/real_director_day.py`. The setup: a plot already stalled (Seul against Chloe, waiting for her in the Observatory, where she never goes), someone in crisis (Shintaro, sanity 17), a GM goal (make Noah and Cail friends), and a couple (Szymon and Vixen) with a rival (Ayden). 174 calls, no errors. Excerpts, lightly trimmed.
+
+## The proposals
+
+The stalled plot got a proposal at 08:00. The model answered in the planner's format, and the engine accepted it:
+
+> scheme "asleep", room "grey_room" (Chloe's bedroom), item "baseball_bat", when "night". Cover: "Seul says they were awake in their own room all night on stimulants and an energy drink, restless and pacing, and heard nothing from Chloe's room." Steps: fetch the bat, wait, go to the Grey Room, strike, clean their clothes, set up the alibi.
+
+Shintaro, in crisis, got one social move: gossip to Seul about Chloe. Both were accepted (`plan_ok` 1, `move_ok` 1). Shintaro then grew convinced Chloe was coming for him and started his own plot. At 16:00 in the dark Dining Hall he swung at Noah, and Noah turned the guitar on him. Seul waited a day and a half and strangled Chloe in the Bathroom on the second night. The plan's patience ran out before she slept alone.
+
+## The goal
+
+The GM goal kept nudging Noah and Cail together: TereVi paired them twice, a rumour said Cail trusted Noah, and they sought each other out four times. Then Cail turned on him at 20:00:
+
+> **Cail:** Don't tell me to let it go, Noah! You were the last one near Shintaro!
+> **Noah:** No! I didn't touch him, Cail. Stop pointing at me like that!
+
+## Reflections
+
+The night's reflections made 25 choices in two nights, all from the menu: 7 trust, 7 reread, 6 protect and 5 resolve. Some were sharp. Noah resolved to protect Cail and to apologise to him, the night after Cail accused him. Ayden read Noah as a threat, correctly. After Chloe's death, most of the survivors resolved to protect Szymon.
+
+## The trial and last words
+
+Noah was voted guilty, which was right. Cail led the climax but had little to show:
+
+> **Cail:** Oh babe, they had the means! Noah was carrying an acoustic guitar!
+> **Cail:** And then... the deed, babe. That part we don't know yet.
+> **Cail:** And then... the cover-up, babe. That part we don't know yet, honestly.
+
+> **Noah:** Hmm-hm... I didn't mean it, amigo. I swear, I didn't mean any of it.
+> **Noah:** Chloe, sweetheart, don't watch this part, okay?
+> **Chloe:** I... um. I hate what you did. I don't hate you. I wish I did. I'm sorry.
+> **Ayden:** Save it. Shintaro doesn't get a goodbye, not from you.
+
+## Fixed after this run
+
+- The climax said "that part we don't know yet" once per missing step. Missing steps in a row are now said once.
+- A story read "Vixen loves Szymon, who only has eyes for Cail" although Vixen and Szymon were a couple and Szymon was only fond of Cail. A couple is no longer a triangle. When someone loves a person who is closer to a friend but not their lover, it reads "who is closer to Cail".
+- A reflection said "decides to trust Vixen again" when trust had never been lost. Now it reads "trusts Vixen a little more".
+- A reread ("Noah is dangerous") was always stored as a false belief. It is now true when the person has killed or is plotting.

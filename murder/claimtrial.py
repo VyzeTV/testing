@@ -712,18 +712,29 @@ class ClaimTrialMixin:
             ("the cover-up", True if lies.get(lead) else None, f"Then {self.nm(lead)} lied about where they were, and we caught the lie."),
         ]
         self.trial_beat(beats, accuser, f"Let me tell you what happened, from the start.", "climax_open")
-        out, gaps, interrupted = [], 0, False
+        out, gaps, interrupted, hole = [], 0, False, []
+
+        def say_gap():                                              # missing steps in a row are said once
+            nonlocal interrupted
+            if not hole:
+                return
+            what = hole[0] if len(hole) == 1 else ", ".join(hole[:-1]) + " and " + hole[-1]
+            self.trial_beat(beats, accuser, f"And then... {what}: {'that part' if len(hole) == 1 else 'those parts'} we don't know yet.", "climax_gap")
+            hole.clear()
+            if not interrupted:
+                interrupted = True
+                self.trial_beat(beats, lead, "You can't prove any of that!", "interrupt")
+
         for name, fact, text in steps:
             if fact:
+                say_gap()
                 self.trial_beat(beats, accuser, text, "climax_step")
                 out.append({"step": name, "text": text, "gap": False})
             else:
                 gaps += 1
-                self.trial_beat(beats, accuser, f"And then... {name}: that part we don't know yet.", "climax_gap")
+                hole.append(name)
                 out.append({"step": name, "text": f"{name}: unknown", "gap": True})
-                if not interrupted:
-                    interrupted = True
-                    self.trial_beat(beats, lead, "You can't prove any of that!", "interrupt")
+        say_gap()
         push(lead, -0.5 * gaps)
         if not gaps:
             self.trial_beat(beats, accuser, f"That's how it happened. Isn't it, {self.nm(lead)}?", "climax_end")

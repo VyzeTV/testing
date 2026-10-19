@@ -85,15 +85,15 @@ class ReflectionMixin:
                 txt = f"{nm(cid)} no longer trusts {nm(x)}."
             elif k == "trust":
                 w.adjust_aff(cid, x, 1)
-                a.get("distrust", {}).pop(x, None)
-                txt = f"{nm(cid)} decides to trust {nm(x)} again."
+                again = a.get("distrust", {}).pop(x, None) is not None
+                txt = f"{nm(cid)} decides to trust {nm(x)} again." if again else f"{nm(cid)} trusts {nm(x)} a little more."
             elif k == "protect":
                 a["commit"] = {"protect": x, "day": self.day, "until": self.day + 3}
                 a["want_talk"] = {"who": [x], "day": self.day + 1, "why": f"keep an eye on {nm(x)}"}
                 txt = f"{nm(cid)} resolves to protect {nm(x)}."
             elif k == "reread":
                 self.believe(cid, {"k": "rumor", "s": x, "n": f"{nm(x)} is dangerous; what they did today was a threat", "src": "inferred", "c": 0.6,
-                                   "t0": self.abs_now(), "true": False, "reread": True})
+                                   "t0": self.abs_now(), "true": self.dangerous(x), "reread": True})
                 if self.mind_on():
                     self._thought(self.mind(cid), -3, f"afraid of {nm(x)}")
                 txt = f"{nm(cid)} now reads {nm(x)} as a threat."
@@ -117,6 +117,10 @@ class ReflectionMixin:
         if not got:
             got = self.threshold_choices(cid)
         return self.apply_choices(cid, tick, got)
+
+    def dangerous(self, x):
+        """Is the reread right? Someone who has killed or is plotting a death."""
+        return x in (self.s.get("plots") or {}) or self.s.get("stats", {}).get(x, {}).get("kills", 0) > 0
 
     def committed_to(self, cid, x):
         c = (self.world.agents.get(cid) or {}).get("commit") or {}
