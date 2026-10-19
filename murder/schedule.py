@@ -103,9 +103,10 @@ class ScheduleMixin:
                 continue
             got.append(cid)
             a.pop("asleep", None)
-            self.log_event(tick, {"type": "fetch", "who": "neovi", "room": a["room"], "vis": "viewer", "why": why,
-                                  "text": f"NeoVi fetches {self.nm(cid)} from the {w.room_name(a['room'])} for {label}."})
-            w.remember(cid, f"NeoVi came to fetch you for {label}.")
+            by = "NeoVi" if self.neovi_maid() else "TereVi's drones"
+            self.log_event(tick, {"type": "fetch", "who": "neovi" if self.neovi_maid() else "terevi", "room": a["room"], "vis": "viewer", "why": why,
+                                  "text": f"{by} fetch{'es' if by == 'NeoVi' else ''} {self.nm(cid)} from the {w.room_name(a['room'])} for {label}."})
+            w.remember(cid, f"{by} came to fetch you for {label}.")
         if got:
             tick["fetched"] = got
         return got

@@ -328,6 +328,7 @@ class TrialMixin:
         opening = self.make_broadcast("trial_open", {"victim": victim})
         tick["broadcasts"].append({"speaker": "terevi", "kind": "trial", "text": opening})
         self.bonus_clue(tick, hour)
+        self.nv_trial_pressure(tick)                                     # neovi_life.py
         for line in self.blackout_alibis(case):
             self.file_add(case, line)
         self.fetch_stragglers(tick, ids, TRIAL_ROOM, "the class trial")

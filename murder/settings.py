@@ -45,6 +45,7 @@ SETTINGS = [
     ("fire_lethality", "Fire and smoke danger", "World", 0, 3, 0.1, 1.0, "How much damage flames, heat and smoke do each five minutes to people who stay in the room. 0 = harmless, 1 = rough, 3 = deadly. Sleepers, the unconscious, the badly hurt and the panicked are the ones who die."),
     ("free_time", "Free-time blocks", "World", 0, 1, 1, 1, "1 = the day alternates turns (morning, midday, evening) with free-time blocks (10:00, 14:00, 16:00, 20:00) where people eat, wash, play, tinker and chase their plots minute by minute; 0 = every block is a plain turn."),
     ("director_nudge", "Director opportunities", "Drama", 0, 2, 0.1, 1.0, "When a plotter has been waiting for a long time, the Director may steer their target somewhere quiet. It never makes the kill: the plotter still has to strike. 0 = off."),
+    ("neovi_risk", "Turning on NeoVi", "Drama", 0, 3, 0.1, 1.0, "How readily people with a grudge against NeoVi, a snapped mind or an eye on her master key attack her. 0 = never."),
     ("snap_rate", "Snapping", "Drama", 0, 3, 0.1, 1.0, "How readily someone with very little sanity left, or pushed past their limit by someone they hate, kills with no plan. 0 = only planned killings."),
     ("modesty", "Embarrassment", "Tone", 0, 2, 0.1, 1.0, "How hard being seen in their underwear hits the modest. 0 = nobody minds."),
     ("gore", "Gore", "Tone", 0, 3, 1, 2, "How graphic deaths, wounds, bodies and executions are. 0 = cut away, 1 = restrained, 2 = vivid and brutal, 3 = unflinching."),

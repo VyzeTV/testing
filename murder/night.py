@@ -149,6 +149,8 @@ class NightMixin:
                 if why:
                     self.rouse(tick, cid, why)
         self.wake_for_meets(tick, hour)
+        if hour == NIGHT_BLOCKS[-1]:
+            self.diary_ahead()
         s["_night_noise"] = {}
         awake = [c for c in sorted(w.agents) if not w.agents[c].get("asleep") and not w.agents[c].get("out")]
         decisions, intents, attacks = {}, {}, []
@@ -177,6 +179,7 @@ class NightMixin:
             self.resolve_assaults(tick, assaults, hour)
             self.resolve_sabotages(tick, sabs, hour)
             self.resolve_end_lives(tick, hour)
+            self.nv_threats(tick, hour)
             self.free_time(tick, hour, decisions)
             self.clock_to(100)
             self.hazard_check(tick, hour)
@@ -191,6 +194,8 @@ class NightMixin:
         if hour == NIGHT_BLOCKS[1] and not s.get("case"):
             self.neovi_visit(tick)                                   # kumiko.py
             self.neovi_choice(tick)
+        if hour == NIGHT_BLOCKS[1]:
+            self.nv_night(tick)                                      # neovi_life.py
         if hour == NIGHT_BLOCKS[2]:
             self.murder_suicide(tick)                                # twists.py
         # what woke the house up for the next block
@@ -206,6 +211,23 @@ class NightMixin:
                 a["slept_at"] = 0
         tick["awake"] = awake
         return tick
+
+    def diary_sig(self, cid):
+        """What would make a diary asked for early stale: they were up, something new happened to them, someone died, a case opened."""
+        a, s = self.world.agents.get(cid) or {}, self.s
+        rec = (a.get("memory") or {}).get("recent") or []
+        return (bool(a.get("asleep")), rec[-1] if rec else None, len(s.get("graveyard") or []), (s.get("case") or {}).get("victim"))
+
+    def diary_ahead(self):
+        """At the start of the last night block, ask for the diaries of everyone asleep on worker threads, so dawn does not wait for them.
+        A diary is used at dawn only if nothing changed for that person in between (`diary_sig`); otherwise it is asked again."""
+        w = self.world
+        self._diaries = {}
+        for cid in sorted(w.agents):
+            if not w.agents[cid].get("asleep"):
+                continue
+            sysm, user, ctx = self.reflect_prompt(cid)
+            self._diaries[cid] = {"day": self.day, "sig": self.diary_sig(cid), "fut": self.voice_pool().submit(self.llm.reflect, sysm, user, ctx)}
 
     def run_night_turn(self):
         """Bedtime and the first block of the night (kept for callers of the old single night turn). Returns the block, or None if nobody is up."""

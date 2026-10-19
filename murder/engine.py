@@ -66,6 +66,7 @@ from .escape import EscapeWorkMixin
 from .finales import FinaleMixin
 from .outside import OutsideMixin
 from .kumiko import KumikoMixin
+from .neovi_life import NeoViLifeMixin
 from .innervoice import InnerVoiceMixin
 from .intimacy import IntimacyMixin
 from .twists import TwistMixin
@@ -169,7 +170,7 @@ class Stop(Exception):
     pass
 
 
-class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, ScheduleMixin, BeliefMixin, NightLifeMixin, MurderPlanMixin, FightMixin, CarryMixin, EvidenceMixin, GearMixin, MarksMixin, LooksMixin, SceneMixin, EscapeWorkMixin, FinaleMixin, OutsideMixin, KumikoMixin, InnerVoiceMixin, IntimacyMixin, TwistMixin, EndingsMixin, DeparturesMixin, SiftingMixin, GoalsMixin, PauseMixin, ReflectionMixin, ProposerMixin, PastimeMixin, IntrusionMixin, NeoViDayMixin, HabitMixin, InquiryMixin, ElectricMixin, AheadMixin, ClaimTrialMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
+class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, ScheduleMixin, BeliefMixin, NightLifeMixin, MurderPlanMixin, FightMixin, CarryMixin, EvidenceMixin, GearMixin, MarksMixin, LooksMixin, SceneMixin, EscapeWorkMixin, FinaleMixin, OutsideMixin, KumikoMixin, NeoViLifeMixin, InnerVoiceMixin, IntimacyMixin, TwistMixin, EndingsMixin, DeparturesMixin, SiftingMixin, GoalsMixin, PauseMixin, ReflectionMixin, ProposerMixin, PastimeMixin, IntrusionMixin, NeoViDayMixin, HabitMixin, InquiryMixin, ElectricMixin, AheadMixin, ClaimTrialMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
     def __init__(self, world, llm, on_tick, gate=None, should_stop=None, step=2, workers=6, seed=None,
                  murders=True, motive="", rule_mode="roulette", rule_text="", confessionals=True, mischief="occasional", chaos="normal",
                  variation=0, gm_pull=None, lean=False, call_cap=0, autodir=False, autodir_get=None, tuning_get=None, ask_gm=None):
@@ -347,6 +348,8 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             return ins["room"]
         if self.s["npcs"]["neovi"].get("room") == "none":
             return "none"
+        if self.s["npcs"]["neovi"].get("away"):
+            return self.s["npcs"]["neovi"]["room"]                  # she ran off (neovi_life.py)
         rt = HOSTS["neovi"]["routine"]
         room = rt[0][1]
         for h, r in rt:
@@ -996,6 +999,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         self.resolve_sabotages(tick, sabs, hour)
         self.resolve_impulses(tick, hour, decisions, intents)
         self.resolve_end_lives(tick, hour)
+        self.nv_threats(tick, hour)                                     # neovi_life.py
 
     def block_middle(self, bk):
         """The meal, and in a free block the free time (15-minute slices to the end of the block)."""
@@ -1389,7 +1393,10 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             self.experiments.append((cid, d))
             self.exp_today += 1
         elif act == "attack" and self.murders:
-            if self.motive_ok(cid, d.get("target"), d) or getattr(self.llm, "mock", False):      # the mock's forced attacks are a test knob
+            if d.get("target") == "neovi":
+                if self.neovi_maid() and self.nv_feel(cid) <= -4:
+                    attacks.append((cid, d))
+            elif self.motive_ok(cid, d.get("target"), d) or getattr(self.llm, "mock", False):      # the mock's forced attacks are a test knob
                 attacks.append((cid, d))
             else:
                 self.log_event(tick, {"type": "system", "who": cid, "room": w.agents[cid]["room"], "vis": "gm",
@@ -1824,6 +1831,8 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             return
         strikes = rule["strikes"].get(cid, 0) + 1
         rule["strikes"][cid] = strikes
+        if not self.neovi_maid():
+            return self.nv_absent_punish(tick, cid, v, hour)              # no housemaid left (neovi_life.py)
         name, room = self.nm(cid), a["room"]
         witnesses = [o for o in w.occupants(room) if o != cid]
         # NeoVi walks over to the offender
@@ -1857,7 +1866,8 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             kind = "taser"
             text = f"NeoVi tases {name} for breaking the rule ({v['reason']})."
             extra = min(strikes - 1, 2)          # escalation stops after the third strike
-            self.stat(tick, cid, "hp", -(12 + 6 * extra), "taser")
+            force = self.nv_taser_force(tick, cid)
+            self.stat(tick, cid, "hp", -int((12 + 6 * extra) * force), "taser")
             self.stat(tick, cid, "sanity", -(6 + 2 * extra), "taser")
             if self.rng.random() < 0.35 * self.tune("faint_rate"):
                 self.knock_out(tick, cid, "tased", 1, by="neovi")
@@ -1866,6 +1876,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         w.remember(cid, f"{hhmm(hour)} (private) NeoVi punished you under today's rule ({rule['title']}).")
         self.neovi_log.append(f"I punished {name} ({v['reason']}).")
         self.day_notable.append(text)
+        self.nv_after_punish(tick, cid)
 
     # ---------- host text ----------
     def make_broadcast(self, kind, extra):
@@ -2067,6 +2078,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         if tick is None:
             tick = self.new_tick(DAWN_HOUR, phase="night")
             s["_hour"] = DAWN_HOUR
+        sigs = {cid: self.diary_sig(cid) for cid in w.agents}            # before anyone is woken
         for cid, a in w.agents.items():
             self.night_rest(tick, cid)
             self.mind_wear(cid)
@@ -2080,13 +2092,23 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         self.outside_dawn(tick)                                   # the raft crews out there (outside.py)
         self.recover_minds(tick)
         self.intimacy_dawn(tick)                                  # the morning after (intimacy.py)
-        # Diaries
+        # Diaries (most were asked for during the last night block: night.diary_ahead)
         ids = list(w.agents.keys())
-        asks = []
+        early, self._diaries = self.__dict__.get("_diaries") or {}, {}
+        asks, futs = [], {}
         for cid in ids:
+            e = early.get(cid)
+            if e and e["day"] == self.day and e["sig"] == sigs.get(cid):
+                futs[cid] = e["fut"]
+                continue
             sysm, user, ctx = self.reflect_prompt(cid)
             asks.append((cid, lambda sysm=sysm, user=user, ctx=ctx: self.llm.reflect(sysm, user, ctx)))
         answers = self.ask_parallel(asks)
+        for cid, fut in futs.items():
+            answers[cid] = self.ask_parallel([(cid, fut.result)])[cid]
+        st = s.setdefault("diaries_early", {"used": 0, "wasted": 0})
+        st["used"] += len(futs)
+        st["wasted"] += len(early) - len(futs)
         for cid in ids:
             text = self.reflect_apply(cid, tick, *answers[cid]).strip()
             r_, err_ = answers[cid]

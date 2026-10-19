@@ -162,7 +162,7 @@ class KumikoMixin:
         lover = self.neovi_lover()
         friends = sorted([c for c in w.agents if nv["aff"].get(c, 0) >= 5], key=lambda c: (-nv["aff"].get(c, 0), c))
         help_w = 0.1 + 0.15 * arc.get("stage", 0) + (0.35 if lover else 0) + (0.05 * len(friends)) - nv["fear"] / 25 \
-            + (0.04 * (nv["aff"][friends[0]] - 5) if friends else 0)
+            + (0.04 * (nv["aff"][friends[0]] - 5) if friends else 0) + nv.get("tv_grudge", 0) / 250
         betray_w = nv["fear"] / 18 + (0.25 if nv["sanity"] < 30 else 0) - (0.5 if lover else 0) - 0.05 * len(friends)
         roll = self.rng.random()
         if friends and roll < max(0.0, help_w):
@@ -266,11 +266,15 @@ class KumikoMixin:
                                     "You blinked twice before you answered. Just saying."]})
         s["cast"][KUMIKO_ID] = cast
         aff = {c: nv["aff"].get(c, 0) for c in w.agents}
-        s["agents"][KUMIKO_ID] = {"status": "alive", "room": nv.get("room") if nv.get("room") not in (None, "none") else "foyer", "hp": 90,
-                                  "sanity": nv.get("sanity", 60), "inv": {"bandages": 1}, "known": list(s.get("found_edges", [])),
+        inv = {k: q for k, q in (nv.get("inv") or {}).items() if q and k not in ("master_key", "taser")}      # TereVi takes her keys
+        told = [f"You told {self.nm(c)}: " + ", ".join(ks) for c, ks in sorted((nv.get("told") or {}).items()) if c in w.agents and ks]
+        notes = ["You were NeoVi, TereVi's housemaid. You know this house better than anyone."] + told[:4]
+        notes += [f"{self.nm(k['who'])} died at your hands ({k['why']})." for k in nv.get("kills") or [] if k.get("who") in s["agents"]]
+        s["agents"][KUMIKO_ID] = {"status": "alive", "room": nv.get("room") if nv.get("room") not in (None, "none") else "foyer", "hp": max(20, nv.get("hp", 90)),
+                                  "sanity": nv.get("sanity", 60), "inv": inv or {"bandages": 1}, "known": list(s.get("found_edges", [])),
                                   "route": "shutdown", "drive": {"id": "survivor", "target": None, "arc": ""}, "known_secrets": [],
                                   "activity": "Back in her own clothes for the first time in years, rabbit in hand", "aff": aff,
-                                  "memory": {"diary": [f"Day {self.day}: TereVi made me one of them. My name is Kumiko Akimoto."], "recent": [], "notes": [], "lost": [], "moments": []}}
+                                  "memory": {"diary": [f"Day {self.day}: TereVi made me one of them. My name is Kumiko Akimoto."], "recent": notes, "notes": [], "lost": [], "moments": []}}
         for c in list(w.agents):
             if c != KUMIKO_ID:
                 w.agents[c]["aff"][KUMIKO_ID] = self.nv_feel(c)

@@ -440,7 +440,7 @@ class DramaMixin:
         """NeoVi sometimes pretends not to see a violation, if she likes the offender."""
         nv = self.s["npcs"]["neovi"]
         fate = (nv.get("arc") or {}).get("fate")
-        if fate == "betrayer" or fate == "martyr":
+        if fate == "betrayer" or fate == "martyr" or not self.neovi_maid():
             return False
         if fate == "survivor":
             return True
@@ -449,6 +449,7 @@ class DramaMixin:
         aff = nv["aff"].get(cid, 0)
         p = 0.65 if aff >= 5 else 0.45 if aff >= 3 else 0.2 if aff >= 1 else 0.0
         p += 0.15 if (nv.get("arc") or {}).get("stage", 0) >= 2 and aff >= 2 else 0.0
+        p += self.nv_mercy_shift(cid)                                     # favourites when her sanity is low (neovi_life.py)
         p *= max(0.2, 1 - nv["fear"] / 12)
         if self.rng.random() < p:
             nv["fear"] = min(10, nv["fear"] + 1)

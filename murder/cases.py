@@ -140,6 +140,9 @@ class CaseMixin:
                                       "text": f"{name} wanted to attack but a case is already open (TereVi will not allow a second killer)."}, actor=cid)
                 continue
             t = d["target"]
+            if t == "neovi":
+                self.nv_attacked(tick, cid, d.get("method"), hour)       # neovi_life.py
+                continue
             if t in w.agents and t != cid and w.agents[t]["room"] != a["room"] and self.pursue_target(tick, cid, t):
                 pass                                    # the attacker caught up with a target who had slipped away
             if t not in w.agents or t == cid or w.agents[t]["room"] != a["room"] or w.agents[t].get("hiding"):

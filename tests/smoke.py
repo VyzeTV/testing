@@ -6986,6 +6986,132 @@ w.state["case"] = {"victim": sorted(w.agents)[1], "announced": True, "resolved":
 check("an early decision is dropped once a death has been announced since", r.ahead_answer(c1_, 12) is None and w.state["ahead"]["stale"] == 1)
 w.state["case"] = None
 
+check("most diaries are asked for during the last night block, so dawn does not wait for them", (wb_.state.get("diaries_early") or {}).get("used", 0) >= 4,
+      str(wb_.state.get("diaries_early")))
+
+# ---- NeoVi's own body and mind (neovi_life.py)
+w, r, _ = fresh(2001)
+w.state["revealed"] = True
+nv_ = r.nv_stats()
+liked_ = sorted(w.agents)[0]
+nv_["aff"][liked_] = 6
+tk_ = r.new_tick(25)
+san0_, g0_ = nv_["sanity"], nv_["tv_grudge"]
+w.end_agent(liked_, "dead", "murdered")
+nv_["hp"] = 50
+r.nv_night(tk_)
+check("NeoVi has health and sanity of her own: a death she cleans up after costs her, her grudge against TereVi grows, and she heals at night",
+      nv_["sanity"] <= san0_ - 9 and nv_["tv_grudge"] > g0_ and nv_["hp"] > 50, f"{san0_}->{nv_['sanity']}")
+murdered_ = None
+for s_ in range(40):
+    w, r, _ = fresh(2100 + s_)
+    w.state["revealed"] = True
+    nv_ = r.nv_stats()
+    k_ = sorted(w.agents)[0]
+    w.agents[k_]["room"] = nv_["room"]
+    w.agents[k_]["inv"][sharp()] = 1
+    nv_["hp"] = 8
+    tk_ = r.new_tick(14)
+    out_ = r.nv_fight(tk_, k_, why="grudge")
+    if out_ == "murdered":
+        murdered_ = (w, r, k_, tk_)
+        break
+check("a participant can kill NeoVi", murdered_ is not None)
+if murdered_:
+    w, r, k_, tk_ = murdered_
+    case_ = w.state["case"]
+    check("her death is a murder like any other: a case with the killer, and nobody replaces her (no newcomers)",
+          case_ and case_["victim"] == "kumiko" and case_["killer"] == k_ and w.state["no_newcomers"] and not r.neovi_maid()
+          and w.state["agents"]["kumiko"]["status"] == "dead" and w.state["npcs"]["neovi"]["dead"]["by"] == k_)
+    r.announce_body(tk_, 14)
+    check("and it goes to a class trial", w.state["case"] and w.state["case"]["announced"] and w.state["case"]["vote_day"])
+outs_, clean_, robbed_ = Counter(), True, False
+for s_ in range(24):
+    w, r, _ = fresh(2400 + s_)
+    w.state["revealed"] = True
+    nv_ = r.nv_stats()
+    a_ = sorted(w.agents)[0]
+    w.agents[a_]["room"] = nv_["room"]
+    o_ = r.nv_fight(r.new_tick(14), a_, why="key")
+    outs_[o_] += 1
+    if o_ == "murdered":
+        clean_ = clean_ and w.state["agents"]["kumiko"]["status"] == "dead"
+    else:
+        clean_ = clean_ and "kumiko" not in w.state["agents"] and "kumiko" not in w.state["cast"] and all("kumiko" not in a["aff"] for a in w.state["agents"].values())
+    robbed_ = robbed_ or (o_ == "robbed" and w.agents[a_]["inv"].get("master_key", 0) > 0 and not nv_["inv"].get("master_key"))
+check("she fights back with her taser (and now and then kills), and is left on the board only as a body", clean_ and outs_["survived"] + outs_["robbed"] + outs_["tased"] > outs_["murdered"], str(outs_))
+check("someone after her master key may take it in the struggle", robbed_, str(outs_))
+w, r, _ = fresh(2202)
+w.state["revealed"] = True
+nv_ = r.nv_stats()
+v_, wit_ = sorted(w.agents)[0], sorted(w.agents)[1]
+w.agents[v_]["room"] = w.agents[wit_]["room"] = nv_["room"]
+tk_ = r.new_tick(14)
+r.nv_kills(tk_, v_, nv_["room"], [wit_], "self-defence")
+check("if the housemaid kills an attacker there is a case with nobody to blame", w.state["case"]["killer"] is None and w.state["case"]["victim"] == v_ and r.neovi_maid())
+r.announce_body(tk_, 14)
+check("so TereVi holds no trial", w.state["case"] is None and nv_["kills"][0]["who"] == v_)
+w.state["case"] = {"victim": sorted(w.agents)[2], "killer": None}
+ptxt_ = r.nv_trial_pressure(tk_)
+check("at the next trial a witness asks why NeoVi never stood trial for it", ptxt_ and r.nm(wit_) in ptxt_ and nv_["kills"][0]["raised"])
+w.state["case"] = None
+w, r, _ = fresh(2203)
+w.state["revealed"] = True
+nv_ = r.nv_stats()
+fav_, foe_ = sorted(w.agents)[0], sorted(w.agents)[1]
+nv_["aff"].update({fav_: 4, foe_: -4})
+nv_["sanity"] = 20
+check("below 30 she plays favourites: more mercy for those she likes, none for those she does not",
+      r.nv_mercy_shift(fav_) > 0 and r.nv_mercy_shift(foe_) < 0 and r.nv_taser_force(r.new_tick(12), foe_) > 1)
+nv_["sanity"] = 35
+check("below 40 her hand sometimes shakes on the taser", 0.5 in [r.nv_taser_force(r.new_tick(12), fav_) for _ in range(30)])
+nv_["room"] = "none"
+w.state["rule"] = None
+tk_ = r.new_tick(12)
+hp0_ = w.agents[foe_]["hp"]
+r.punish(tk_, foe_, {"reason": "testing", "sure": True}, 12)
+check("with no housemaid left, TereVi punishes rule breakers herself", w.agents[foe_]["hp"] < hp0_ and any(e.get("kind") == "shock" for e in tk_["events"])
+      and w.state["npcs"]["neovi"]["room"] == "none")
+w, r, _ = fresh(2204)
+w.state["revealed"] = True
+nv_ = r.nv_stats()
+for c in sorted(w.agents)[:2]:
+    w.agents[c]["nv_aff"] = 4
+seen_ = Counter()
+for _ in range(40):
+    nv_["sanity"] = 15
+    seen_[r.nv_low(r.new_tick(25))] += 1
+check("below 20 she breaks down where people can see, and someone kind may sit with her", seen_["comforted"] and seen_["breakdown"], str(seen_))
+nv_["sanity"] = 15
+for _ in range(30):
+    if nv_["sanity"] >= 30:
+        break
+    r.nv_breakdown(r.new_tick(25))
+check("kindness brings her back up", nv_["sanity"] >= 30, str(nv_["sanity"]))
+dang_ = Counter()
+for s_ in range(30):
+    w, r, _ = fresh(2300 + s_)
+    w.state["revealed"] = True
+    nv_ = r.nv_stats()
+    nv_["sanity"] = 5
+    nv_["blame"][sorted(w.agents)[0]] = 6
+    got_ = r.nv_low(r.new_tick(25))
+    dang_[got_] += 1
+    if got_ == "ran":
+        r.day += 1
+        dang_["back:" + str(r.nv_low(r.new_tick(25)))] += 1
+check("below 10 she is a danger: to the one she blames, to herself, or alone in the woods",
+      dang_["ran"] and (dang_["saved"] + dang_["stopped"] + dang_["suicide"]) and sum(v for k, v in dang_.items() if k in ("she_attacked", "she_killed")), str(dang_))
+w, r, _ = fresh(2205)
+w.state["revealed"] = True
+nv_ = r.nv_stats()
+nv_.update(hp=55, sanity=33)
+nv_["told"] = {sorted(w.agents)[0]: ["name"]}
+r.make_participant(r.new_tick(25))
+k_ = w.agents["kumiko"]
+check("when she joins the cast her health, sanity and what she told carry over; TereVi keeps her keys",
+      k_["hp"] == 55 and k_["sanity"] == 33 and not k_["inv"].get("master_key") and any("You told" in m for m in k_["memory"]["recent"]))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

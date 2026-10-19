@@ -86,6 +86,7 @@ class NeoViDayMixin:
             reply = "chide"
             self.nv_feel_add(a, -1)
             self.adjust_any_aff(NV, a, -1)
+            self.nv_kind(a, -1)                                              # neovi_life.py
         elif move == "flirt_nv":
             reply = "warm_nv" if mine >= 4 else "dumb"
             if reply == "warm_nv":
@@ -94,6 +95,7 @@ class NeoViDayMixin:
         elif move == "thank_nv":
             reply = "warm_nv" if mine >= 1 else "dumb"
             self.nv_feel_add(a, 1)
+            self.nv_kind(a, 1)
             self.adjust_any_aff(NV, a, 1 if self.rng.random() < 0.4 else 0)
         else:
             told = nv.setdefault("told_day", {})
