@@ -309,6 +309,10 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
 
     def log_event(self, tick, evt, witnesses=None, actor=None):
         m = self.minute()
+        if evt.get("type") == "punish" and m is not None and "m" not in evt:
+            t_ = self.nv_walk(evt.get("room"), deadline=m + 6.0, final=True)    # forward mode: NeoVi walks over now and it happens when she gets there
+            if t_ is not None:
+                evt["m"] = round(max(m, t_), 1)
         if m is not None and "m" not in evt:
             evt["m"] = round(m, 1)                                    # when in the turn this happened
         tick["events"].append(evt)
@@ -800,9 +804,11 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         tick = self.new_tick(hour)
         bk = {"tick": tick, "hour": hour, "kind": kind, "free": False}
         self.block_open(bk)
+        self.sim_forward(tick)                                          # positions are only ever laid forward from here (sim.py)
         self.block_decide(bk)
         free = bk["free"]
         tl = bk["tl"] = self._block_tl = Timeline(self)                 # one timeline for the whole block: every system runs at its own minute
+        tl.every(22, lambda m: self.sim_idle(tick, m), until=106, prio=9)
         self.block_arrivals(bk)
         tl.at(15, self.block_passive, bk, prio=4)
         tl.at(15, self.block_strikes, bk, prio=6)
@@ -1082,6 +1088,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                                  dur=max(10.0, (120 if free else 60) - (m_talk - (92 if free else 56))))
         if staged:
             self.run_conversations(tick, staged, intents, hour, modes=modes)
+            self.sim_talk(tick, "staged")                               # walked to now, at the minute they are written
 
     def block_talk_end(self, bk):
         """Once the block's timeline has run out: the free-time books are closed, conversations are voiced, and their walks laid."""

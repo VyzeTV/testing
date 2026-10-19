@@ -6858,6 +6858,46 @@ check("whoever walks into it is electrocuted; the case knows it was a rigged liv
       and any(c["kind"] == "tamper" and "mains" in c["text"] for c in c2_.get("clues", [])) and not r2.power_on())
 check("an electrocuted body is described as one", "shock" == c2_.get("body_key") and r2.body_desc(c2_))
 
+# ---- phase F2: positions only ever laid forward
+import murder.clock as clock_  # noqa: E402
+from murder.sim import pos_on as pos_on_  # noqa: E402
+snaps_ = []
+_ct = clock_.ClockMixin.clock_to
+
+
+def _snap_clock_to(self, m):
+    r_ = _ct(self, m)
+    sm_ = self.__dict__.get("_sim")
+    if sm_ is not None and sm_.tick_id is not None and 8 <= int(self.s.get("_hour", 0)) <= 20 and int(self._m) % 10 == 0 and (not snaps_ or snaps_[-1][0] != (id(sm_.tracks), int(self._m))):
+        upto = int(self._m)
+        snaps_.append(((id(sm_.tracks), upto), self.day, int(self.s.get("_hour", 0)), {c: [pos_on_(tr, t) for t in range(0, upto)] for c, tr in sm_.tracks.items()}))
+    return r_
+
+
+clock_.ClockMixin.clock_to = _snap_clock_to
+DayRunner.clock_to = _snap_clock_to
+wf_ = World(new_state(3))
+tf_ = []
+wf_.state["day"] = 3
+DayRunner(wf_, LLM(backend="mock"), tf_.append, step=2, murders=True, rule_mode="roulette", seed=909).run()
+clock_.ClockMixin.clock_to = _ct
+DayRunner.clock_to = _ct
+final_ = {(t["day"], int(t["hour"])): t["live"]["tracks"] for t in tf_ if t.get("live") and t.get("phase") != "night" and t.get("type") is None}
+moved_, checked_ = [], 0
+for key_, d_, h_, past_ in snaps_:
+    tr_ = final_.get((d_, h_))
+    if not tr_:
+        continue
+    for c, pts in past_.items():
+        if c not in tr_:
+            continue
+        for t, p in enumerate(pts):
+            checked_ += 1
+            if pos_on_(tr_[c], t) != p:
+                moved_.append((d_, h_, c, t))
+check("in a day block, once the clock has passed a minute nobody's position before it changes (forward-only positions)", checked_ > 1000 and not moved_, f"{len(moved_)} of {checked_}: {moved_[:4]}")
+check("walks asked for a minute already past are rare", sum((t.get("live") or {}).get("late", 0) for t in tf_) <= 6)
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

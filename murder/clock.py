@@ -54,6 +54,9 @@ class ClockMixin:
     def clock_to(self, m):
         """Move the cursor forward to minute m (never back: the turn's systems run in time order)."""
         self._m = max(float(self.__dict__.get("_m") or 0.0), float(m))
+        sm = self.__dict__.get("_sim")
+        if sm is not None and sm.forward:
+            sm.frontier = self._m                                   # nothing is laid before the engine's minute (sim.py, forward mode)
         return self._m
 
     def minute(self):

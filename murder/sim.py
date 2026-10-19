@@ -7,6 +7,9 @@ shape the viewer plays. Positions are saved with the game (`state["sim"]`).
 
 A conversation is staged before its lines get their minutes: its members walk to it and stay until their last line, so nobody ever speaks from somewhere else.
 
+Forward mode (phase F2, a day block): the Sim keeps a frontier, the engine's current minute. Nothing is laid before it: a walk or a stop asked for an earlier minute starts at
+the frontier instead (counted in `late`), so once the clock has passed a minute, every track up to it is final and a piece of the block can be shown while the rest is made.
+
 Turns still exist (rebuild phase 2b replaces them with a minute clock); within a turn, minute 0 is its start and `dur` its length.
 """
 from .gridnav import GridNav, _h
@@ -65,6 +68,7 @@ class Sim:
         self.avoid = frozenset()
         self.dur = 120
         self.start = 0
+        self.forward, self.frontier, self.late = False, 0.0, 0
 
     # ------------------------------------------------------------------ a turn
     def begin(self, start, dur, rooms):
@@ -74,6 +78,7 @@ class Sim:
         self.dur = dur
         self.tracks, self.cur, self.hold, self.start_at, self.arrive_at = {}, {}, {}, {}, {}
         self.portals, self.falls = {}, []
+        self.forward, self.frontier, self.late = False, 0.0, 0
         new_day = self.st["clock"] is None or self.st["clock"] // 1440 != self.start // 1440 or self.start - self.st["clock"] > 180
         taken = set()
         for cid in sorted(rooms):
@@ -88,7 +93,16 @@ class Sim:
             self.cur[cid] = p
             self.tracks[cid] = [[0, p[0], p[1], p[2]]]
 
+    def _fwd(self, m):
+        """In forward mode nothing is laid before the frontier."""
+        if self.forward and m < self.frontier:
+            if self.frontier - m > 0.05:
+                self.late += 1
+            return self.frontier
+        return m
+
     def end(self):
+        self.forward = False
         for cid, p in self.cur.items():
             self.st["pos"][cid] = list(p)
         self.st["clock"] = self.start + self.dur
@@ -125,6 +139,7 @@ class Sim:
     def _cut(self, cid, m):
         """Stop whatever this person was doing after minute m (a later plan overrides it): keep their track up to m and stand them where they are at m."""
         tr = self.tracks[cid]
+        m = self._fwd(m)
         here = pos_on(tr, m)
         while len(tr) > 1 and tr[-1][0] > m:
             tr.pop()
@@ -140,7 +155,7 @@ class Sim:
         Returns the minute they arrive."""
         if cid not in self.tracks:
             return m0
-        m0 = max(float(m0), self.hold.get(cid, 0.0))
+        m0 = self._fwd(max(float(m0), self.hold.get(cid, 0.0)))
         here = self._cut(cid, m0)
         tr = self.tracks[cid]
         dest = _key(dest)
@@ -207,7 +222,7 @@ class Sim:
         when sent to a particular thing (or when `force` is set). Returns the minute they are there."""
         if cid not in self.tracks or room not in self.nav.rooms:
             return m0
-        m0 = max(float(m0), self.hold.get(cid, 0.0))
+        m0 = self._fwd(max(float(m0), self.hold.get(cid, 0.0)))
         here = self.pos_at(cid, m0) if m0 < self.end_t(cid) else self.cur[cid]
         inside = self.nav.room_at(*here) == room
         dest = None
@@ -235,6 +250,16 @@ class Sim:
                 tt = self.walk(cid, nxt, tt)
             tt += every
 
+    def idle_step(self, cid, room, m, salt):
+        """Forward mode: now and then, someone with nothing on wanders to another spot in the room, from minute m."""
+        if cid not in self.tracks or room not in self.nav.rooms or len(self.nav.spots(room)) <= 6 or self.dur < 60 or m > self.dur - 12:
+            return
+        if self.end_t(cid) > m or self.hold.get(cid, 0.0) > m or _h(cid, salt, int(m), "idle") % 3:
+            return
+        nxt = self.spot(room, cid, self.occupied(cid), 10 + int(m) // IDLE_EVERY)
+        if nxt != self.cur[cid] and self.nav.room_at(*self.cur[cid]) == room:
+            self.walk(cid, nxt, m)
+
     def tracks_ok(self):
         """Every point of every track stands on a walkable tile (or one opened up by damage)."""
         return all(self.nav.walkable(p[1], p[2], p[3]) for tr in self.tracks.values() for p in tr)
@@ -257,8 +282,61 @@ class SimMixin:
             sm.begin(start, dur, {cid: a["room"] for cid, a in self.world.agents.items()})
             sm.tick_id = id(tick)
             sm.avoid = self.env_avoid()
-            self._sim_tick, self._sim_talk_done, self._sim_m = tick, False, 0.0
+            self._sim_tick, self._sim_m = tick, 0.0
+            self._sim_said, self._sim_groups, self._sim_talk_seen = [], [], set()
         return sm
+
+    def sim_forward(self, tick):
+        """Put this block's Sim in forward mode (phase F2): from now on nothing is laid before the engine's minute. NeoVi gets her track at once."""
+        sm = self.sim_turn(tick)
+        sm.forward, sm.frontier = True, float(self._m or 0.0)
+        self.nv_track_start(tick, sm)
+        return sm
+
+    def sim_idle(self, tick, m):
+        """Forward mode: the idle wander a little, as the block runs (not those in free time, out cold, asleep or in a conversation)."""
+        sm = self.__dict__.get("_sim")
+        if sm is None or not sm.forward:
+            return
+        free = tick.get("free") or {}
+        for cid in sorted(self.world.agents):
+            a = self.world.agents[cid]
+            if cid in free or a.get("out") or a.get("asleep") or self.in_convo(cid):
+                continue
+            sm.idle_step(cid, a["room"], float(m), (tick["day"], int(tick["hour"])))
+
+    def nv_track_start(self, tick, sm):
+        """Forward mode: NeoVi stands on the map from the start of the block; her chores and her punishments walk her there as they happen."""
+        nv = (self.s.get("npcs") or {}).get("neovi") or {}
+        nav = sm.nav
+        if not self.neovi_maid() or "neovi" in sm.tracks or "neovi" in self.world.agents:
+            return
+        mv = (tick.get("moves") or {}).get("neovi") or {}
+        path = [r for r in (mv.get("path") or []) if r in nav.rooms] or ([nv["room"]] if nv.get("room") in nav.rooms else [])
+        if not path:
+            return
+        p = sm.st["pos"].get("neovi")
+        p = _key(p) if p else None
+        if p is None or nav.room_at(*p) != path[0]:
+            p = sm.spot(path[0], "neovi", sm.occupied(), 1)
+        sm.cur["neovi"], sm.tracks["neovi"] = p, [[0, p[0], p[1], p[2]]]
+        if not tick.get("nv_plan") and len(path) > 1:
+            t = float(self._stagger("neovi", tick))
+            for room in dict.fromkeys(path[1:]):
+                t = sm.go_room("neovi", room, max(t, sm.end_t("neovi")))
+
+    def nv_walk(self, room, deadline=None, final=False):
+        """Forward mode: walk NeoVi to `room` from now. Returns when she gets there (or None without her on the map). `final`: she stays there for the rest of the block."""
+        sm = self.__dict__.get("_sim")
+        if sm is None or not sm.forward or "neovi" not in sm.tracks or room not in sm.nav.rooms:
+            return None
+        if sm.hold.get("neovi", 0.0) >= sm.dur:
+            return sm.end_t("neovi")
+        now = float(self._m or 0.0)
+        t = sm.go_room("neovi", room, now, deadline=deadline)
+        if final:
+            sm.hold["neovi"] = sm.dur
+        return t
 
     def sim_now(self):
         """The minute within the current turn the engine is at."""
@@ -339,16 +417,18 @@ class SimMixin:
         self.walk_hazards(tick, cid)
 
     # ------------------------------------------------------------------ conversations
-    def sim_talk(self, tick):
-        """Give every conversation of the turn its minutes, after walking its members to it. Lines only ever fall while their speaker is in the room."""
+    def sim_talk(self, tick, part=None):
+        """Give every conversation of the turn its minutes, after walking its members to it. Lines only ever fall while their speaker is in the room.
+        `part` "staged": only the conversations written whole (staged as soon as they are written, in forward mode); None: all not done yet."""
         sm = self.sim_turn(tick)
-        if self._sim_talk_done:
-            return
-        self._sim_talk_done = True
         nav, dur = sm.nav, sm.dur
         free = bool(tick.get("free"))
-        said, groups = [], []
+        said, groups = self._sim_said, self._sim_groups
+        seen = self._sim_talk_seen
         for gi, g in enumerate(tick.get("talk") or []):
+            if gi in seen or (part == "staged" and g.get("live")):
+                continue
+            seen.add(gi)
             room = g.get("room")
             if room not in nav.rooms:
                 continue
@@ -417,7 +497,6 @@ class SimMixin:
             for sp in members:
                 sm.hold[sp] = max(sm.hold.get(sp, 0.0), last.get(sp, m0) + 0.6)
             groups.append({"g": gi, "m": round(m0, 1), "room": room, "chat": chat, "at": g.get("at"), "why": g.get("why", ""), "matters": g.get("matters") or [], "members": g.get("members") or members})
-        self._sim_said, self._sim_groups = said, groups
 
     # ------------------------------------------------------------------ the end of a turn
     def sim_finish(self, tick):
@@ -442,8 +521,8 @@ class SimMixin:
                     m0 = float(self._stagger(cid, tick))      # nobody moved them yet this turn: they set off in the first quarter hour
                 path = ((tick.get("moves") or {}).get(cid) or {}).get("path") or []
                 sm.go_room(cid, room, max(m0, 1.0 if not alive else m0), deadline=dur - 1.0, hidden=nav.hidden_links_between(path), speed=self.move_factor(cid) if cid in self.world.agents else 1.0)
-            elif alive and not a.get("out") and cid not in speakers and cid not in free:
-                sm.idle(cid, room, (tick["day"], int(tick["hour"])))
+            elif alive and not a.get("out") and cid not in speakers and cid not in free and not sm.forward:
+                sm.idle(cid, room, (tick["day"], int(tick["hour"])))           # (in forward mode the idle wandered as the block ran: sim_idle)
         for tr in sm.tracks.values():                           # a walk squeezed against the end of the turn still finishes inside it
             for p in tr:
                 p[0] = round(min(p[0], dur - 0.05), 2)
@@ -476,6 +555,8 @@ class SimMixin:
             acts["neovi"] = [[c[0], c[1], "chore", c[3], c[2]] for c in tick["nv_plan"]]          # her chores for Who's where
         live = {"v": 2, "start": sm.start, "dur": dur, "tracks": sm.tracks, "flags": flags, "talk": sorted(self._sim_said, key=lambda s_: (s_["m"], s_["g"])), "events": events, "acts": acts,
                 "segment": tick.get("segment", "turn"), "groups": self._sim_groups}
+        if sm.late:
+            live["late"] = sm.late                                     # walks asked for a minute already past, started at the frontier instead
         if sm.jumps:
             live["jumps"] = sm.jumps
             sm.jumps = 0
@@ -491,6 +572,11 @@ class SimMixin:
         changes what the cast saw or heard. She walks the turn's route and reaches each person she punishes just before she does it."""
         nv = (self.s.get("npcs") or {}).get("neovi") or {}
         nav, dur = sm.nav, sm.dur
+        if "neovi" in sm.tracks and "neovi" not in self.world.agents:
+            for q in sm.tracks["neovi"]:                              # forward mode: she walked as the block ran
+                q[0] = round(min(q[0], dur - 0.05), 2)
+            flags["neovi"] = {"dead": False, "out": False, "hiding": False}
+            return
         if nv.get("room") not in nav.rooms or "neovi" in sm.tracks or "neovi" in self.world.agents:
             return
         mv = (tick.get("moves") or {}).get("neovi") or {}

@@ -57,6 +57,7 @@ class NeoViDayMixin:
         if not self.neovi_maid():
             return
         nv["room"], nv["doing"] = room, label
+        self.nv_walk(room)                                              # forward mode: she walks to the chore as it starts (sim.py)
         if label in SERVING:
             here = [o for o in self.world.occupants(room) if o in self.world.agents]
             self.log_event(tick, {"type": "neovi", "who": NV, "room": room, "vis": "viewer", "m": float(self._m),
