@@ -6946,6 +6946,46 @@ check("each piece of a block handed to the viewer agrees with the finished block
       len(parts_) >= 20 and pn_ > 5000 and pm_ == 0, f"{len(parts_)} pieces, {pm_} of {pn_} differ")
 check("a piece never cuts into a conversation still going on", all(not any(g["m"] < p_["live"]["upto"] < g["m"] + 0.01 for g in p_["live"]["groups"]) for p_ in parts_))
 
+# ---- phase F4: deciding ahead
+import hashlib as hl_  # noqa: E402
+wa_ = World(new_state(3))
+wa_.state["day"] = 3
+ra_ = DayRunner(wa_, LLM(backend="mock"), lambda t: None, step=2, murders=True, rule_mode="roulette", seed=5)
+ra_.viewer_pos = lambda: 10 ** 6                                        # a viewer who has caught up
+noTrace_ = []
+_orig_tick = ra_.run_tick
+
+
+def _probe_tick(hour, kind=None):
+    t = _orig_tick(hour, kind)
+    if hour == 14:
+        h_ = lambda: hl_.sha256(json.dumps(wa_.state, sort_keys=True, default=str).encode()).hexdigest()
+        before, rs_ = h_(), ra_.rng.getstate()
+        for c in sorted(wa_.agents):
+            ra_.decide_prepare_dry(c, 16)
+        noTrace_.append(before == h_() and rs_ == ra_.rng.getstate())
+    return t
+
+
+ra_.run_tick = _probe_tick
+ra_.run()
+st_a = wa_.state.get("ahead") or {}
+check("building a decision prompt early leaves no trace (the world and the dice are as before)", noTrace_ == [True], str(noTrace_))
+check("with a viewer close behind, the next block's decisions are asked for near the end of this one and mostly used", st_a.get("used", 0) >= 20 and st_a.get("used", 0) > 3 * st_a.get("wasted", 0), str(st_a))
+wb_ = World(new_state(3))
+wb_.state["day"] = 3
+rb_ = DayRunner(wb_, LLM(backend="mock"), lambda t: None, step=2, murders=True, rule_mode="roulette", seed=5)
+rb_.run()
+check("without a viewer watching live nothing is asked ahead (no extra calls in tests or when the island is ahead)", not (wb_.state.get("ahead") or {}).get("used"))
+w, r, _ = fresh(1901)
+w.state["revealed"] = True
+r.viewer_pos = lambda: 10 ** 6
+c1_ = sorted(w.agents)[0]
+r._ahead = {c1_: {"day": r.day, "hour": 12, "sig": r.ahead_sig(c1_), "fut": None}}
+w.state["case"] = {"victim": sorted(w.agents)[1], "announced": True, "resolved": False}
+check("an early decision is dropped once a death has been announced since", r.ahead_answer(c1_, 12) is None and w.state["ahead"]["stale"] == 1)
+w.state["case"] = None
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

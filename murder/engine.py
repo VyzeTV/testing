@@ -82,6 +82,7 @@ from .neoviday import NeoViDayMixin
 from .habits import HabitMixin
 from .inquiry import InquiryMixin
 from .electric import ElectricMixin
+from .ahead import AheadMixin
 from .claimtrial import ClaimTrialMixin
 from .perception import PerceptionMixin
 from .envsys import EnvironmentMixin
@@ -168,7 +169,7 @@ class Stop(Exception):
     pass
 
 
-class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, ScheduleMixin, BeliefMixin, NightLifeMixin, MurderPlanMixin, FightMixin, CarryMixin, EvidenceMixin, GearMixin, MarksMixin, LooksMixin, SceneMixin, EscapeWorkMixin, FinaleMixin, OutsideMixin, KumikoMixin, InnerVoiceMixin, IntimacyMixin, TwistMixin, EndingsMixin, DeparturesMixin, SiftingMixin, GoalsMixin, PauseMixin, ReflectionMixin, ProposerMixin, PastimeMixin, IntrusionMixin, NeoViDayMixin, HabitMixin, InquiryMixin, ElectricMixin, ClaimTrialMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
+class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, ScheduleMixin, BeliefMixin, NightLifeMixin, MurderPlanMixin, FightMixin, CarryMixin, EvidenceMixin, GearMixin, MarksMixin, LooksMixin, SceneMixin, EscapeWorkMixin, FinaleMixin, OutsideMixin, KumikoMixin, InnerVoiceMixin, IntimacyMixin, TwistMixin, EndingsMixin, DeparturesMixin, SiftingMixin, GoalsMixin, PauseMixin, ReflectionMixin, ProposerMixin, PastimeMixin, IntrusionMixin, NeoViDayMixin, HabitMixin, InquiryMixin, ElectricMixin, AheadMixin, ClaimTrialMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
     def __init__(self, world, llm, on_tick, gate=None, should_stop=None, step=2, workers=6, seed=None,
                  murders=True, motive="", rule_mode="roulette", rule_text="", confessionals=True, mischief="occasional", chaos="normal",
                  variation=0, gm_pull=None, lean=False, call_cap=0, autodir=False, autodir_get=None, tuning_get=None, ask_gm=None):
@@ -596,7 +597,11 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                 res[cid] = got[1]
             else:
                 sysm, user, ctx = got[1]
-                asks.append((cid, lambda sysm=sysm, user=user, ctx=ctx: self.llm.decide(sysm, user, ctx)))
+                fut = self.ahead_answer(cid, hour)                      # asked for near the end of the last block, if nothing has changed (ahead.py)
+                if fut is not None:
+                    asks.append((cid, lambda fut=fut: fut.result()))
+                else:
+                    asks.append((cid, lambda sysm=sysm, user=user, ctx=ctx: self.llm.decide(sysm, user, ctx)))
         answers = self.ask_parallel(asks)
         for cid, _ in asks:
             raw, err = answers[cid]
@@ -812,6 +817,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         tl = bk["tl"] = self._block_tl = Timeline(self)                 # one timeline for the whole block: every system runs at its own minute
         tl.every(22, lambda m: self.sim_idle(tick, m), until=106, prio=9)
         tl.every(15, lambda m: self.block_piece(bk, m), until=105, prio=20)     # a finished piece of the block for the viewer (phase F5)
+        tl.at(107, self.decide_ahead, bk, prio=21)                      # the next block's decisions, asked for now (phase F4, ahead.py)
         self.block_arrivals(bk)
         tl.at(15, self.block_passive, bk, prio=4)
         tl.at(15, self.block_strikes, bk, prio=6)
@@ -917,6 +923,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                 tick["errors"].append(err)
                 self.log_event(tick, {"type": "system", "who": cid, "room": w.agents[cid]["room"], "text": err, "vis": "gm"})
 
+        self.ahead_drop()                                               # early answers nobody used
         self.mark_busy(decisions)
         self.plot_pileup(tick, hour)
         self.maybe_spree(tick, hour)

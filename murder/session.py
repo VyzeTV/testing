@@ -479,6 +479,7 @@ class Game:
                            chaos=sess["chaos"], variation=sess["variation"], gm_pull=lambda: self._pull_gm(sess), lean=sess["lean"], call_cap=0, autodir=sess["autodir"], autodir_get=lambda: sess["autodir"], tuning_get=lambda: self.tuning,
                            ask_gm=lambda q: self._ask_gm(sess, q))
         runner.on_part = on_part
+        runner.viewer_pos = lambda: sess["pos"]                           # how far the viewer has played (ahead.py asks early only when it is close behind)
         try:
             n = runner.run(resume_after=resume_after, start_idx=start_idx)
             fh.close()
