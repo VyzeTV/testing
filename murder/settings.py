@@ -23,7 +23,7 @@ SETTINGS = [
     ("gm_nudge", "GM pause: how much encourage or discourage shifts a roll", "Drama", 0, 0.5, 0.05, 0.25, "When you answer a paused roll, the chance moves by this much (it never becomes certain)."),
     ("decide_ahead", "Decide ahead", "Pacing", 0, 1, 1, 1, "1 = when you are watching live and have caught up with the island, the next block's decisions are asked for near the end of this one, so the next block starts at once (a few extra model calls a day when someone's situation changes in between); 0 = off."),
     ("proposer_calls", "Model proposals per day", "Pacing", 0, 6, 1, 2, "How many times a day the model may propose a murder plan for a stalled plot or a social move for someone in crisis (the engine checks every proposal). 0 = off."),
-    ("escape_rate", "Work on the ways out", "Pacing", 0, 4, 0.1, 3.3, "How fast free-time work on a way out makes progress, and how keen people are to do it. 0 = nobody works on them in free time (experiments still count)."),
+    ("escape_rate", "Work on the ways out", "Pacing", 0, 6, 0.1, 4.6, "How fast free-time work on a way out makes progress, and how keen people are to do it. 0 = nobody works on them in free time (experiments still count)."),
     ("drain_mult", "Everyday sanity drain", "Sanity", 0, 2, 0.1, 1.0, "How fast each quiet hour wears people down. 0 = no drain."),
     ("dread_mult", "Deadline dread", "Sanity", 0, 2, 0.1, 1.0, "How hard the approaching deadline hits everyone's sanity."),
     ("wear", "Captivity wear", "Sanity", 0, 10, 0.1, 2.8, "How far everyone's resting sanity sinks each night on the island (the level they recover towards). 0 = none; the default brings a week's survivors to around 60."),
