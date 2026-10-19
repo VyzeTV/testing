@@ -25,6 +25,9 @@ A Danganronpa-style killing-game simulation. **The engine decides what happens; 
   - 7: a claim-based trial, which is also where special scenes become live "practices" instead of being written whole.
   - 8: a director upgrade.
 
+- **After the real two-day run (2026-10-19)**, viewer and pacing fixes: deselect on the map (click again, click empty map, Esc); NeoVi on the live map (`sim.sim_neovi`, laid down when the turn closes, reaching each offender before her punishment); the outdoor room `garden` is named "Outdoors"; default pace 120 s per game hour (old saved 50/90 migrated once); chat conversations wait for both people to reach the seat before the first exchange (14 of 25 mock chats used to part silently), and joiners speak from the next exchange; the feed groups each conversation into one card (`feedTalk`, setting "Group conversations") and clicking a card follows it (`followConv`, panel `#convPanel`); generation runs two ticks ahead (`session.BUFFER`); the waiting line shows seconds and calls; free-time picks are spread up to `freetime.PICK_SPREAD` minutes into a daytime slice. True streaming of part of a block is not possible yet: `sim_talk` and `sim_finish` lay walks back in time within a turn, and the rule referee reads the whole block's dialogue.
+- There is no git repository in this folder at the moment, so nothing above is committed.
+
 ## Running and checking
 
 - Tests (mock LLM, no network): `python tests/smoke.py` (1054 checks, about 45 seconds; must end `N/N passed`) and `python tests/baseline.py` (mock calls a day; keep it at or below about 91.7. It is about 91 now, at the ceiling: proposals add about 0.3).

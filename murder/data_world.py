@@ -43,7 +43,7 @@ ROOMS = {
     "boiler_room":    ("Boiler Room",         "basement",360, 580, 160, 150),
     "cold_store":     ("Cold Store",          "basement",525, 580, 155, 150),
     # Grounds
-    "garden":         ("Garden Maze",         "grounds", 910,  20, 230, 200),
+    "garden":         ("Outdoors",            "grounds", 910,  20, 230, 200),
     "greenhouse":     ("Greenhouse",          "grounds",1145,  20, 245, 120),
     "pool":           ("Pool & Spa",          "grounds", 910, 230, 230, 160),
     "beach":          ("Beach",               "grounds",1145, 150, 245, 240),

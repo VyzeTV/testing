@@ -100,7 +100,13 @@ function frame() {
   if (S.mapMode === "tiles" && window.TileMap && TileMap.ready()) TileMap.draw(); else draw();
   requestAnimationFrame(frame);
 }
-S.pace = (() => { try { return Number(localStorage.getItem("mcPace")) || 50; } catch (e) { return 50; } })();      // real seconds per game hour in a free-time block
+S.pace = (() => {      // real seconds per game hour in a free-time block
+  try {
+    let v = Number(localStorage.getItem("mcPace")) || 120;
+    if (!localStorage.getItem("mcPace2")) { if (v === 50) v = 120; else if (v === 90) v = 180; localStorage.setItem("mcPace2", "1"); localStorage.setItem("mcPace", String(v)); }    // the old Normal and Slow
+    return v;
+  } catch (e) { return 120; }
+})();
 S.rosterOn = (() => { try { const v = localStorage.getItem("mcRoster"); return v === null ? null : v === "1"; } catch (e) { return null; } })();
 S.said = {}; S.freeTick = null; S.curMin = 0;
 // The island is drawn as the tile map; the old room schematic only stands in when the tile map cannot load. The tile map is told the turn and the minute within it.
@@ -515,6 +521,101 @@ function feedLine(id, text, kind, heard) {
   if (kind === "act") { feedAdd(`<b style="--c:${i.color}">${esc(i.short || i.name)}</b> ${esc(text)}`, "actrow"); return; }
   feedAdd(`<img src="portraits/${id}.png" onerror="this.style.visibility='hidden'" style="--c:${i.color}"><div><div class="n" style="--c:${i.color}">${esc(i.name)}</div>${esc(text)}</div>`, "line");
 }
+// ---------- conversations in the feed ----------
+// With "Group conversations" on, a conversation is one card in the feed (who, where, what kind of talk) instead of a run of separate lines, so talks going on at the
+// same time do not interleave. Clicking a card follows it: the map follows the speakers, a panel shows the whole talk as it plays and other bubbles fade.
+S.groupTalk = (() => { try { return localStorage.getItem("mcGroupTalk") !== "0"; } catch (e) { return true; } })();
+S.convs = new Map();
+S.followConv = null;
+const CONV_TONES = [
+  ["argue", ["accuse", "threaten", "confront", "putdown", "snap", "rage", "demand", "counter", "stand_up"]],
+  ["plot", ["pact", "recruit", "incite"]],
+  ["escape", ["teamwork"]],
+  ["flirt", ["flirt", "gift"]],
+  ["secret", ["confide", "reveal", "whisper"]],
+  ["gossip", ["gossip", "warn", "probe"]],
+  ["comfort", ["comfort"]],
+  ["fun", ["joke", "laugh", "boast", "mock"]],
+];
+const CONV_SAY = {
+  argue: ["{n} are arguing in the {r}", "Voices rise in the {r}: {n}", "{n} are at each other's throats in the {r}"],
+  plot: ["{n} have their heads together in the {r}", "{n} are making plans in the {r}"],
+  escape: ["{n} are talking about a way out in the {r}", "{n} are working on an escape in the {r}"],
+  flirt: ["{n} are getting cosy in the {r}", "Something is sparking between {n} in the {r}"],
+  secret: ["{n} are whispering in the {r}", "{n} are trading secrets in the {r}"],
+  gossip: ["{n} are gossiping in the {r}", "{n} are swapping news in the {r}"],
+  comfort: ["{n} are having a heart-to-heart in the {r}", "{n} are looking after each other in the {r}"],
+  fun: ["{n} are joking around in the {r}", "Laughter from the {r}: {n}"],
+  talk: ["A conversation is happening in the {r}: {n}", "{n} are talking in the {r}", "{n} are chatting in the {r}"],
+};
+function convTone(g) {
+  const mv = new Set(g.lines.map((l) => l.move)), mt = new Set(g.matters || []);
+  if (mt.has("plot")) return "plot";
+  if (mt.has("spark")) return "flirt";
+  for (const [tone, moves] of CONV_TONES) if (moves.some((x) => mv.has(x))) return tone;
+  if (mt.has("secret")) return "secret";
+  if (mt.has("feud")) return "argue";
+  return "talk";
+}
+function convTitle(g) {
+  const ids = [...new Set((g.members && g.members.length ? g.members : g.lines.map((l) => l.speaker)))].filter((id) => id !== "terevi");
+  const names = ids.map((id) => info(id).short || info(id).name);
+  const n = names.length <= 1 ? (names[0] || "Someone") : names.length > 4 ? `${names[0]}, ${names[1]} and ${names.length - 2} others` : names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
+  if (names.length <= 1) return { ids, text: `${n} is talking${g.lines.some((l) => l.speaker === "terevi") ? " to TereVi" : ""} in the ${roomName(g.room)}` };
+  const opts = CONV_SAY[convTone(g)], key = (g.conv || g.room || "") + n;
+  let h = 0; for (const ch of key) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return { ids, text: opts[h % opts.length].replace("{n}", n).replace("{r}", roomName(g.room)) };
+}
+const convGroupable = (g) => S.groupTalk && g && !g.segment && g.room && (g.lines || []).length > 1;
+function convCard(g) {
+  let c = S.convs.get(g);
+  if (c) return c;
+  const ti = convTitle(g);
+  const el = feedAdd(`<div class="ch"><span class="live"></span><span class="ct">${esc(ti.text)}</span></div><div class="cp">${ti.ids.map((id) => `<img src="portraits/${id}.png" title="${esc(info(id).name)}" onerror="this.style.visibility='hidden'" style="--c:${info(id).color}">`).join("")}<span class="cn"></span><span class="cf">follow</span></div><div class="cl"></div>`, "conv on");
+  c = { g, el, title: ti.text, lines: [] };
+  el.onclick = () => (S.followConv === g ? unfollowConv() : followConv(g));
+  S.convs.set(g, c);
+  return c;
+}
+function convLineHtml(l) {
+  const i = info(l.speaker);
+  return `<div class="${l.kind === "act" ? "pa" : "pl"}"><b style="color:${i.color}">${esc(i.short || i.name)}</b> ${esc(l.text)}</div>`;
+}
+function feedTalk(g, l) {
+  if (!convGroupable(g)) return feedLine(l.speaker, l.text, l.kind, l.heard);
+  const c = convCard(g);
+  c.lines.push(l);
+  const done = c.lines.length >= g.lines.length;
+  c.el.classList.toggle("on", !done);
+  c.el.querySelector(".cn").textContent = done ? `${c.lines.length} lines · over` : `${c.lines.length} of ${g.lines.length} lines`;
+  c.el.querySelector(".cl").innerHTML = convLineHtml(l);
+  if (S.followConv === g) {
+    const body = $("#convBody");
+    if (body) { body.insertAdjacentHTML("beforeend", convLineHtml(l) + (done ? `<div class="pe">The conversation is over.</div>` : "")); body.scrollTop = body.scrollHeight; }
+    if (onTiles() && window.TileMap) TileMap.focusOn(l.speaker);
+  }
+}
+function followConv(g) {
+  const c = S.convs.get(g); if (!c) return;
+  S.followConv = g;
+  S.convs.forEach((x) => x.el.classList.toggle("followed", x.g === g));
+  let box = $("#convPanel");
+  if (!box) { box = document.createElement("div"); box.id = "convPanel"; $("#stage").appendChild(box); }
+  box.innerHTML = `<div class="ph"><span>${esc(c.title)}</span><button title="Stop following (Esc)">✕</button></div><div id="convBody"></div>`;
+  box.querySelector("button").onclick = unfollowConv;
+  const body = $("#convBody");
+  body.innerHTML = c.lines.map(convLineHtml).join("") + (c.lines.length >= g.lines.length ? `<div class="pe">The conversation is over.</div>` : "");
+  body.scrollTop = body.scrollHeight;
+  box.style.display = "flex";
+  const who = c.lines.length ? c.lines[c.lines.length - 1].speaker : (g.members || [])[0];
+  if (who && onTiles() && window.TileMap) TileMap.focusOn(who);
+}
+function unfollowConv() {
+  S.followConv = null;
+  S.convs.forEach((x) => x.el.classList.remove("followed"));
+  const box = $("#convPanel"); if (box) box.style.display = "none";
+}
+document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && S.followConv && !/^(INPUT|SELECT|TEXTAREA)$/.test((ev.target && ev.target.tagName) || "")) unfollowConv(); });
 function feedVote(v) {
   feedAdd(`${esc(info(v.voter).short)} votes for <b>${esc(info(v.target).short)}</b>${v.reason ? ": " + esc(v.reason) : ""}`, "vote");
 }
@@ -527,7 +628,7 @@ function feedExec(ex) {
 }
 function feedEscape(es) { feedAdd(`<div class="n">THE KILLER ESCAPES: ${esc(info(es.id).name)}</div>${esc(es.text)}`, "ex"); }
 function rebuildFeed(upTo) {
-  feed.innerHTML = ""; S.confessions = [];
+  feed.innerHTML = ""; S.confessions = []; S.convs = new Map(); unfollowConv();
   for (let k = 0; k <= upTo; k++) feedTickInstant(S.ticks[k]);
 }
 function feedTickInstant(t) {
@@ -535,7 +636,7 @@ function feedTickInstant(t) {
   bcList(t).forEach(feedBroadcast);
   if (t.rule_announce) feedRule(t.rule_announce);
   t.events.forEach(feedEvent);
-  t.talk.forEach((g) => g.lines.forEach((l) => feedLine(l.speaker, l.text, l.kind)));
+  t.talk.forEach((g) => g.lines.forEach((l) => feedTalk(g, l)));
   (t.confessionals || []).forEach((c) => { feedConf(c); S.confessions.push({ ...c, day: t.day, time: t.time }); });
   if (t.recap) feedRecap(t.recap);
   if (t.trial) t.trial.votes.forEach(feedVote);
@@ -876,11 +977,11 @@ function setRoster(on) {
 setInterval(() => { try { renderRoster(); } catch (e) { /* the roster never blocks playback */ } }, 400);
 async function playLine(g, l, tok) {
   if (l.move === "cry") showCry(l);
-  feedLine(l.speaker, l.text, l.kind);
+  feedTalk(g, l);
   const dur = Math.max(2000, l.text.length * 55);
   const isAct = l.kind === "act";
   S.bubbles = S.bubbles.filter((b) => b.id !== l.speaker);
-  S.bubbles.push({ id: l.speaker, room: g.room, act: isAct, text: isAct ? `${info(l.speaker).short || ""} ${l.text}` : l.text, until: S.clock + dur + 400 });
+  S.bubbles.push({ id: l.speaker, room: g.room, g, act: isAct, text: isAct ? `${info(l.speaker).short || ""} ${l.text}` : l.text, until: S.clock + dur + 400 });
   S.said[l.speaker] = { text: l.text, act: isAct, until: S.clock + dur + 4000 };
   await Promise.all([waitClock(dur), isAct ? Promise.resolve() : speak(l.speaker, l.text)]);
 }
@@ -909,11 +1010,11 @@ function showCry(l) {
 }
 function showLine(g, l) {
   if (l.move === "cry") showCry(l);
-  feedLine(l.speaker, l.text, l.kind, l.heard);
+  feedTalk(g, l);
   if (l.heard) for (const [id, lvl] of Object.entries(l.heard)) S.ears.push({ id, from: l.speaker, lvl, until: S.clock + readMs(l) });
   const isAct = l.kind === "act", ms = readMs(l);
   S.bubbles = S.bubbles.filter((b) => b.id !== l.speaker);
-  S.bubbles.push({ id: l.speaker, room: g.room, act: isAct, text: isAct ? `${info(l.speaker).short || ""} ${l.text}` : l.text, until: S.clock + ms + 400 });
+  S.bubbles.push({ id: l.speaker, room: g.room, g, act: isAct, text: isAct ? `${info(l.speaker).short || ""} ${l.text}` : l.text, until: S.clock + ms + 400 });
   S.said[l.speaker] = { text: l.text, act: isAct, until: S.clock + ms + 4000 };
   if (!isAct) speak(l.speaker, l.text);
   return ms;
@@ -1109,8 +1210,11 @@ async function playLoop() {
     if (next >= S.ticks.length) {
       if (S.done && S.ticks.length) { onDayEnd(); $("#wait").style.display = "none"; }
       else if (!S.error) {
-        const w = $("#wait");
-        w.textContent = S.ff ? "Fast-forwarding: the island is simulating the rest of the day..." : "The island is thinking about the next hour...";
+        const w = $("#wait"), calls = (S.usage && S.usage.calls) || 0;
+        if (!S.waitSince || S.waitSince.idx !== next) S.waitSince = { idx: next, t: Date.now(), calls };
+        const secs = Math.round((Date.now() - S.waitSince.t) / 1000), made = calls - S.waitSince.calls;
+        const busy = secs >= 3 ? ` (${secs}s${made > 0 ? `, ${made} model call${made === 1 ? "" : "s"} done` : ""})` : "";
+        w.textContent = (S.ff ? "Fast-forwarding: the island is simulating the rest of the day..." : "The island is thinking about the next hour...") + busy;
         w.style.display = S.ticks.length || S.mode === "live" ? "block" : "none";
       }
       continue;
@@ -1601,6 +1705,8 @@ function applyFilters() {
   feed.classList.toggle("hide-gm", !$("#fGm").checked);
 }
 ["fTalk", "fEvents", "fGm"].forEach((id) => ($("#" + id).onchange = applyFilters));
+$("#fGroup").checked = S.groupTalk;
+$("#fGroup").onchange = (e) => { S.groupTalk = e.target.checked; try { localStorage.setItem("mcGroupTalk", S.groupTalk ? "1" : "0"); } catch (x) { /* private mode */ } };
 $("#btnPause").onclick = () => { S.paused = !S.paused; updateUI(); };
 $("#autodir").onchange = async (e) => { await fetch("/api/autodir", { method: "POST", body: JSON.stringify({ on: e.target.checked }) }); };
 $("#voices").onchange = (e) => {
@@ -1919,8 +2025,8 @@ async function boot() {
   resize(); setPositions(homeMap());
   try { await TileMap.init(); } catch (e) { S.mapMode = "rooms"; }
   setMapMode(S.mapMode);
-  $("#pace").value = String(S.pace); if (!$("#pace").value) $("#pace").value = "50";
-  $("#pace").onchange = (e) => { S.pace = Number(e.target.value) || 50; try { localStorage.setItem("mcPace", String(S.pace)); } catch (x) { /* private mode */ } };
+  $("#pace").value = String(S.pace); if (!$("#pace").value) $("#pace").value = "120";
+  $("#pace").onchange = (e) => { S.pace = Number(e.target.value) || 120; try { localStorage.setItem("mcPace", String(S.pace)); } catch (x) { /* private mode */ } };
   $("#btnRoster").onclick = () => setRoster(!$("#stage").classList.contains("roster-on"));
   setRoster(S.rosterOn === null ? true : S.rosterOn);
   requestAnimationFrame(frame);

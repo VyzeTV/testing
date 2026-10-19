@@ -405,6 +405,7 @@ function floorBeside(plane, x, y) { for (const [dx, dy] of [[1, 0], [-1, 0], [0,
     for (const b of S.bubbles || []) {
       if (b.until < now) continue;
       const p = P[b.id]; if (!p) continue;
+      c.globalAlpha = S.followConv && b.g && b.g !== S.followConv ? 0.3 : 1;          // following one conversation: the others fade
       const px = SX(p.plane, p.x) + s / 2, py = SY(p.plane, p.y) + s / 2 - Math.max(7, s * 0.46) - 6, txt = b.act ? "* " + b.text : b.text;
       c.font = "12px system-ui"; const words = txt.split(" "), lines = []; let cl = "";
       for (const w of words) { if (c.measureText(cl + " " + w).width > 190 && cl) { lines.push(cl); cl = w; } else cl = cl ? cl + " " + w : w; }
@@ -419,6 +420,7 @@ function floorBeside(plane, x, y) { for (const [dx, dy] of [[1, 0], [-1, 0], [0,
       c.beginPath(); c.moveTo(px - 5, py - 1); c.lineTo(px, py + 5); c.lineTo(px + 5, py - 1); c.fillStyle = b.mutter ? "rgba(255,255,255,.75)" : "rgba(255,255,255,.95)"; c.fill();
       c.fillStyle = "#14161f"; if (b.mutter) c.font = "italic 12px system-ui"; c.textAlign = "left"; c.textBaseline = "top"; lines.forEach((l, i) => c.fillText(l, bx + 6, by + 4 + i * lh));
     }
+    c.globalAlpha = 1;
   }
   function drawTokens(c, P) {
     const s = G.view.s, t = T.tick, agents = t && t.state ? t.state.agents : {};
@@ -508,6 +510,10 @@ function floorBeside(plane, x, y) { for (const [dx, dy] of [[1, 0], [-1, 0], [0,
     for (const [id, p] of Object.entries(P)) { const d = Math.hypot(SX(p.plane, p.x) + s / 2 - mx, SY(p.plane, p.y) + s / 2 - my); if (d < bd) { bd = d; best = id; } }
     return best;
   }
+  function deselect() { T.follow = null; if (S.selected) { S.selected = null; renderCast(); } }
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape" && T.visible && !ED.on && !/^(INPUT|SELECT|TEXTAREA)$/.test((ev.target && ev.target.tagName) || "")) deselect();
+  });
   const nameRoom = (rid) => (G.map.rooms[rid] || { name: rid }).name;
   function describe(p, x, y) {
     const t = ch(p, x, y), rid = roomOf(p, x, y);
@@ -584,7 +590,9 @@ function floorBeside(plane, x, y) { for (const [dx, dy] of [[1, 0], [-1, 0], [0,
   }
   function clickAt(ev) {
     const tk = tokenAt(ev);
-    if (tk) { T.follow = T.follow === tk ? null : tk; if (S.W && S.W.characters[tk]) { S.selected = tk; setTab("cast"); renderCast(); } return; }
+    if (tk && (T.follow || S.selected) === tk) { deselect(); return; }        // a second click on the selected person lets them go
+    if (tk) { T.follow = tk; if (S.W && S.W.characters[tk]) { S.selected = tk; setTab("cast"); renderCast(); } return; }
+    if (T.follow || S.selected) deselect();                                   // a click anywhere else lets go too
     const at = tileAt(ev); if (!at) return;
     const l = G.map.links.find((k) => (k.kind === "stairs" || G.gm) && Object.values(k.ends).some((e) => e[0] === at.p && e[1] === at.x && e[2] === at.y));
     if (l) { const other = Object.values(l.ends).find((e) => !(e[0] === at.p && e[1] === at.x && e[2] === at.y)) || Object.values(l.ends)[0]; T.follow = null; centerOn(other[0], other[1], other[2]); G.pings.push({ p: other[0], x: other[1], y: other[2], col: "#3ee0d0", t0: performance.now(), text: "" }); return; }

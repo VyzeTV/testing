@@ -465,7 +465,8 @@ class SimMixin:
                 i_other += 1
             events.append({"id": e["id"], "m": round(min(m, dur - 0.5), 1), "cls": e["cls"], "type": e["type"], "who": e.get("who"), "room": e.get("room"), "vis": e["vis"], "text": e["text"][:240]})
         events.sort(key=lambda e: (e["m"], e["id"]))
-        acts = {cid: [[round(sg["m0"]), round(sg["m1"]), sg.get("act"), sg.get("label"), sg.get("room")] for sg in segs] for cid, segs in free.items()} if free else {}
+        self.sim_neovi(tick, sm, events, flags)
+        acts ={cid: [[round(sg["m0"]), round(sg["m1"]), sg.get("act"), sg.get("label"), sg.get("room")] for sg in segs] for cid, segs in free.items()} if free else {}
         live = {"v": 2, "start": sm.start, "dur": dur, "tracks": sm.tracks, "flags": flags, "talk": sorted(self._sim_said, key=lambda s_: (s_["m"], s_["g"])), "events": events, "acts": acts,
                 "segment": tick.get("segment", "turn"), "groups": self._sim_groups}
         if sm.jumps:
@@ -477,3 +478,37 @@ class SimMixin:
         sm.tick_id = None
         self._sim_m = 0.0
         return live
+
+    def sim_neovi(self, tick, sm, events, flags):
+        """NeoVi on the map. She is not a participant, so the engine only keeps her room; her walk is laid down when the turn closes, after everybody else's, so it never
+        changes what the cast saw or heard. She walks the turn's route and reaches each person she punishes just before she does it."""
+        nv = (self.s.get("npcs") or {}).get("neovi") or {}
+        nav, dur = sm.nav, sm.dur
+        if nv.get("room") not in nav.rooms or "neovi" in sm.tracks or "neovi" in self.world.agents:
+            return
+        mv = (tick.get("moves") or {}).get("neovi") or {}
+        path = [r for r in (mv.get("path") or []) if r in nav.rooms] or [nv["room"]]
+        p = sm.st["pos"].get("neovi")
+        p = _key(p) if p else None
+        if p is None or nav.room_at(*p) != path[0]:
+            p = sm.spot(path[0], "neovi", sm.occupied(), 1)
+        sm.cur["neovi"], sm.tracks["neovi"] = p, [[0, p[0], p[1], p[2]]]
+        due = {}
+        for e in events:
+            if e["type"] == "punish" and e.get("room") in nav.rooms:
+                due.setdefault(e["room"], e["m"])
+        stops = [r for r in dict.fromkeys(path[1:]) if r in due]
+        if path[-1] not in stops:
+            stops.append(path[-1])
+        t = float(self._stagger("neovi", tick))
+        for room in stops:
+            if room in due:
+                at = max(sm.end_t("neovi"), due[room] - 12.0)
+                t = sm.go_room("neovi", room, at, deadline=max(at + 0.5, due[room] - 0.3))
+            else:
+                t = sm.go_room("neovi", room, max(t, sm.end_t("neovi")))
+        if nav.room_at(*sm.cur["neovi"]) == path[-1]:
+            sm.idle("neovi", path[-1], (tick["day"], int(tick["hour"])))
+        for q in sm.tracks["neovi"]:
+            q[0] = round(min(q[0], dur - 0.05), 2)
+        flags["neovi"] = {"dead": False, "out": False, "hiding": False}

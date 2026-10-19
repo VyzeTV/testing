@@ -31,7 +31,7 @@
   <select id="speed" title="Playback speed">
     <option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option><option value="4">4x</option><option value="8">8x</option>
   </select>
-  <select id="pace" title="How long a game hour lasts on screen (real time); conversations slow it down so every line can be read"><option value="90">Slow (21 min/day)</option><option value="50" selected>Normal (12 min/day)</option><option value="25">Fast (6 min/day)</option><option value="10">Very fast (2 min/day)</option></select>
+  <select id="pace" title="How long a game hour lasts on screen (real time); conversations slow it down so every line can be read. At Normal a walk across the house takes a few seconds; the engine also stays ahead of playback on the Claude plan"><option value="180">Slow (42 min/day)</option><option value="120" selected>Normal (28 min/day)</option><option value="60">Fast (14 min/day)</option><option value="25">Very fast (6 min/day)</option><option value="10">Fastest (2 min/day)</option></select>
   <button id="btnRoster" title="Who is where and what they are doing, minute by minute">Who's where</button>
   <button id="btnSkipNight" style="display:none" title="GM: skip the quiet stretch of the night (stops at the first block where anything happens)">Skip quiet night</button>
   <button id="btnFF" disabled title="Skip the rest of this day">Fast-forward day</button>
@@ -73,6 +73,7 @@
         <label><input type="checkbox" id="fTalk" checked> Dialogue</label>
         <label><input type="checkbox" id="fEvents" checked> Events</label>
         <label><input type="checkbox" id="fGm"> GM info</label>
+        <label title="One card per conversation instead of every line in turn; click a card to follow that conversation (applies to new conversations)"><input type="checkbox" id="fGroup" checked> Group conversations</label>
       </div>
       <div id="feed" class="hide-gm"></div>
     </div>

@@ -44,6 +44,13 @@ class ConvoMixin:
         self.convos().append(conv)
         if kind == "gather":
             self.convo_gather(tick, conv, m0)
+        else:
+            # they may still be walking to the seat: the first exchange waits until both are there (else the earshot check parts them before a word is said)
+            arrive = max([sm.end_t(c) for c in members if c in sm.tracks] + [float(m0)])
+            if arrive > m0:
+                conv["m0"] = min(arrive, float(m0) + 15.0, sm.dur - 3.0)
+                conv["end"] = min(sm.dur - 1.0, conv["m0"] + dur)
+                conv["last_m"] = conv["m0"]
         tl.at(conv["m0"] + 1.0, self.convo_step, tick, conv, tl)
         return conv
 
@@ -96,8 +103,6 @@ class ConvoMixin:
             if em is not None and conv["last_m"] < em <= m and e.get("type") in INTERRUPTS and e.get("room") in rooms:
                 conv["cut_by"] = e.get("text", "")[:80]
                 return self.convo_end(tick, conv, "interrupted", m)
-        # somebody nearby with a reason walks over
-        self.convo_joiners(tick, conv, m, anchor)
         # the exchange itself
         beats = self.run_exchange(tick, conv) if not conv.get("wary") else self.wary_exchange(tick, conv)
         for i, b in enumerate(beats):
@@ -113,6 +118,8 @@ class ConvoMixin:
                 sm.hold[cid] = max(sm.hold.get(cid, 0.0), beats[-1]["m"] + 0.6)
         conv["last_m"] = m
         self.overhear(tick, conv, beats)
+        # somebody nearby with a reason walks over; they speak from the next exchange, once the check above has them within earshot
+        self.convo_joiners(tick, conv, m, anchor)
         # carry on, wind down, or walk on together
         nxt = m + 3.0 + self.rng.random() * 4.0
         greg = sum(self._fc(c, "gregariousness") for c in conv["members"]) / len(conv["members"])

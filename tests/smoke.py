@@ -3313,7 +3313,7 @@ ok_end = ok_walk = ok_time = ok_ev = True
 for t in wk_ticks:
     L = t["live"]
     for cid, tr in L["tracks"].items():
-        a = t["state"]["agents"][cid]
+        a = t["state"]["agents"].get(cid) or t["state"]["npcs"][cid]       # NeoVi walks too
         if a.get("status", "alive") == "alive":
             last = tr[-1]
             r_ = nav_.room_at(last[1], last[2], last[3])

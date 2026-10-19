@@ -20,6 +20,7 @@ from .gridnav import _h
 from .clock import Timeline
 
 SLICE = 15
+PICK_SPREAD = 8                       # a free person picks their next thing up to this many minutes into a slice, not all on the quarter hour
 TICK_MIN = 120
 FINALE = 75
 FREE_HOURS = (10, 14, 16, 20)
@@ -181,7 +182,18 @@ class FreeTimeMixin:
                 continue
             if cid not in w.agents or busy.get(cid, 0) > m:
                 continue                                    # they may have died earlier in this slice
-            busy[cid] = self.free_pick(tick, cid, hour, m)
+            off = _h(cid, self.day, hour, m, "pick") % PICK_SPREAD if hour < 22 else 0     # (at night going to bed is not put off)
+            if off and getattr(self, "_tl", None) is not None:
+                self._tl.at(m + off, self._late_pick, tick, cid, hour, m + off, busy)
+            else:
+                busy[cid] = self.free_pick(tick, cid, hour, m)
+
+    def _late_pick(self, tick, cid, hour, m, busy):
+        """A free person's pick, a few minutes into the slice (so a house of people does not all get up on the quarter hour). Something may have claimed them meanwhile."""
+        a = self.world.agents.get(cid)
+        if not a or a.get("out") or a.get("asleep") or self.restrained(cid) or busy.get(cid, 0) > m:
+            return
+        busy[cid] = self.free_pick(tick, cid, hour, m)
 
     def free_time(self, tick, hour, decisions):
         """Play the block out in slices. Called from run_tick after the main decisions have been applied and resolved."""

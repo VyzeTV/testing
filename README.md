@@ -10,7 +10,7 @@ What is new in this fork
 * **World systems**: sight, hearing, light and cameras (`perception.py`); fire, water, smoke, breakage, marks and items on tiles (`environment.py`, `envsys.py`); needs, facets, thoughts and stress with engine-made routine turns (`mind.py`); pursuit, witnesses and facet-driven interrogation (`crime.py`); procedural scenarios with scheduled events (`scengen.py`).
 * **Tuning dials** (World group in the Tuning panel): Sight and hearing, Fire/water/smoke/breakage, Needs/thoughts/stress, Engine-made routine turns, Stress strength, Pursuit/witnesses/interrogation. Each switches its layer off at 0.
 
-* **Free time** (`murder/freetime.py`, dial `free_time`): the day alternates turns (08:00 morning, 12:00 midday, 18:00 evening) with free-time blocks (10:00, 14:00, 16:00, 20:00). In a block the model still makes one decision (the start of the block); then it is played out in 15-minute slices where everybody eats, drinks, uses the bathroom, washes, plays, swims, reads, makes music or art, strolls, naps, tinkers (crafts) or looks around, walking there and spending real time on it (a drink 15 minutes, a meal 30, a game 45, an experiment 90). The last half hour is the gathering and the conversation. The viewer plays a block over real time (**Pace** box: 12 minutes per day by default), things happen at their minute, and the **Who's where** panel (on by default) lists each person's room, activity and last words.
+* **Free time** (`murder/freetime.py`, dial `free_time`): the day alternates turns (08:00 morning, 12:00 midday, 18:00 evening) with free-time blocks (10:00, 14:00, 16:00, 20:00). In a block the model still makes one decision (the start of the block); then it is played out in 15-minute slices where everybody eats, drinks, uses the bathroom, washes, plays, swims, reads, makes music or art, strolls, naps, tinkers (crafts) or looks around, walking there and spending real time on it (a drink 15 minutes, a meal 30, a game 45, an experiment 90). The last half hour is the gathering and the conversation. The viewer plays a block over real time (**Pace** box: about 28 minutes per day by default), things happen at their minute, and the **Who's where** panel (on by default) lists each person's room, activity and last words.
 * **Plots in real time**: a stalking or striking plotter follows the target room to room and strikes the moment they are alone, in a blind spot, in the dark or asleep; each missed chance makes them less patient. After a long wait the Director may steer the target somewhere quiet (dial `director_nudge`: an opportunity, never the kill itself).
 * **Snapping** (dial `snap_rate`): someone with almost no sanity left, or pushed past their limit beside someone they hate, may attack with no plan; a kill is recorded as unplanned in the case.
 * **Embarrassment** (dial `modesty`): modesty comes from a person's nature; being seen in their underwear costs the modest sanity and makes them cover up.
@@ -52,7 +52,7 @@ While a day is running:
 - **GM view** shows secret passages, hidden items, and each character's private thought. The map click panels (character, room) show inventory, health, sanity and relationships.
 - **Stop** abandons a live day; nothing from it is saved.
 
-A live day is only saved once it finishes. Live generation stays one turn ahead of what you are watching, so closing the tab pauses the spending.
+A live day is only saved once it finishes. Live generation stays two turns ahead of what you are watching, so closing the tab pauses the spending.
 
 ## Backends
 

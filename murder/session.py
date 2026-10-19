@@ -20,7 +20,7 @@ STATE_DIR = os.path.join(DATA, "state")
 RUNS_DIR = os.path.join(DATA, "runs")
 CHECKPOINT = os.path.join(STATE_DIR, "checkpoint.json")
 TUNING = os.path.join(STATE_DIR, "tuning.json")
-BUFFER = 1  # live generation stays this many ticks ahead of the viewer's playback cursor
+BUFFER = 2  # live generation stays this many ticks ahead of the viewer's playback cursor (two, so a heavy block of model calls is usually ready before it is due)
 
 
 def day_dir(day):

@@ -6,22 +6,22 @@ The mock backend scripts what characters say and decide, so these numbers show h
 
 | Metric | Default | Violent mock cast |
 | --- | --- | --- |
-| Model calls per day | 89.0 | 76.6 |
-| Deaths per week | 2.8 | 4.4 |
-| How the weeks ended | still going 8 | battle 1, rescue 1, still going 2, ultimatum 2, winners 2 |
-| Deaths by cause | murdered 9, executed after the trial 4, wrongly executed 2, escaped the island 2, took their own life 2, escaped on a raft 2, was poisoned 1 | murdered 9, executed after the trial 8, killed 4, wrongly executed 4, escaped the island 4, escaped on a raft 2, died in the final battle 2, died of their injuries 2 |
-| Trials (all weeks) | 6 | 12 |
-| Verdicts right / wrong / none | 4 / 2 / 0 | 8 / 4 / 0 |
-| Average sanity of survivors at the end of the week | 62.2 | 56.2 |
-| Median sanity at the end of each week | 62 / 65.0 / 68.0 / 68 / 62.0 / 68 / 68 / 56.5 | 59.5 / 46 / 49 / 59.0 / 53 / 71 / 59 / 54.5 |
-| Aimless share of free-time activities | 0.32 | 0.28 |
-| Meal attendance (share of the living) | 0.67 | 0.67 |
-| Calm meals (share) | 0.55 | 0.6 |
-| Night blocks where everyone sleeps (share) | 0.36 | 0.34 |
-| People awake per night block | 1.64 | 1.59 |
-| Exhausted at dawn (share of the living) | 0.11 | 0.13 |
-| Beliefs per survivor at the end | 80.0 | 79.9 |
-| False beliefs (share) | 0.001 | 0.001 |
-| Lies caught: real / honest people wrongly caught | 2 / 0 | 8 / 1 |
-| Secret meetings per week | 2.8 | 2.2 |
-| Snooping per week / snoopers caught (all weeks) | 3.6 / 3 | 2.9 / 2 |
+| Model calls per day | 89.9 | 75.5 |
+| Deaths per week | 3.8 | 3.6 |
+| How the weeks ended | battle 1, sole 1, still going 6 | shutdown 2, still going 4, ultimatum 1, winners 1 |
+| Deaths by cause | escaped on a raft 7, murdered 6, executed after the trial 5, wrongly executed 2, escaped the island 2, killed 2, died in an accident 2, executed by TereVi's whim 2, died in the final battle 2 | murdered 11, executed after the trial 9, killed 4, escaped the island 3, wrongly executed 2 |
+| Trials (all weeks) | 7 | 12 |
+| Verdicts right / wrong / none | 5 / 2 / 0 | 9 / 2 / 1 |
+| Average sanity of survivors at the end of the week | 59.6 | 60.1 |
+| Median sanity at the end of each week | 68.0 / 63.0 / 68 / 59.5 / 68 / 39 / 57.0 / 75 | 60.5 / 50 / 61 / 65.0 / 75 / 56 / 55 / 70.5 |
+| Aimless share of free-time activities | 0.33 | 0.26 |
+| Meal attendance (share of the living) | 0.69 | 0.64 |
+| Calm meals (share) | 0.5 | 0.6 |
+| Night blocks where everyone sleeps (share) | 0.38 | 0.31 |
+| People awake per night block | 1.69 | 1.64 |
+| Exhausted at dawn (share of the living) | 0.1 | 0.17 |
+| Beliefs per survivor at the end | 80.0 | 80.0 |
+| False beliefs (share) | 0.0 | 0.001 |
+| Lies caught: real / honest people wrongly caught | 4 / 0 | 3 / 0 |
+| Secret meetings per week | 1.9 | 1.8 |
+| Snooping per week / snoopers caught (all weeks) | 2.4 / 2 | 2.6 / 2 |
