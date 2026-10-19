@@ -87,7 +87,7 @@ class KumikoMixin:
         self.nv_feel_add(cid, 1 if warm or mine >= 3 else 0)
         mine, theirs = nv["aff"].get(cid, 0), self.nv_feel(cid)
         if theirs >= 2:
-            self.nv_kind(cid, 1)                                         # being welcome at a door (neovi_life.py)
+            self.nv_stat(None, "sanity", 1)                              # being welcome at a door (neovi_life.py)
         out = {"who": cid, "kind": "talk"}
         if lover == cid:
             text = f"NeoVi slips into {name}'s room after midnight and locks the door behind her. What happens next, the cameras are not allowed to see."

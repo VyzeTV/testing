@@ -82,7 +82,7 @@ class NeoViLifeMixin:
         if nv["aff"].get(cid, 0) >= 2:
             self.nv_stat(tick, "sanity", -2, f"punishing {self.nm(cid)}")
         self.nv_grudge(2)
-        if self.rng.random() < 0.75:
+        if self.rng.random() < 0.25:
             self.nv_feel_add(cid, -1)
 
     def nv_taser_force(self, tick, cid):
@@ -138,7 +138,7 @@ class NeoViLifeMixin:
             self.nv_stat(tick, "sanity", -1, "another night on the island")
         carers = [c for c in sorted(w.agents) if self.nv_feel(c) >= 5]
         if carers and not died:
-            self.nv_stat(tick, "sanity", 2 + min(2, len(carers) - 1), "someone cares")
+            self.nv_stat(tick, "sanity", 1, "someone cares")
         self.nv_torment(tick)
         out = self.nv_low(tick)
         return out
