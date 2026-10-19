@@ -155,6 +155,26 @@ def upgrade_state(state):
                 for it, q in items.items():
                     pool.setdefault(it, q)
         state["map_v2"] = True
+    if not state.get("map_v5"):
+        # phase E split the Woods and the Garden Maze off the garden: add their things, and put whoever stands there in the right room
+        for room in ("woods", "maze"):
+            for it, q in ROOM_ITEMS.get(room, {}).items():
+                state["room_items"].setdefault(room, {}).setdefault(it, q)
+            for h in HIDDEN_ITEMS.get(room, []):
+                have = state.setdefault("hidden_items", {}).setdefault(room, [])
+                if not any(set(x.get("items", {})) == set(h["items"]) for x in have):
+                    have.append(dict(h, found=False))
+        pos = (state.get("sim") or {}).get("pos") or {}
+        if pos:
+            from .gridnav import GridNav
+            nav = GridNav()
+            for cid, p in list(pos.items()):
+                at = nav.room_at(*p)
+                if not nav.walkable(*p):
+                    del pos[cid]                              # now a hedge or a tree: they start at a spot in their room
+                elif at in ("woods", "maze") and cid in state["agents"] and state["agents"][cid].get("room") == "garden":
+                    state["agents"][cid]["room"] = at
+        state["map_v5"] = True
     esc = state["escape"]
     old_plan, old_contrib, old_att = esc.pop("plan", None), esc.pop("contributors", None), esc.pop("attempts", None)
     for k, v in new_escape().items():

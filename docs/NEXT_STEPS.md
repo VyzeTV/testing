@@ -1,6 +1,6 @@
 # Next steps (after the real Day 3, 2026-10-19)
 
-Where the work stands, what the real-model days showed, and the agreed plan. Phases A, B and C are done (A and B with their follow-ups); Phase D is done; Phase E (map areas) is next and needs the user's choices for the Woods and the boathouse. Ask the user before starting each phase; commit each step with tests passing (`python tests/smoke.py`, `python tests/baseline.py` at or below about 91.7 calls a day, `python tests/balance.py`).
+Where the work stands, what the real-model days showed, and the agreed plan. Phases A, B and C are done (A and B with their follow-ups); Phases D and E are done; Phase F (a fully live engine) is next and needs the user's go-ahead. Ask the user before starting each phase; commit each step with tests passing (`python tests/smoke.py`, `python tests/baseline.py` at or below about 91.7 calls a day, `python tests/balance.py`).
 
 ## Already done (commits 96ad566 and after)
 
@@ -67,6 +67,7 @@ Steps 3 and 4 done: the quick clock for dead air (pause settings, 4x by default;
 5. Check: a mock day with her in conversations and chores; a real day where she speaks several times.
 
 ### Phase E: Map areas
+**Phase E is done** (2026-10-19). The user chose a hidden cellar hatch and an old camp for the Woods, and the raft workshop and flares for the boathouse. See `docs/GAME_DESIGN.md`, section 9, "The outdoor rooms" and "The boathouse". The plan edit was a one-time script (`murder/maps/split_outdoors.py`, refuses to run twice).
 1. Split the outdoors: a new room "Outdoors" (lawns, paths, coast) and the "Garden Maze" (hedge maze and its items, joined only to Outdoors). Update room connections, window ladders, hiding spots, free-time places, escape steps and the "indoors only" rule; older saves get a one-time fix by tile position.
 2. The Woods (north) as their own room: dense trees that block sight and muffle sound; the hammock moves there. What else is there is the user's call (an old camp from a previous season, a hidden cellar hatch, a forgotten grave).
 3. A purpose for the boathouse, the user's call (the raft route's workshop with visible progress, a locked motorboat as a harder way out, flares for the signal route).

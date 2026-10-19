@@ -66,7 +66,9 @@
   "l": "water_tower",
   "m": "white_room",
   "n": "wine_cellar",
-  "o": "yellow_room"
+  "o": "yellow_room",
+  "p": "maze",
+  "q": "woods"
  },
  "furniture": [
   {
@@ -1620,11 +1622,11 @@
   {
    "k": "hammock",
    "plane": "ground",
-   "x": 44,
-   "y": 22,
+   "x": 46,
+   "y": 10,
    "w": 1,
    "h": 1,
-   "room": "garden"
+   "room": "woods"
   },
   {
    "k": "bench",
@@ -1688,6 +1690,24 @@
    "w": 1,
    "h": 1,
    "room": "beach"
+  },
+  {
+   "k": "firepit",
+   "plane": "ground",
+   "x": 50,
+   "y": 9,
+   "w": 1,
+   "h": 1,
+   "room": "woods"
+  },
+  {
+   "k": "crate",
+   "plane": "ground",
+   "x": 48,
+   "y": 9,
+   "w": 1,
+   "h": 1,
+   "room": "woods"
   }
  ],
  "secrets": [
@@ -1786,6 +1806,38 @@
     ]
    ],
    "note": "the floor hatch in the lighthouse onto the steps down to the vault"
+  },
+  {
+   "id": "SP-6",
+   "ends": [
+    [
+     "ground",
+     53,
+     9
+    ],
+    [
+     "basement",
+     53,
+     9
+    ]
+   ],
+   "note": "a trapdoor under the leaves by the old camp, onto a ladder down into a branch of the smugglers' tunnel"
+  },
+  {
+   "id": "SP-6",
+   "ends": [
+    [
+     "basement",
+     48,
+     33
+    ],
+    [
+     "basement",
+     46,
+     33
+    ]
+   ],
+   "note": "the cellar grate, bolted on the tunnel side: from the woods hatch it opens without a key"
   }
  ],
  "labels": {
@@ -1800,6 +1852,14 @@
   "pool": [
    28,
    43
+  ],
+  "maze": [
+   22,
+   56
+  ],
+  "woods": [
+   46,
+   8
   ]
  }
 }

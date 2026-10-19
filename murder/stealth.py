@@ -16,7 +16,7 @@ COVER = {
     "observatory": ("under a dust sheet", 0.55), "attic": ("behind the old trunks", 0.7), "master_suite": ("in the walk-in wardrobe", 0.65),
     "upper_landing": ("in the shadowed alcove", 0.3), "landing": ("in the shadowed alcove", 0.3), "foyer": ("behind the coat stand", 0.25),
     "basement_hall": ("in the dark corner", 0.45), "wine_cellar": ("between the barrels", 0.7), "boiler_room": ("behind the boiler", 0.65),
-    "cold_store": ("among the hanging sides", 0.5), "garden": ("in the hedge maze", 0.6), "greenhouse": ("among the tall plants", 0.55),
+    "cold_store": ("among the hanging sides", 0.5), "garden": ("behind the hedges", 0.5), "maze": ("in a dead end of the maze", 0.65), "woods": ("among the trees", 0.7), "greenhouse": ("among the tall plants", 0.55),
     "pool": ("behind the changing screen", 0.35), "beach": ("behind the rocks", 0.35), "boathouse": ("behind the boats", 0.6),
     "generator_shed": ("behind the generator", 0.55), "lighthouse": ("up the dark stairwell", 0.6),
     "lookout": None, "water_tower": None, "voting_grounds": None, "core_vault": None,

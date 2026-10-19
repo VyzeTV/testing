@@ -126,6 +126,6 @@ class MarksMixin:
     def thorn_alibi(self, p, ids):
         """Someone with scratches says it was the garden's thorns; it holds if somebody else saw them in the garden that day."""
         rec = self.conds(p).get("scratched") or {}
-        seen = any(b["k"] == "at" and b["s"] == p and b.get("r") in ("garden", "greenhouse") and b["t0"] >= self.abs_now() - 24
+        seen = any(b["k"] == "at" and b["s"] == p and b.get("r") in ("garden", "greenhouse", "woods", "maze") and b["t0"] >= self.abs_now() - 24
                    for o in ids if o != p for b in self.beliefs(o))
         return ("thorn" in (rec.get("why") or "")), seen

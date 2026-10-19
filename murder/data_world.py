@@ -52,6 +52,9 @@ ROOMS = {
     "lighthouse":     ("Lighthouse Ruin",     "grounds",1025, 400, 115,  90),
     # The class-trial site, down the cliff steps from the beach
     "voting_grounds": ("The Voting Grounds",  "grounds",1145, 510, 245, 120),
+    # The hedge maze west of the pool, and the woods on the north of the island
+    "maze":           ("Garden Maze",         "grounds", 910, 500, 110, 100),
+    "woods":          ("The Woods",           "grounds",1025, 500, 115, 100),
     # TereVi's hidden core, under the lighthouse
     "core_vault":     ("TereVi's Core Vault", "basement",905, 510, 230, 120),
 }
@@ -101,6 +104,8 @@ EDGES = [
     ("garden", "beach", 6, "outside", {}),
     ("garden", "generator_shed", 5, "outside", {}),
     ("garden", "lighthouse", 25, "path", {}),
+    ("garden", "maze", 2, "outside", {}),
+    ("garden", "woods", 3, "outside", {}),
     ("kitchen", "garden", 2, "window", {}),
     ("laundry", "garden", 3, "door", {}),
     ("beach", "voting_grounds", 4, "path", {}),
@@ -122,6 +127,10 @@ EDGES = [
         "id": "SP-5", "hidden": True, "needs": ["crowbar", "pipe_wrench", "sledgehammer"],
         "discover": {"rooms": ["lighthouse"], "keywords": ["floor", "hatch", "trapdoor", "stairs", "cellar", "ring", "cables", "hum", "rust"], "p": 0.07,
                      "text": "a rusted ring in the lighthouse floor lifts a heavy hatch onto steps leading down to a humming vault"}}),
+    ("woods", "wine_cellar", 12, "secret", {
+        "id": "SP-6", "hidden": True,
+        "discover": {"rooms": ["woods"], "keywords": ["hatch", "trapdoor", "leaves", "camp", "ring", "dig", "ground"], "p": 0.08,
+                     "text": "under the leaves by the old camp is a wooden trapdoor, onto a ladder down into the smugglers' tunnel, as far as the wine cellar's grate"}}),
     ("kitchen", "linen_store", 4, "secret", {
         "id": "SP-4", "hidden": True, "needs": ["crowbar", "pipe_wrench"],
         "discover": {"rooms": ["kitchen", "linen_store"], "keywords": ["dumbwaiter", "hatch", "lift", "panel"], "p": 0.10,
@@ -319,10 +328,16 @@ ROOM_ITEMS = {
     "lighthouse":     {"sealed_envelope": 1, "flares": 1},
     "voting_grounds": {},
     "core_vault":     {},
+    "maze":           {},
+    "woods":          {"hatchet": 1, "tin_mug": 2},
 }
 
 # Things only found by searching: room -> {"items": {...}, "keywords": [...], "p": float, "text": str}
 HIDDEN_ITEMS = {
+    "woods": [
+        {"items": {"old_journal": 1}, "keywords": ["camp", "crate", "tent", "journal", "old", "firepit"], "p": 0.15,
+         "text": "a water-stained journal in the old camp's crate, left by someone from a season before"},
+    ],
     "wine_cellar": [
         {"items": {"iron_key": 1}, "keywords": ["bottle", "bottles", "empty", "key"], "p": 0.10,
          "text": "an iron key hidden inside an empty wine bottle"},
@@ -339,7 +354,7 @@ apply_item_pool(ITEMS, ROOM_ITEMS, HIDDEN_ITEMS)
 # Cameras cover the public rooms. In these rooms NeoVi only punishes what she sees with her own eyes.
 CAMERA_BLIND = {"blue_room", "green_room", "yellow_room", "red_room", "violet_room", "orange_room", "grey_room", "white_room", "bathroom", "linen_store", "attic", "master_suite",
                 "boiler_room", "wine_cellar", "cold_store", "basement_hall", "lighthouse", "generator_shed", "water_tower",
-                "greenhouse", "observatory", "core_vault"}
+                "greenhouse", "observatory", "core_vault", "woods"}
 
 # Facts only the GM knows: the adjudicator uses them to judge escape experiments.
 ISLAND_TRUTHS = [
@@ -348,7 +363,7 @@ ISLAND_TRUTHS = [
     "Cameras cover the public rooms only; their cables run to the Study. Cutting wiring needs tools and time and would create blind spots.",
     "The lighthouse lamp could signal passing ships: it needs power (the generator, a battery) and fuel (fuel cans are in the Generator Shed). TereVi jams outside signals.",
     "NeoVi carries a master key and fears TereVi; she might help someone she truly trusts.",
-    "Secret passages exist: Pantry to Wine Cellar, Wine Cellar to Lighthouse (needs the Iron Key), Library to Attic, Kitchen to Linen Store (needs a crowbar), and a hatch in the Lighthouse floor down to TereVi's Core Vault.",
+    "Secret passages exist: Pantry to Wine Cellar, Wine Cellar to Lighthouse (needs the Iron Key), Library to Attic, Kitchen to Linen Store (needs a crowbar), a trapdoor by the old camp in the Woods down to the Wine Cellar, and a hatch in the Lighthouse floor down to TereVi's Core Vault.",
     "TereVi is an AI. Her core is NOT in the Study: it is in a vault under the Lighthouse, reached by a rusted hatch in the lighthouse floor (hidden until someone searches the floor; it needs a crowbar, pipe wrench or sledgehammer to pry open). The Study terminal is only a relay.",
     "The Core Vault is guarded by pressure-plate traps and ceiling turrets fed by the generator: cutting the generator's power, shielding oneself, distracting or blinding the system or being very careful reduces the danger. Destroying or overriding the core needs a heavy tool and a power cut or overload, or serious hacking skill. If TereVi is shut down, the doors, the boats' chains and the cameras fail and the show ends.",
     "The audience believes the show is staged. A message only convinces them if it contains verifiable proof: real names that can be checked, relatives who can be phoned, the island's coordinates, or evidence nobody could fake.",

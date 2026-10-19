@@ -62,7 +62,7 @@ ACTS = {
     "art":      ("drawing", 45, ["art_studio"], ["easel"], "draws"),
     "read":     ("reading", 45, ["library", "study"], ["armchair", "desk"], "reads"),
     "sit":      ("relaxing", 30, [], ["sofa", "armchair", "bench", "deckChair", "hammock", "firepit", "fireplace"], "settles down"),
-    "stroll":   ("walking about", 30, ["garden", "greenhouse", "beach", "lookout"], ["bench"], "takes a walk"),
+    "stroll":   ("walking about", 30, ["garden", "greenhouse", "beach", "lookout", "woods", "maze"], ["bench"], "takes a walk"),
     "tend":     ("tending the plants", 30, [], ["plantBed"], "tends the plants"),
     "laundry":  ("doing laundry", 30, [], ["washer"], "does some laundry"),
     "radio":    ("listening to the radio", 30, [], ["radio"], "fiddles with the radio"),

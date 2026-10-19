@@ -30,7 +30,7 @@ from .scale import MAP_SCALE
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PLAN_DIR = os.path.join(HERE, "maps")
-OPEN = {"garden", "pool", "beach"}
+OPEN = {"garden", "pool", "beach", "maze", "woods"}
 HUBS = {"landing", "upper_landing", "basement_hall", "foyer", "lookout", "water_tower", "voting_grounds", "lighthouse"}     # rooms people cross: exempt from the fill check
 FILL_MIN = 0.45
 WALK = set("wkcrmgsp,:+LUDhanqKfBjlb")

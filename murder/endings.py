@@ -68,7 +68,7 @@ class EndingsMixin:
                     "'Brought to you by spite,' she manages, and then nothing.")
             dead = [c]
         else:
-            inside = [c for c in sorted(w.agents) if c not in team and w.agents[c]["room"] not in ("beach", "garden", "pool", "lighthouse", "lookout", "boathouse", "generator_shed")]
+            inside = [c for c in sorted(w.agents) if c not in team and w.agents[c]["room"] not in ("beach", "garden", "maze", "woods", "pool", "lighthouse", "lookout", "boathouse", "generator_shed")]
             dead = [c for c in inside if self.rng.random() < 0.4][:3]
             if not dead:
                 return []

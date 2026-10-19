@@ -491,7 +491,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                 acts += "|end_life"
             extra = ('"target": "<person id for attack, assault or steal>", "method": "<attack: a weapon item id you hold or see here, '
                      "'poison:<item id>' if you hold a poison, or 'hands'; assault: a weapon item id or 'hands'; "
-                     "sabotage: 'lights', 'occasion' (ruin the announced event) or 'steal' (with target and item); end_life: how, max 6 words>\", "
+                     "sabotage: 'lights', 'occasion' (ruin the announced event), 'raft' (wreck the raft, in the Boathouse) or 'steal' (with target and item); end_life: how, max 6 words>\", "
                      '"frame": "<person id to frame for this killing with planted evidence, optional; attack only>", '
                      '"also": "<a second person in the room to kill as well, optional; attack only>", '
                      '"plot": null or {"target": "<person id>", "stage": "brooding|preparing|stalking|striking", "method": "<max 10 words>", '

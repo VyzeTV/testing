@@ -3269,7 +3269,7 @@ check("the grid map passes its own checks (rooms, connections, reachability)", g
 from murder.data_world import ROOMS as _R  # noqa: E402
 from murder.world import build_edges as _be  # noqa: E402
 check("every room and every connection is on the map", set(gm_["rooms"]) == set(_R) and {d["id"] for d in gm_["doors"]} | {d["id"] for d in gm_["links"]} == {e["id"] for e in _be()})
-check("hidden entrances are all hidden stair/hatch tiles, locked ones keep their keys", {l["id"] for l in gm_["links"] if l["hidden"]} == {"SP-1", "SP-2", "SP-3", "SP-4", "SP-5"}
+check("hidden entrances are all hidden stair/hatch tiles, locked ones keep their keys", {l["id"] for l in gm_["links"] if l["hidden"]} == {"SP-1", "SP-2", "SP-3", "SP-4", "SP-5", "SP-6"}
       and next(d for d in gm_["doors"] if d["id"] == "study_door")["locked"] and next(l for l in gm_["links"] if l["id"] == "SP-2")["keys"] == ["iron_key"])
 rows_ = {p["id"]: p["rows"] for p in gm_["planes"]}
 check("stairs join neighbouring levels and every link end is a stair, ladder or hatch tile", all(rows_[e[0]][e[2]][e[1]] in "UDlh" for l in gm_["links"] for e in l["ends"].values()))
@@ -5035,7 +5035,8 @@ for seed_, murders_ in ((41, True), (43, True), (44, True), (45, True), (61, Fal
     tg_ = []
     for d in range(3, 11):
         wk_.state["day"] = d
-        DayRunner(wk_, LLM(backend="mock"), tg_.append, step=2, murders=murders_, rule_mode="roulette", seed=seed_ + d).run()
+        DayRunner(wk_, LLM(backend="mock"), tg_.append, step=2, murders=murders_, rule_mode="roulette", seed=seed_ + d,
+                  tuning_get=None if murders_ else (lambda: {"escape_rate": 0})).run()      # the week with no murder must reach its last call
         if not wk_.agents or wk_.state.get("over"):
             break
     for t in tg_:
@@ -6671,6 +6672,56 @@ DayRunner(wd_, LLM(backend="mock"), td_.append, step=2, murders=False, rule_mode
 nvl_ = [l for t in td_ for g in t.get("talk") or [] for l in g["lines"] if l["speaker"] == "neovi"]
 check("over a mock day NeoVi works her chores (Who's where shows them) and says something", any((t["live"].get("acts") or {}).get("neovi") for t in td_ if t.get("live"))
       and len(nvl_) >= 1, f"{len(nvl_)} lines")
+
+# ---- phase E: the Woods, the Garden Maze, the hatch, the raft workshop
+from murder.gridnav import GridNav  # noqa: E402
+from murder.world import upgrade_state  # noqa: E402
+nv_ = GridNav()
+gm_e = build_grid_map()
+check("the Woods and the Garden Maze are rooms on the map, joined to the grounds in the open", all(x in gm_e["rooms"] and gm_e["rooms"][x]["open"] for x in ("woods", "maze"))
+      and {frozenset((d["a"], d["b"])) for d in gm_e["doors"] if d.get("via") == "open"} >= {frozenset(("garden", "woods")), frozenset(("garden", "maze"))})
+wd_, wc_ = nv_.nominal("woods", "x"), nv_.nominal("wine_cellar", "x")
+r_open_, r_hatch_ = nv_.route(wd_, wc_), nv_.route(wd_, wc_, hidden=frozenset({"SP-6"}))
+check("the hatch by the old camp is a short way down to the wine cellar, once it is known", r_open_ and r_hatch_ and len(r_hatch_) < len(r_open_)
+      and any(t[0] == "basement" for t in r_hatch_) and not any(t[0] == "basement" and t[2] < 25 for t in r_open_), f"{len(r_open_ or [])} vs {len(r_hatch_ or [])}")
+w, r, _ = fresh(1501)
+w.state["revealed"] = True
+ids_ = sorted(w.agents)
+b_, c_ = ids_[0], ids_[1]
+for c in ids_:
+    w.agents[c]["room"] = "lounge"
+w.agents[b_]["room"] = w.agents[c_]["room"] = "boathouse"
+rt_ = w.state["escape"]["routes"]["raft"]
+rt_["plan"]["build"] = 55
+rt_["contributors"] = [c_]
+tk_ = r.new_tick(14)
+r.raft_stage(tk_, c_, 30.0)
+check("the raft in the boathouse shows its stage to whoever is there", rt_.get("stage") == 2 and any(e.get("type") == "raft" and "plank deck" in e["text"] for e in tk_["events"]))
+aff0_ = w.agents[c_]["aff"].get(b_, 0)
+check("someone can wreck the raft in the workshop, and its builder holds it against them", r.wreck_raft(tk_, b_) and rt_["plan"]["build"] == 25
+      and w.agents[c_]["aff"].get(b_, 0) < aff0_ and any(e.get("type") == "sabotage" and "wrecked" in e["text"] for e in tk_["events"]))
+w.agents[b_]["room"] = "lounge"
+check("but only in the boathouse", not r.wreck_raft(tk_, b_))
+for k in rt_["plan"]:
+    rt_["plan"][k] = 100
+rt_["plan"]["launch"] = 10
+for rr_ in w.state["escape"]["routes"]:
+    if rr_ != "raft":
+        for k in w.state["escape"]["routes"][rr_]["plan"]:
+            w.state["escape"]["routes"][rr_]["plan"][k] = 100
+w.agents[c_]["inv"]["old_journal"] = 1
+w.agents[c_]["room"] = "boathouse"
+res_ = r.escape_work(tk_, c_, 40.0)
+check("the old journal from the woods helps the launch and is kept, not used up", res_ and res_["step"] == "launch" and "old_journal" in res_["used"]
+      and w.agents[c_]["inv"].get("old_journal") == 1, str(res_))
+st_ = new_state(3)
+st_.pop("map_v5", None)
+cid_ = sorted(st_["agents"])[0]
+st_["agents"][cid_]["room"] = "garden"
+st_["room_items"].pop("woods", None)
+st_["sim"] = {"pos": {cid_: ["ground", 49, 12]}}
+st_ = upgrade_state(st_)
+check("an older save puts someone standing in the woods into the Woods, and adds its things", st_["agents"][cid_]["room"] == "woods" and st_["room_items"].get("woods", {}).get("hatchet") == 1)
 
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]

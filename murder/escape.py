@@ -8,14 +8,14 @@ step stops at half way. Work goes wrong now and then (a burnt hand, a collapsed 
 see someone at work may believe it, and TereVi's existing counters (mayhem.adapt_check) still answer progress she notices.
 EscapeWorkMixin is mixed into DayRunner (engine.py).
 """
-from .data_world import ESCAPE_ROUTES
+from .data_world import ESCAPE_ROUTES, ROOMS
 
 # route -> step -> rooms where the work is done, items that help (and are used up into the route's parts), needs before going past half way
 STEP_WORK = {
     "transmit": {
         "device": {"rooms": ["study", "lighthouse"], "helps": ["handheld", "wire", "battery", "laptop", "extension_cord"], "needs": [("parts", 2)]},
         "power": {"rooms": ["generator_shed", "lighthouse"], "helps": ["battery", "fuel_can", "extension_cord", "wire"], "needs": [("parts", 2)]},
-        "signal": {"rooms": ["lighthouse", "lookout"], "helps": ["wire", "small_telescope"], "needs": [("step", "device")]},
+        "signal": {"rooms": ["lighthouse", "lookout"], "helps": ["flares", "flare_gun", "wire", "small_telescope"], "needs": [("step", "device")]},
         "proof": {"rooms": ["study", "library", "lighthouse"], "helps": ["gopro", "notebook", "cipher_notebook", "laptop"], "needs": [("proof",)]},
         "unjam": {"rooms": ["study", "lighthouse"], "helps": ["hacking_drive", "laptop", "wire", "pliers"], "needs": [("aid",)]},
     },
@@ -26,8 +26,8 @@ STEP_WORK = {
         "blind": {"rooms": ["generator_shed", "study"], "helps": ["hacking_drive", "laptop", "wire", "pliers"], "needs": [("aid",)]},
     },
     "raft": {
-        "materials": {"rooms": ["beach", "boathouse"], "helps": ["driftwood", "barrel", "planks", "rope", "tarp", "bed_sheets"], "needs": [("parts", 2)]},
-        "build": {"rooms": ["beach", "boathouse"], "helps": ["hammer", "rope", "wire", "duct_tape", "masking_tape", "fishing_line"], "needs": [("step", "materials")]},
+        "materials": {"rooms": ["boathouse", "beach"], "helps": ["driftwood", "barrel", "planks", "rope", "tarp", "bed_sheets"], "needs": [("parts", 2)]},
+        "build": {"rooms": ["boathouse", "beach"], "helps": ["hammer", "rope", "wire", "duct_tape", "masking_tape", "fishing_line"], "needs": [("step", "materials")]},
         "provisions": {"rooms": ["kitchen", "pantry", "boathouse"], "helps": ["water_bottle", "energy_bar", "life_jacket", "small_telescope"], "needs": [("parts", 1)]},
         "launch": {"rooms": ["boathouse", "beach"], "helps": ["bolt_cutters", "crowbar", "rope"], "needs": [("step", "build")]},
     },
@@ -44,6 +44,10 @@ PACE = {"raft": 1.6, "transmit": 1.3, "shutdown": 1.0, "ultimatum": 0.55}
 SKILL = {("transmit", "unjam"): "Hacker", ("shutdown", "blind"): "Hacker", ("shutdown", "means"): "Hacker", ("transmit", "device"): "Hacker",
          ("shutdown", "locate"): "Urban Explorer", ("shutdown", "approach"): "Urban Explorer", ("raft", "launch"): "Urban Explorer",
          ("transmit", "proof"): "Photographer", ("ultimatum", "leverage"): "Photographer", ("transmit", "signal"): "Musician"}
+# kept, not used up: what the old journal from the woods helps with (a past season's notes on the currents and on the lighthouse floor)
+KEEP = {"hacking_drive": ("unjam", "blind", "means"), "old_journal": ("provisions", "launch", "locate")}
+# the raft in the boathouse workshop as the build step grows: (from %, what it looks like now)
+RAFT_STAGES = [(25, "a frame of lashed barrels"), (50, "a frame with a plank deck"), (75, "a deck with a mast"), (100, "a finished raft under a tarp sail")]
 MISHAP = {"ultimatum": ("burned", "a flash of fumes at the Generator Shed"), "raft": ("weak", "a frame collapsing on them"),
           "transmit": ("burned", "a shock from bare wire"), "shutdown": ("bleeding", "a fall in the dark below the Lighthouse")}
 
@@ -177,21 +181,27 @@ class EscapeWorkMixin:
                 return {"route": rid, "step": step, "gain": 0, "verdict": "gathered", "used": got}
         used = []
         for it in spec.get("helps", []):
-            if a["inv"].get(it, 0) > 0 and len(used) < 2 and it != "hacking_drive":
+            if a["inv"].get(it, 0) > 0 and len(used) < 2 and it not in KEEP:
                 a["inv"][it] -= 1
                 if a["inv"][it] <= 0:
                     del a["inv"][it]
                 used.append(it)
-        if a["inv"].get("hacking_drive", 0) > 0 and step in ("unjam", "blind", "means"):
-            used.append("hacking_drive")                      # used, not given up
-            rt.setdefault("parts", {})["blind_aid"] = rt.get("parts", {}).get("blind_aid", 0) + 1
+        for it, steps in KEEP.items():
+            if a["inv"].get(it, 0) > 0 and step in steps:
+                used.append(it)                               # used, not given up
+                if it == "hacking_drive":
+                    rt.setdefault("parts", {})["blind_aid"] = rt.get("parts", {}).get("blind_aid", 0) + 1
         parts = rt.setdefault("parts", {})
-        parts[step] = parts.get(step, 0) + len([u for u in used if u != "hacking_drive"])
+        parts[step] = parts.get(step, 0) + len([u for u in used if u not in KEEP])
         if step == "proof" and any(u in ("gopro", "notebook", "cipher_notebook", "laptop") for u in used):
             parts["proof"] = parts.get("proof", 0) + 1
         if step == "locate" and "SP-5" not in s.get("found_edges", []) and a["room"] == "lighthouse":
-            for ev in w.search(cid, "searches the floor and walls for a hatch, a seam, a way down", 1.5):
+            for ev in w.search(cid, "searches the floor and walls for a hatch, a seam, a way down", 3.0 if "old_journal" in used else 1.5):
                 self.log_event(tick, ev, actor=cid)                # looking for the hidden way down (world.search finds secret passages)
+        if step == "signal" and set(used) & {"flares", "flare_gun"}:
+            out_ = [o for o in sorted(w.agents) if ROOMS.get(w.agents[o]["room"], ("", ""))[1] == "grounds"]
+            self.log_event(tick, {"type": "flare", "who": cid, "room": a["room"], "vis": "public", "m": float(m),
+                                  "text": f"{self.nm(cid)} fires a red flare over the island from the {w.room_name(a['room'])}, testing the signal."}, witnesses=out_, actor=cid)
         rate = self.tune("escape_rate")
         gain = 9 * rate * PACE.get(rid, 1.0) + 4 * len(used) + (3 if SKILL.get((rid, step)) == w.cast[cid].get("role") else 0) + (self.facet(cid, "orderliness") - 50) / 25
         roll = self.rng.random()
@@ -210,6 +220,8 @@ class EscapeWorkMixin:
         if plan[step] > before and cid not in rt["contributors"]:
             rt["contributors"].append(cid)
         self.escape_progress()
+        if rid == "raft" and step == "build":
+            self.raft_stage(tick, cid, m)
         miss = self.step_missing(rid, step)
         title = ESCAPE_ROUTES[rid]["title"].lower()
         text = {"progress": f"{self.nm(cid)} works on the way out ({title}: {step}, now {plan[step]}%)",
@@ -225,6 +237,43 @@ class EscapeWorkMixin:
             self.log_event(tick, {"type": "system_notable", "who": cid, "room": a["room"], "vis": "viewer", "m": m,
                                   "text": f"A step of the way out is done: {title}, {step}."}, actor=cid)
         return {"route": rid, "step": step, "gain": plan[step] - before, "verdict": verdict, "used": used}
+
+    # ------------------------------------------------------------------ the raft in the boathouse workshop
+    def raft_stage(self, tick, cid, m):
+        """The raft takes shape in the boathouse: anyone there sees each new stage."""
+        rt = self.s["escape"]["routes"]["raft"]
+        pct = rt["plan"].get("build", 0)
+        stage = sum(1 for p, _ in RAFT_STAGES if pct >= p)
+        if stage <= rt.get("stage", 0):
+            rt["stage"] = stage
+            return
+        rt["stage"] = stage
+        look = RAFT_STAGES[stage - 1][1]
+        here = [o for o in self.world.occupants("boathouse") if o in self.world.agents]
+        self.log_event(tick, {"type": "raft", "who": cid, "room": "boathouse", "vis": "public", "m": float(m),
+                              "text": f"In the boathouse, the raft is now {look}."}, witnesses=here, actor=cid)
+
+    def wreck_raft(self, tick, cid, how="pulls the lashings apart"):
+        """Someone wrecks the raft in the workshop. Returns True if there was a raft to wreck."""
+        w = self.world
+        rt = ((self.s.get("escape") or {}).get("routes") or {}).get("raft")
+        if not rt or rt["plan"].get("build", 0) < RAFT_STAGES[0][0] or w.agents[cid]["room"] != "boathouse":
+            return False
+        rt["plan"]["build"] = max(0, rt["plan"]["build"] - 30)
+        rt["plan"]["launch"] = min(rt["plan"].get("launch", 0), 50)
+        rt["stage"] = sum(1 for p, _ in RAFT_STAGES if rt["plan"]["build"] >= p)
+        here = [o for o in w.occupants("boathouse") if o in w.agents and o != cid]
+        self.log_event(tick, {"type": "sabotage", "who": cid, "room": "boathouse", "vis": "public" if here else "gm",
+                              "text": f"{self.nm(cid)} {how}: the raft in the boathouse is wrecked ({rt['plan']['build']}% of the build left)."},
+                       witnesses=here, actor=cid)
+        for o in rt.get("contributors", []):
+            if o in here and o != cid:
+                self.adjust_any_aff(o, cid, -4)
+                self.add_tie(o, cid, "wronged", f"{self.nm(cid)} wrecked the raft they built", 0)
+        self.s.setdefault("raft_wrecked", 0)
+        self.s["raft_wrecked"] += 1
+        self.escape_progress()
+        return True
 
     # ------------------------------------------------------------------ TereVi's counters, as scenes
     def escape_counter(self, tick, rid, strong=False):

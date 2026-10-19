@@ -36,6 +36,9 @@ NEW_ITEMS = {
     "stones": _i("Beach stones", "common"),
     "sand": _i("Sand", "common"),
     "stick": _i("Stout stick", "common"),
+    # ---- the old camp in the woods
+    "tin_mug": _i("Dented tin mug", "common"),
+    "old_journal": _i("Water-stained journal", "special", "clue"),
     # ---- weapons, sharp
     "carving_fork": _i("Carving fork", W, "sharp"),
     "skewers": _i("Metal skewers", W, "sharp"),
@@ -236,6 +239,7 @@ COMMON_ITEMS = {
     "garden": ["stones", "stick", "oleander_leaves"],
     "greenhouse": ["oleander_leaves", "stick"],
     "beach": ["stones", "sand", "stick"],
+    "woods": ["stick", "stones"],
     "boathouse": ["rags", "string"],
     "attic": ["nails", "string"],
     "lighthouse": ["matches"],
