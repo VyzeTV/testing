@@ -80,8 +80,18 @@ Steps 3 and 4 done: the quick clock for dead air (pause settings, 4x by default;
 
 **To do later (the user asked, 2026-10-19):** re-tune the ending tiers back towards 40/30/30. Over 80 seasons phase G gives 29% good, 41% bittersweet, 30% bad (the end of phase E gave 35/41/24). Too few good endings and too many bittersweet ones; judge with `python tests/season.py --seeds 40` (20-seed runs swing by ten points). Dials to try: `escape_rate`, `escape.PACE`, `endings.ending_costs`, `inquiry.FOCUS`.
 
-### Phase F: A fully live engine (later, larger; ask first)
-1. Each person decides when their own plan runs out (building on the brain setting's intentions), not everyone at minute 0.
-2. The once-per-block systems (hazards, dread, the rule referee, wake checks) become timeline events at their minute.
-3. Positions only ever laid forward in time (today `sim_talk` and `sim_finish` lay walks back in time within a turn), so blocks can stream to the viewer in 15 to 30 minute pieces.
-4. Check: determinism, the full test suite, a real day with no waits after the start of the day.
+### Phase F: A fully live engine (planned 2026-10-19; ask before starting)
+**Why.** Today a two-hour block is worked out whole and only then played. With the real model that means a wait at the start of each block: everyone's decision is asked at minute 0 (one batch of calls), every conversation is voiced after the block (one call each), and the walks to conversations are laid back in time (`sim_talk`, `sim_finish`), so nothing in a block is final until all of it is. The aim: the engine produces the day in 15 to 30 minute pieces, each final when made, and the viewer plays each piece as soon as it exists.
+
+**How `run_tick` works today** (engine.py): decisions at minute 0 (`decide_many`), arrivals on a Timeline, then systems at fixed minutes in sequence (`clock_to(15)` passive systems, attacks at the meet minute, 20 assaults, the meal, free time at 15-minute slices, 40 hazards and discovery, 60 dread and drains, 56/92 conversations), then voicing (`voice_convos`), `sim_talk`, reactions, the booth, the inner voice, the evening broadcast, the director, goals and the proposer; `emit` then finishes the tick (environment, minds, sifting, positions via `sim_finish`) and the session writes it whole.
+
+**Steps** (each committed with tests passing):
+1. **F1 One timeline per block.** Put every system of `run_tick` on one Timeline at the minute it already runs (pure refactor: same minutes, same order). Check: a mock week gives the same ticks as before (same seed, same output), plus the hash-seed check.
+2. **F2 Forward-only positions.** Walks to a conversation are laid when the conversation starts; idle wandering and whoever a system moved are laid as the clock passes, not at the end (`sim_finish` only closes the books). A "frontier" check: once the clock is past minute m, nothing before m changes (a test that snapshots tracks as the block runs).
+3. **F3 Voicing and judging as you go.** A conversation is voiced when it ends, on a worker thread, while the engine carries on; its lines are attached when they arrive. The rule referee judges each conversation when it ends; reactions, the booth and the inner voice run at their minute. Same number of calls.
+4. **F4 Decisions when a plan runs out.** Each person's one model decision per block is asked when their current activity is about to end (prefetched a few game minutes early on worker threads), not all at minute 0. Same number of calls, spread across the block. Something sudden (a scream, a body) is still handled by the engine at once, with no extra call.
+5. **F5 Streaming pieces.** The engine hands the session each finished piece (`tick["parts"]`: minutes m0 to m1 with their tracks, lines and events); the viewer plays a block piece by piece and extends it as pieces arrive; the buffer is counted in game minutes, not blocks. The finished block is still saved whole, and saves and resume stay per block. Special scenes (trial, finales, vigil, last call) stay whole for now.
+6. **F6 Gate.** Determinism, the full suite, balance, 80 seasons (and the pending re-tune of the ending tiers, since balance will move anyway), `pace_check.js` (how long the map stands still at a block start), `viewer_check.js`, and a real-model day with no waits after the start of the day (uses the user's subscription: ask first).
+
+**Risks.** The core loop changes, so many tests will need updating; F1's same-output check is the safety net for the rest. Faster reactions (F4) may shift balance. Night blocks use the same machinery and come along with each step.
+
