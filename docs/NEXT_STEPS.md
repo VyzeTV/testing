@@ -143,3 +143,29 @@ The plan (`torments.py`, reusing NeoVi's `nv_torment` pattern):
 * A start-screen toggle: **weekly newcomers on or off** (today they are on until NeoVi joins or dies).
 * What scales with size: the deadline, meal seating, trial voting, ending thresholds (a "lone survivor" with 16), and model calls (about 11 a day per person: 16 people is about 180 calls a day).
 * Check: balance and 80 seasons at 6, 8, 12 and 16.
+
+## After the real five-day season (2026-10-19)
+
+A real-model season with a 5-day week, played by the user. It ended in the Reckoning on Day 5: nobody was killed, two rafts left with four people, and the four left on the island were executed. No engine errors.
+
+### Fixed (commit 3a12ace)
+1. **The clothes-swap rule could not be obeyed** (NeoVi punished 15 times in one day). "Use" on clothing now wears it, and the rule referee is told what each person wears and whose it is (`clothing.wearing_desc`).
+2. **Romances and pacts overwrote each other** (the same romance announced three times). A pair can hold both; a betrayal ends both (`drama.apply_bonds`).
+3. **The Reckoning ignored raft crews at sea.** They are now settled (`outside.crews_coda`); a surviving crew makes the ending bittersweet.
+4. **Someone lost at sea was listed as "escaped".** Now dead (`outside.lost_at_sea`).
+
+### Open (suggested order: 1-4, then 5-6 with one season check, then 7, then 8)
+1. **Events stamped past the end of a block** (minute 146 of 120, some meal and pastime sanity events): the viewer may never show them. Clamp them to the block.
+2. **NeoVi's conversations do not wait for people to arrive** (Day 4, 08:00: Ayden spoke to her in the Kitchen while still outside). Other conversations wait for both people to reach the seat; hers should too.
+3. **The rule referee mixes up who said what, and where** (Day 5: Ayden tased for "addressing Szymon in the Kitchen while in the Bathroom"). Check what `refcheck.referee_turn` is given about speakers and rooms.
+4. **Rule punishments all land at the end of a block**, and one bad day can leave people at about 50 HP for the week (Szymon, Noah). Punish at the minute of the breach, and cap the health a rule can take in a day. Check that the grace turn is long enough for rules that need setup (a swap).
+5. **No murder in a 5-day week.** Sanity stayed at 76-96 until Day 5 (then 37-58); one plotter; the last call had no volunteers or strikers. Dread and plot pressure should ramp from the middle of the week, scaled to the week's length, not a fixed two days before the deadline.
+6. **The raft is too easy with the real model**: all 8 helped and it was built twice in 5 days, taking 4 people off the island. Options: fewer helpers, a cooldown after a launch, TereVi countering it after the first escape. Rafts hold up the good endings in the mock seasons, so re-tune the tiers after (`tests/season.py --seeds 40`).
+7. **Pet names and pet topics dominate across a day** (Cail "babe" 24 times and "followers" 8; Ayden "light" 20 and "frame" 5, even at the last call; Noah "amiga/amigo" 21). The Phase A cap is once per scene. Add a daily cap per person, and ease off a character's theme once used that day.
+8. **Usage**: about 13k input tokens per call, 0.8-1.3M a day on the user's subscription. Trim the shared prompt context (rules text, cast list, memories); measure on a real day.
+
+### What worked
+Dialogue (nobody answers their own line; no "morning" after noon in 527 lines), NeoVi (spoke 33 times, served, thanked, flirted with, helped people break the rule), intrusions (caught going through things, walked in on in the shower, a confrontation), a full plot chain (Chloe plotted, watched, chose a method, struck on Day 5, was fought off), specific diaries that remember the raft crew, decide-ahead (44 early decisions used, 3 wasted; 55-92 calls a day), and the outside snippets and experiments.
+
+### Also open from H4
+After H4, 80 mock seasons gave 29/36/35 (36/29/35 before). Possibly noise (runs swing by about 5 points), possibly the "hand something over" dare taking escape parts. Check with dares off; if it is the dares, keep escape parts and keys out of that dare.
