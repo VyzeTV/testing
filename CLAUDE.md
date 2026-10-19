@@ -26,7 +26,7 @@ A Danganronpa-style killing-game simulation. **The engine decides what happens; 
   - 8: a director upgrade.
 
 - **After the real two-day run (2026-10-19)**, viewer and pacing fixes: deselect on the map (click again, click empty map, Esc); NeoVi on the live map (`sim.sim_neovi`, laid down when the turn closes, reaching each offender before her punishment); the outdoor room `garden` is named "Outdoors"; default pace 120 s per game hour (old saved 50/90 migrated once); chat conversations wait for both people to reach the seat before the first exchange (14 of 25 mock chats used to part silently), and joiners speak from the next exchange; the feed groups each conversation into one card (`feedTalk`, setting "Group conversations") and clicking a card follows it (`followConv`, panel `#convPanel`); generation runs two ticks ahead (`session.BUFFER`); the waiting line shows seconds and calls; free-time picks are spread up to `freetime.PICK_SPREAD` minutes into a daytime slice. True streaming of part of a block is not possible yet: `sim_talk` and `sim_finish` lay walks back in time within a turn, and the rule referee reads the whole block's dialogue.
-- There is no git repository in this folder at the moment, so nothing above is committed.
+- This folder (`E:\MC\murder-channel` on the user's PC) is a git checkout of github.com/vyzetv/testing on the work branch; commit there, and ask before pushing.
 
 ## Running and checking
 
