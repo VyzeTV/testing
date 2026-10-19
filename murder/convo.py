@@ -385,6 +385,8 @@ class ConvoMixin:
                 ln["m"], ln["room"], ln["move"], ln["b"], ln["ex"] = b["m"], b.get("room") or c["room"], b["move"], bi, b.get("ex", 0)
                 if b.get("cont"):
                     ln["cont"] = True
+                if b.get("about"):
+                    ln["about"] = b["about"]
             people = list(dict.fromkeys([b["who"] for b in beats] + [x[1] for x in c["joined"]] + c["members"]))
             kept = {id(l) for l in self.filter_props(tick, c["room"], people, lines)}
             for i, ln in enumerate(lines):                          # a dropped line gets a plain one in its place, so no reply is left answering nothing

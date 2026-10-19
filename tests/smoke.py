@@ -6463,6 +6463,34 @@ check("shared games have their moments (a win, a draw, a good shot)", len(games_
 pr_ = pacing_.measure(seeds=(5,), days=(3,))
 check("meal blocks are no longer mostly dead air (at most 6 dead five-minute stretches of 24)", all(pr_[h] <= 6 for h in (8, 12, 18)), str(pr_))
 
+# ---- phase A follow-up: speaking of people consistently
+w, r, _ = fresh(380)
+w.state["revealed"] = True
+a_, t_, x_ = "noah", "chloe", "cail"
+for p_, q_, v_ in ((a_, t_, 4), (t_, a_, 4), (a_, x_, 6)):
+    w.agents[p_]["aff"][q_] = v_
+w.state.setdefault("rumors", []).append({"by": "szymon", "about": x_, "text": "Cail lies", "heard": [a_], "day": r.day})
+cv_ = {"members": [a_, t_], "used": {}, "beats": []}
+check("nobody gossips about someone they like without cause", not any(o[1] == "gossip" and o[2] == x_ for o in r.move_options(cv_, a_, t_)))
+r.believe(a_, {"k": "has", "s": x_, "i": "knife", "src": "seen", "c": 0.9, "t0": r.abs_now(), "true": True})
+check("a real reason (a weapon seen) lets them speak up even about a friend", any(o[2] == x_ and o[1] in ("gossip", "warn") for o in r.move_options(cv_, a_, t_)))
+cv3_ = {"members": [a_, t_, x_], "used": {}, "beats": []}
+check("nobody runs someone down in front of them", not any(o[2] == x_ and o[1] in ("gossip", "warn", "reveal") for o in r.move_options(cv3_, a_, t_)))
+cvm_ = {"members": [a_, t_], "used": {}, "beats": [], "against": {a_: [t_]}}
+check("having spoken against someone, they do not turn warm on them in the same scene", not any(o[1] in ("comfort", "confide", "flirt", "gift", "pact", "feign") for o in r.move_options(cvm_, a_, t_)))
+from murder.voice import beat_text as bt_
+check("the voice is told how the speaker feels about whoever a beat is about", "whom Noah likes a lot" in bt_(r, 0, {"who": a_, "to": t_, "move": "warn", "about": x_, "outcome": "ok"}))
+bad_ = tot_ = 0
+for t in live_week(381, days=(3, 4, 5)):
+    for g in t.get("talk") or []:
+        mem_ = set(g.get("members") or [])
+        for l in g["lines"]:
+            if l.get("move") in ("gossip", "warn", "reveal") and l.get("about"):
+                tot_ += 1
+                late_ = {j[1] for j in g.get("joined") or [] if j[0] > l["m"]}         # someone who walked over after it was said
+                bad_ += l["about"] in mem_ and l["about"] not in late_
+check("over mock days, talk against a third person happens but never with them in the conversation", tot_ >= 1 and bad_ == 0, f"{bad_} of {tot_}")
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

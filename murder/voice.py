@@ -116,12 +116,16 @@ MOVE_WORDS = {"chat": "makes small talk with", "joke": "jokes with", "comfort": 
               "freeze": "freezes, trapped, in front of"}
 
 
+def feel_word(v):
+    return "loves" if v >= 8 else "likes a lot" if v >= 5 else "likes" if v >= 2 else "feels neutral about" if v >= -1 else "dislikes" if v >= -4 else "hates"
+
+
 def beat_text(eng, i, b):
     """A beat in plain words for the model."""
     who, to = eng.nm(b["who"]), eng.nm(b.get("to")) if b.get("to") else ""
     s = f"{i}. {who} ({b['who']}) {MOVE_WORDS.get(b['move'], b['move'])} {to}".rstrip()
     if b.get("about"):
-        s += f" (about {eng.nm(b['about'])})"
+        s += f" (about {eng.nm(b['about'])}, whom {who} {feel_word(eng._aff(b['who'], b['about']))})"
     if b.get("item"):
         s += f" (the {eng.world.item_name(b['item'])})"
     if b["move"] in MOVE_WORDS and b.get("reply_to") is None and b["move"] not in ("side",):
@@ -186,7 +190,7 @@ def voice_prompt(eng, conv, beats):
             + "PEOPLE:\n" + "\n".join(cards) + "\nBEATS (in order; each already happened exactly as stated):\n" + beats_block(eng, beats) + "\n"
             "Write exactly one line per beat, spoken (or done) by that beat's person to the person named in it: max 20 words, plain speech. A reply answers the other person's line "
             "before it; a new move after a pause starts something new; nobody ever answers their own line. Greetings and talk of the time must fit the time of day. Use the right "
-            "pronouns and gendered words for each person. A pet name, catchphrase or verbal tic at most once per person in the whole scene; do not comment on anyone's looks unless "
+            "pronouns and gendered words for each person. What someone says about a person matches how the beat says they feel about them; nobody runs down someone they like unless a beat says so. A pet name, catchphrase or verbal tic at most once per person in the whole scene; do not comment on anyone's looks unless "
             "it is listed as notable right now. A beat whose person mostly acts may be an "
             "action line instead (kind \"act\", starts with a verb, no name, max 14 words). Never add events, never change who wins or loses, never reveal anything not in the beats. "
             'Reply as JSON: {"lines": [{"beat": 0, "speaker": "<id>", "kind": "say|act", "text": "..."}]}')

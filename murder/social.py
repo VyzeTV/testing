@@ -12,6 +12,8 @@ from .drama import GIFT_ITEMS
 from .booth import MOVE_URGE
 
 # move: (family, loudness, short topic used when somebody only half hears it)
+WARM_MOVES = ("comfort", "confide", "flirt", "gift", "pact", "feign")
+AGAINST_MOVES = ("mock", "putdown", "accuse", "threaten", "confront")
 HOLD_FLOOR = 0.2              # chance the last speaker goes on and opens the next exchange too
 
 MOVES = {
@@ -165,16 +167,18 @@ class SocialMixin:
             opts.append((1.0 + (f("anger") - 50) / 40, "putdown", None))
         if inv_case or f("curiosity") >= 65:
             opts.append(((2.5 if inv_case else 0.6) * f("curiosity") / 50, "probe", None))
-        heard = [r for r in s.get("rumors", [])[-8:] if a in r.get("heard", []) and r["about"] not in (a, t)]
-        hated = [o for o in w.agents if o not in (a, t) and self._aff(a, o) <= -3]
+        present = set(conv.get("members") or []) | {a, t}
+        against_ok = lambda x: x not in present and (self._aff(a, x) <= 1 or self.grounds_against(a, x))      # nobody runs down a friend without cause, or someone standing there
+        heard = [r for r in s.get("rumors", [])[-8:] if a in r.get("heard", []) and r["about"] not in (a, t) and against_ok(r["about"])]
+        hated = [o for o in sorted(w.agents) if o not in present and self._aff(a, o) <= -3]
         if (heard or hated) and aff >= 0 and back >= 0:
             x = heard[-1]["about"] if heard else self.rng.choice(hated)
             opts.append((0.6 + (f("cunning") if "cunning" in self.mind(a)["facets"] else 50) / 100, "gossip", x))
-        sus = [o for o in self.suspects(a) if o != t]
+        sus = [o for o in self.suspects(a) if o != t and against_ok(o)]
         if sus and aff >= 2:
             opts.append((0.9, "warn", sus[0]))
         secrets = [k["of"] for k in A.get("known_secrets", []) if k["of"] not in (a, t) and k["of"] in w.cast and t not in [x.get("by") for x in [k]]]
-        tellable = [x for x in secrets if self._aff(a, x) <= -2 or (aff >= 5 and f("trust") >= 55)]
+        tellable = [x for x in secrets if x not in present and (self._aff(a, x) <= -2 or (aff >= 5 and f("trust") >= 55 and against_ok(x)))]
         if tellable:
             opts.append((0.5 + (0.6 if A["sanity"] < 40 else 0), "reveal", tellable[0]))
         if inv_case and t in self.suspects(a):
@@ -199,7 +203,10 @@ class SocialMixin:
             opts.append((1.2, "feign", None))
         out = []
         told = conv.setdefault("told", [])
+        turned = t in (conv.get("against") or {}).get(a, [])                   # they spoke against this person earlier in the scene
         for wgt, mv, about in opts:
+            if turned and mv in WARM_MOVES:
+                continue
             if mv in ("warn", "gossip", "reveal") and [a, mv, about] in told:
                 continue                                                # the same warning about the same person once is enough
             wgt = wgt / (1 + 1.5 * used.get(mv, 0))                     # people do not repeat themselves in one conversation
@@ -209,6 +216,8 @@ class SocialMixin:
 
     def pick_move(self, conv, a, t):
         pm = self.proposed_move_for(a, t)                         # a move the model proposed and the engine accepted (proposer.py)
+        if pm and pm[0] in ("gossip", "warn", "reveal") and pm[1] in (conv.get("members") or []):
+            pm = None                                             # not with the person it is about standing there
         if pm and pm[0] in MOVES:
             return pm
         opts = self.move_options(conv, a, t)
@@ -451,6 +460,11 @@ class SocialMixin:
         conv["used"][move] = conv["used"].get(move, 0) + 1
         if move in ("warn", "gossip", "reveal"):
             conv.setdefault("told", []).append([a, move, about])
+        target_of = about if move in ("warn", "gossip", "reveal", "incite") else t if move in AGAINST_MOVES else None
+        if target_of in w.cast:
+            ag = conv.setdefault("against", {}).setdefault(a, [])
+            if target_of not in ag:
+                ag.append(target_of)
         u = MOVE_URGE.get(move)
         if u and outcome != "fail":
             self.booth_note(t, u[0], u[1], a)                    # something to tell the camera about
@@ -465,6 +479,14 @@ class SocialMixin:
         b2 = {"who": t, "to": a, "move": reply, "reply_to": move, "outcome": outcome, "loud": "heated" if reply in ("snap", "stand_up", "counter") else ("quiet" if loud == "whisper" else loud),
               "topic": b1["topic"], **({"claim": claim} if claim else {}), **({"claim_at": claim_at} if claim_at else {})}
         return [b1, b2]
+
+    def grounds_against(self, a, x):
+        """A real reason for `a` to speak against `x` whatever they feel: a lie caught, a weapon seen, harm done, a wrong, or a fear they settled on."""
+        A = self.world.agents.get(a) or {}
+        return (x in self.caught_liars(a) or any(b["k"] == "has" and b["s"] == x for b in self.beliefs(a))
+                or any(r[0] == x for r in A.get("harmed_by") or []) or x in (A.get("distrust") or {})
+                or any(t_["a"] == a and t_["b"] == x and t_["kind"] in ("wronged", "betrayed") for t_ in self.s.get("ties", []))
+                or any(b.get("reread") and b["s"] == x for b in self.beliefs(a)))
 
     def close_pair(self, a, t):
         """Partners, or friends who are close both ways."""
