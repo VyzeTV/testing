@@ -406,7 +406,7 @@ class MayhemMixin:
             return
         friends = [c for c in w.agents if nv["aff"].get(c, 0) >= 5]
         gain = 1 + 3 * min(2, len(friends)) + (2 if self.death_today else 0) + (2 if s["escape"]["progress"] >= 40 else 0) \
-            + 2 * min(2, getattr(self, "punish_count", 0)) - (2 if nv["fear"] >= 7 else 0) + nv.get("tv_grudge", 0) // 25
+            + 2 * min(2, getattr(self, "punish_count", 0)) - (2 if nv["fear"] >= 7 else 0)
         self.punish_count = 0
         arc["resolve"] = clamp(arc["resolve"] + gain)
         stage = 0 if arc["resolve"] < 20 else 1 if arc["resolve"] < 40 else 2 if arc["resolve"] < 60 else 3 if arc["resolve"] < 80 else 4

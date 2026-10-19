@@ -81,7 +81,7 @@ class NeoViLifeMixin:
         if nv["aff"].get(cid, 0) >= 2:
             self.nv_stat(tick, "sanity", -2, f"punishing {self.nm(cid)}")
         self.nv_grudge(2)
-        if self.rng.random() < 0.5:
+        if self.rng.random() < 0.75:
             self.nv_feel_add(cid, -1)
 
     def nv_taser_force(self, tick, cid):
@@ -324,10 +324,10 @@ class NeoViLifeMixin:
             feel = self.nv_feel(cid)
             temper = (self.facet(cid, "anger") + self.facet(cid, "vengefulness") + self.facet(cid, "cruelty")) / 150
             p, why = 0.0, None
-            if feel <= -5:
-                p, why = 0.012 * (-feel - 4) * temper, "grudge"
-            if a["sanity"] < 15 and feel <= -2 and 0.04 > p:
-                p, why = 0.04, "snap"
+            if feel <= -4:
+                p, why = 0.025 * (-feel - 3) * temper, "grudge"
+            if a["sanity"] < 20 and feel <= -1 and 0.05 > p:
+                p, why = 0.05, "snap"
             if nv["inv"].get("master_key", 0) and feel <= 1 and a.get("route") in ("boat", "raft", "shutdown") and self.facet(cid, "courage") >= 55 \
                     and self.facet(cid, "cruelty") >= 35 and 0.01 > p:
                 p, why = 0.01, "key"
