@@ -466,6 +466,11 @@ class SimMixin:
             events.append({"id": e["id"], "m": round(min(m, dur - 0.5), 1), "cls": e["cls"], "type": e["type"], "who": e.get("who"), "room": e.get("room"), "vis": e["vis"], "text": e["text"][:240]})
         events.sort(key=lambda e: (e["m"], e["id"]))
         self.sim_neovi(tick, sm, events, flags)
+        for s_ in self._sim_said:                               # a walk re-laid later in the turn wins: a line comes from where its speaker really is
+            if s_["who"] in sm.tracks:
+                r_ = nav.room_at(*sm.pos_at(s_["who"], s_["m"]))
+                if r_ and r_ != s_["room"]:
+                    s_["room"] = r_
         acts ={cid: [[round(sg["m0"]), round(sg["m1"]), sg.get("act"), sg.get("label"), sg.get("room")] for sg in segs] for cid, segs in free.items()} if free else {}
         live = {"v": 2, "start": sm.start, "dur": dur, "tracks": sm.tracks, "flags": flags, "talk": sorted(self._sim_said, key=lambda s_: (s_["m"], s_["g"])), "events": events, "acts": acts,
                 "segment": tick.get("segment", "turn"), "groups": self._sim_groups}

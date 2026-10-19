@@ -31,7 +31,7 @@ A Danganronpa-style killing-game simulation. **The engine decides what happens; 
 
 ## Running and checking
 
-- Tests (mock LLM, no network): `python tests/smoke.py` (1067 checks, about 45 seconds; must end `N/N passed`) and `python tests/baseline.py` (mock calls a day; keep it at or below about 91.7. It is about 91 now, at the ceiling: proposals add about 0.3).
+- Tests (mock LLM, no network): `python tests/smoke.py` (1072 checks, about 45 seconds; must end `N/N passed`) and `python tests/baseline.py` (mock calls a day; keep it at or below about 91.7. It is about 91 now, at the ceiling: proposals add about 0.3).
 - Balance numbers: `python tests/balance.py --write` (about 30 seconds) writes `docs/BALANCE.md`: deaths and how weeks end, trials and verdicts, sanity, idle time, meals, nights, beliefs and lies caught. Report them at every phase gate. Its 16 weeks give fewer than 20 trials, so verdict counts swing a lot between runs; over 80 extra weeks (seeds 101-140, both configurations) after phase 7 the trial got 75 of 101 verdicts right (74%), 24 wrong, 2 with no verdict. Whole seasons from Day 1 to the ending: `docs/SEASONS.md` (`python tests/season.py --write`, about three minutes; the cast is refilled with newcomers each week as the viewer requires; ways out are reached only rarely). Who kills and who dies per character: `docs/CAST_STATS.md` (`python tests/cast_stats.py --write`, a few minutes; for curiosity only).
 - Browser check: `MC_DATA_DIR=<scratch dir> python server.py &` then `node tests/viewer_check.js` (expects `frozen: 0`, `errors: []`). Use a fresh data dir: a leftover session or an old server on port 8766 gives misleading results. Stop the server with `pkill -f "[s]erver.py"` in its own shell call (an unbracketed pattern kills the shell itself).
 - Playwright and Chromium are preinstalled (`/opt/node22/lib/node_modules/playwright`).
@@ -56,7 +56,7 @@ A Danganronpa-style killing-game simulation. **The engine decides what happens; 
   | Free blocks | Free time (`freetime.py`, 15-minute slices) |
   | 40 / 90 | Hazards |
   | 60 | Dread and drains |
-  | 56 / 92 | Live conversations |
+  | 56 | Live conversations outside free time (free blocks talk live during the block) |
 
   After the conversations: voice, then `meal_settle`, reactions and the booth.
 - **Free time** (`freetime.free_pick`) scores activities from needs and facets.

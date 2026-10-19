@@ -3896,7 +3896,7 @@ r_.do_spy(tk_, cid_, {"spy_on": "library"})
 check("spying on the room you are already in is not an error", not tk_["events"])
 
 w_, r_, _ = free_setup(5002)
-check("free-time blocks are the blocks at 10, 14, 16 and 20, and only once the show is on", r_.free_hour(10) and r_.free_hour(14) and r_.free_hour(16) and r_.free_hour(20) and not r_.free_hour(8) and not r_.free_hour(12) and not r_.free_hour(18))
+check("every daytime block is a free-time block once the show is on, the meal blocks too", all(r_.free_hour(h) for h in (8, 10, 12, 14, 16, 18, 20)) and not r_.free_hour(22))
 r_.tuning_get = lambda: {"free_time": 0}
 check("the dial turns free time off", not r_.free_hour(10))
 r_.tuning_get = lambda: {}
@@ -3920,7 +3920,7 @@ check("a bathroom visit is brief and a meal is longer", all(sg["m1"] - sg["m0"] 
 check("the live plan uses the segments: acts for the viewer and ordered tracks", all(isinstance(v, list) for v in (tkf_["live"]["acts"] or {}).values()) and tkf_["live"]["segment"] == "free"
       and all([p_[0] for p_ in tr_] == sorted(p_[0] for p_ in tr_) for tr_ in tkf_["live"]["tracks"].values()))
 check("events logged during the block carry their minute", any(e.get("m") not in (None, 0) for e in tkf_["events"]))
-check("the free-time line is in the decision prompt of a free block and not of a turn", any("FREE TIME" in x for x in r_.free_lines(cid_, 14)) and not r_.free_lines(cid_, 12))
+check("the free-time line is in the decision prompt of a free block and not of a night block", any("FREE TIME" in x for x in r_.free_lines(cid_, 14)) and not r_.free_lines(cid_, 23))
 
 
 # the plot: a striking plotter alone with the target strikes inside the block; waiting makes them less patient
@@ -4282,7 +4282,7 @@ for sd_ in range(3300, 3330):
             if o != c:
                 wq_.agents[c]["aff"][o] = [7, 3, 1, 7][(ord(c[0]) + ord(o[0]) + sd_) % 4]
     tq_ = rq_.run_tick(14, "free")
-    why_set_ |= {ch["why"].split(" ")[0] + " " + ch["why"].split(" ")[1] if ch["why"] else "" for ch in tq_.get("free_chats", [])}
+    why_set_ |= {" ".join(ch["why"].split(" ")[:2]) for ch in tq_.get("free_chats", [])}
 check("chats come from more than one kind of reason across a few blocks", len(why_set_) >= 2, str(why_set_))
 
 
@@ -6444,6 +6444,24 @@ check("a rebuffed confidence is remembered, and can come back as a confrontation
 cvw_ = {"members": ["ayden", "chloe"], "room": "lounge", "used": {}, "beats": []}
 r.resolve_move(r.new_tick(16), cvw_, "ayden", "chloe", "warn", "noah")
 check("the same warning about the same person comes once per conversation", not any(o[1] == "warn" and o[2] == "noah" for o in r.move_options(cvw_, "ayden", "chloe")))
+
+# ---- phase B: pacing (meal blocks as free time, gatherings when they happen, game moments, dead air)
+sys.path.insert(0, HERE)
+import pacing as pacing_
+wb_ = World(new_state(3))
+tb_ = []
+DayRunner(wb_, LLM(backend="mock"), tb_.append, step=2, murders=False, rule_mode="roulette", seed=371).run()
+lunch_ = next(t for t in tb_ if t["hour"] == 12)
+check("the lunch block is free time with the meal inside it", lunch_.get("segment") == "free" and any(e["type"] == "meal" for e in lunch_["events"])
+      and any(ch.get("table") for ch in lunch_.get("free_chats", [])), str([ch.get("why") for ch in lunch_.get("free_chats", [])]))
+day_blocks_ = [t for t in tb_ if 8 <= t["hour"] <= 20]
+check("at most one gathering (the table talk counts) per block", all(sum(1 for ch in t.get("free_chats", []) if ch.get("gather") or ch.get("table")) <= 1 for t in day_blocks_))
+check("people keep doing things to the end of a block (someone starts something after minute 95)",
+      sum(any(sg[0] >= 95 for sg in segs) for t in day_blocks_ for segs in (t["live"].get("acts") or {}).values()) >= 3)
+games_ = [e["text"] for t in tb_ for e in t["events"] if any(k in e["text"] for k in ("checkmates", "beats", "bullseye", "draw over the chess", "pots two", "queen", "dart"))]
+check("shared games have their moments (a win, a draw, a good shot)", len(games_) >= 1, str(games_[:3]))
+pr_ = pacing_.measure(seeds=(5,), days=(3,))
+check("meal blocks are no longer mostly dead air (at most 6 dead five-minute stretches of 24)", all(pr_[h] <= 6 for h in (8, 12, 18)), str(pr_))
 
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]

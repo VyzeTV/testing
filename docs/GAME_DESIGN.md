@@ -203,9 +203,9 @@ Derived from facets (shy and orderly vs gregarious, vain, romantic). Being seen 
 
 ## 7. Free time: the live part of the day
 
-Called from `run_tick` for blocks at 10, 14, 16 and 20 (`freetime.py`).
+Called from `run_tick` for every daytime block, 08:00 to 20:00 (`freetime.py`, `FREE_HOURS`; phase B). The 08:00 block keeps TereVi's morning announcement; breakfast, lunch and dinner (and any summons) are called at their own minute inside the block (`_meal_in_block`): whoever comes stays at the table until the meal ends, and the table talks as one live conversation.
 
-**Structure of a block (120 minutes)**: one decision per character becomes the first activity (15-90 minutes by action). Then 15-minute **slices**: the environment steps, then each free person chooses and starts an activity. The last half hour leans towards company; at minute 90+ nobody sets out anywhere new, so the conversation phase (about minute 95) finds people where they are.
+**Structure of a block (120 minutes)**: one decision per character becomes the first activity (15-90 minutes by action). Then 15-minute **slices**: the environment steps, then each free person chooses and starts an activity. Picks run to the end of the block (the last at minute 105; no new chat or gathering after minute 108). There is no separate conversation phase: talk happens live during the block, as chats (up to 3) and **gatherings**: when someone drifts over for company and finds idle people, they get talking as one group conversation at that minute (`_gather_check`; one per block, the table talk counts, two more while a death is investigated; each is a voicing call). TereVi on the monitor and occasions are still written whole after the block. **Shared games** (pool, chess, darts) have engine-made moments: a good shot midway, and a winner or a draw at the end, which warms the players to each other (a vain loser sulks).
 
 **Activities with real durations** (a drink 15 minutes, a bathroom visit 15, a shower 30, a meal 30, a game 45, a nap 60, an experiment 90): eat, cook, snack, drink, wash, bathroom, shower, bath, swim, pool, chess, darts, music, jukebox, art, read, sit, stroll, tend plants, laundry, radio, stargaze, mirror, nap, tinker (craft), look, explore, dress, gather, chat, stalk, flee, rescue, fight (a fire), warn.
 

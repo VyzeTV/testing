@@ -23,7 +23,7 @@ SLICE = 15
 PICK_SPREAD = 8                       # a free person picks their next thing up to this many minutes into a slice, not all on the quarter hour
 TICK_MIN = 120
 FINALE = 75
-FREE_HOURS = (10, 14, 16, 20)
+FREE_HOURS = (8, 10, 12, 14, 16, 18, 20)          # every daytime block; a meal or summons happens inside its block
 
 
 class _Rooms(set):
@@ -89,6 +89,13 @@ SEATS = ["sofa", "armchair", "bench", "deckChair", "firepit", "fireplace", "tabl
 IDLE_ACTS = {"look", "explore", "stroll", "gather", "stay", "sit", "walk", "jukebox", "mirror"}               # an activity somebody can be talked out of
 PRIVATE_ROOMS = {"blue_room", "green_room", "yellow_room", "red_room", "violet_room", "orange_room", "grey_room", "white_room", "master_suite"}
 MAX_CHATS = 3
+GAME_MOMENTS = {      # act: (a win, a draw or None, a moment midway, playing alone)
+    "game": ("{w} sinks the black and beats {l} at pool.", None, "{a} pots two in one shot and grins at {b}.", "{a} clears half the pool table alone."),
+    "chess": ("{w} checkmates {l}.", "{a} and {b} agree a draw over the chess board.", "{a} takes {b}'s queen. {b} stares at the board.", "{a} plays both sides of a chess game."),
+    "darts": ("{w} hits the bullseye and takes the game from {l}.", None, "{a}'s dart bounces off the wire; {b} laughs.", "{a} lands three darts in the treble twenty."),
+}
+GATHERINGS = 1                       # group conversations a free block may start (the meal's table talk is one; two more while a death is investigated); each is a voicing call
+LAST_START = TICK_MIN - 12           # no new chat or gathering this close to the end of the block
 NIGHT_ACTS = {"eat", "drink", "snack", "wash", "bathroom", "read", "sit", "look", "explore", "stargaze", "radio", "tinker", "mirror", "confess", "chat", "gather", "company",
               "stalk", "flee", "rescue", "fight", "warn", "sleep", "snoop"}                                  # what people do in a sleeping house (nothing loud)
 MAIN_DUR = {"experiment": 90, "craft": 45, "rest": 60, "search": 30, "spy": 45, "treat": 30, "frisk": 30, "stash": 30, "retrieve": 30, "build": 45, "hide": 45, "lock": 15,
@@ -187,6 +194,39 @@ class FreeTimeMixin:
                 self._tl.at(m + off, self._late_pick, tick, cid, hour, m + off, busy)
             else:
                 busy[cid] = self.free_pick(tick, cid, hour, m)
+        if getattr(self, "_tl", None) is not None and tick.get("phase") != "night":
+            self._tl.at(m + PICK_SPREAD, self._gather_check, tick, m + PICK_SPREAD, busy, prio=6)
+
+    def _gather_check(self, tick, m, busy):
+        """People who drifted together for company and are idling in one room start talking, as one group conversation (one per block)."""
+        w = self.world
+        case = self.s.get("case")
+        cap = GATHERINGS + (2 if case and case.get("announced") and not case.get("resolved") else 0)     # a death under investigation: everyone wants to talk about it
+        if self.__dict__.get("_gathers", 0) >= cap or m >= LAST_START:
+            return
+        talked = {c for ch in tick["free_chats"] for c in ch["members"]}
+        now = lambda c: next((sg for sg in reversed(tick["free"].get(c) or []) if sg["m0"] <= m < sg["m1"]), None)
+        rooms = {}
+        for cid in sorted(w.agents):
+            a = w.agents[cid]
+            sg = now(cid)
+            if (not sg or cid in talked or a.get("out") or a.get("asleep") or self.restrained(cid) or self.in_convo(cid)
+                    or sg["act"] not in IDLE_ACTS or sg.get("kind") == "main" and sg["act"] != "gather"):
+                continue
+            rooms.setdefault(a["room"], {"gather": [], "idle": []})["gather" if sg["act"] == "gather" else "idle"].append(cid)
+        best = max((r for r, v in rooms.items() if v["gather"] and len(v["gather"]) + len(v["idle"]) >= 2 and r in ROOMS),
+                   key=lambda r: (len(rooms[r]["gather"]) + len(rooms[r]["idle"]), r), default=None)
+        if not best:
+            return
+        members = (rooms[best]["gather"] + rooms[best]["idle"])[:5]
+        dur = max(10.0, min(30.0, TICK_MIN - 4 - m))
+        self._gathers = self.__dict__.get("_gathers", 0) + 1
+        tick["free_chats"].append({"gid": f"{best}#gather", "room": best, "m": m, "dur": dur, "members": list(members), "at": None, "why": "company", "matters": [], "gather": True})
+        for c in members:
+            busy[c] = max(busy.get(c, 0), m + dur)
+            self._seg(tick, c, m, m + dur, best, "gather", "talking with the others", "free")
+        self._fev(tick, members[0], m, f"{', '.join(self.nm(c) for c in members[:-1])} and {self.nm(members[-1])} get talking.", "free", "viewer")
+        self.start_convo(tick, members, best, m, self._tl, why="company", kind="gather", dur=dur)
 
     def _late_pick(self, tick, cid, hour, m, busy):
         """A free person's pick, a few minutes into the slice (so a house of people does not all get up on the quarter hour). Something may have claimed them meanwhile."""
@@ -195,8 +235,9 @@ class FreeTimeMixin:
             return
         busy[cid] = self.free_pick(tick, cid, hour, m)
 
-    def free_time(self, tick, hour, decisions):
-        """Play the block out in slices. Called from run_tick after the main decisions have been applied and resolved."""
+    def free_time(self, tick, hour, decisions, meal=None):
+        """Play the block out in slices. Called from run_tick after the main decisions have been applied and resolved. `meal` (draw, minute): a meal or summons
+        called at its own minute inside the block."""
         w, s = self.world, self.s
         tick["segment"] = "free"
         tick["free"] = {}
@@ -225,13 +266,10 @@ class FreeTimeMixin:
                     a["worked"] = self.day
             busy[cid] = dur
             self._seg(tick, cid, 0, dur, a["room"], act, label, "main")
-        meal_ = self.__dict__.get("_meal")                     # a meal or summons in this block keeps the people at it until it ends
-        if meal_:
-            for cid in meal_["came"]:
-                if cid in busy and cid in w.agents:
-                    busy[cid] = max(busy[cid], meal_["end_m"])
-                    self._seg(tick, cid, int(meal_["m"]), int(meal_["end_m"]), meal_["room"], "eat" if meal_.get("kind") == "meal" else "gather", meal_["label"].lower(), "main")
+        self._gathers = 0
         tl = self._tl = Timeline(self)
+        if meal:
+            tl.at(meal[1], self._meal_in_block, tick, hour, meal[0], busy, prio=2)
         tl.every(SLICE, lambda m: self.free_slice(tick, hour, int(m), busy), until=TICK_MIN - SLICE)
         tl.run()
         self._tl = None
@@ -240,18 +278,26 @@ class FreeTimeMixin:
         for cid, segs in tick["free"].items():
             if segs:
                 segs[-1]["m1"] = TICK_MIN
-        # who is gathered in the last half hour feeds the conversation phase
-        chatters = {c for ch in tick["free_chats"] for c in ch["members"]}
-        for cid, d in decisions.items():
-            a = w.agents.get(cid)
-            if not a or a.get("out") or cid in chatters:
-                continue
-            last = (tick["free"].get(cid) or [{}])[-1]
-            if last.get("act") == "gather":
-                here = [o for o in w.occupants(a["room"]) if o in w.agents and o != cid and not w.agents[o].get("out") and o not in chatters]
-                liked = [o for o in here if a["aff"].get(o, 0) >= 0] or here
-                if liked:
-                    d["talk_to"] = list(dict.fromkeys(list(d.get("talk_to") or []) + liked[:2]))[:3]
+
+    def _meal_in_block(self, tick, hour, draw, busy):
+        """The meal (or summons) at its minute: the ones who come stay at the table until it ends, and the table talks."""
+        w = self.world
+        m = self._m
+        self.meal_call(tick, hour, draw, m)
+        meal_ = self.__dict__.get("_meal")
+        if not meal_:
+            return
+        came = [c for c in meal_["came"] if c in w.agents]
+        label = "eat" if meal_.get("kind") == "meal" else "gather"
+        for cid in came:
+            busy[cid] = max(busy.get(cid, 0), meal_["end_m"])
+            self._seg(tick, cid, int(m), int(meal_["end_m"]), meal_["room"], label, meal_["label"].lower(), "main")
+        if len(came) >= 2 and self._tl is not None:
+            self._gathers = self.__dict__.get("_gathers", 0) + 1
+            dur = max(10.0, min(45.0, meal_["end_m"] - m - 3))
+            tick["free_chats"].append({"gid": f"{meal_['room']}#table", "room": meal_["room"], "m": m + 3, "dur": dur, "members": list(came), "at": None,
+                                       "why": f"talk at the table over {meal_['label'].lower()}", "matters": [], "table": True})
+            self.start_convo(tick, came, meal_["room"], m + 3, self._tl, why=f"talk at the table over {meal_['label'].lower()}", kind="gather", dur=dur)
 
     def free_chat_groups(self, tick, groups, modes, intents):
         """The conversation phase of a free-time block: one conversation for every chat that started during the block (each at its own minute and place), and the gathering for whoever
@@ -260,6 +306,9 @@ class FreeTimeMixin:
         chats = tick.get("free_chats") or []
         chatters = {c for ch in chats for c in ch["members"]}
         for room in list(groups):
+            if "terevi" not in groups[room] and modes.get(room) != "occasion":
+                del groups[room]                                # ordinary talk happened live during the block (chats and the gathering)
+                continue
             groups[room] = [o for o in groups[room] if o not in chatters]
             if len([o for o in groups[room] if o in w.agents]) < 2:
                 del groups[room]
@@ -278,6 +327,9 @@ class FreeTimeMixin:
         a = w.agents[cid]
         out = ["FREE TIME: the next two hours are yours. What you choose now is how you start them; after that you will eat, drink, wash, play, read, make things or talk as your needs "
                "and nature pull you, and people who want a word with someone will seek them out. If you have something on your mind (a plan, an experiment, a secret, someone to find), start it now."]
+        draw, mm = self.meal_in_turn(hour)
+        if draw:
+            out.append(f"{draw['label']} is at {int(hour + mm // 60) % 24:02d}:{int(mm % 60):02d} in the {w.room_name(draw['room'])}" + (" (you are expected there)." if draw["kind"] == "summons" else "."))
         ideas = []
         rid = self.tinker_option(cid)
         if rid:
@@ -393,7 +445,7 @@ class FreeTimeMixin:
             kinds = kinds if kinds is not None else ACTS[act][3]
             rooms = rooms if rooms is not None else ACTS[act][2]
             r = None
-            late = m >= 90                                           # too late to set out: the conversation starts at about 95
+            late = False
             if room is not None:
                 r = room
             elif kinds:
@@ -488,7 +540,7 @@ class FreeTimeMixin:
             add(0.35 + (cur - 40) / 100 + (100 - mi["purpose"]) / 90, "explore", room=r_, why=f"has not been in the {w.room_name(r_)} today")
         add(0.15 + (100 - mi["purpose"]) / 150, "look", why="")
         urge = self.booth_urge(cid)[0]
-        if urge >= 2.0 and m < 90:
+        if urge >= 2.0 and m < LAST_START:
             add(0.25 + urge * 0.3, "confess", why="something to get off their chest")
         # the loose ends: something is off, someone went through their things
         for h in s.get("hooks", []):
@@ -520,7 +572,7 @@ class FreeTimeMixin:
                 company[rid] = sum(1 + max(0, a["aff"].get(o, 0)) for o in ppl if a["aff"].get(o, 0) > -4)
             best = max(company, key=lambda r: company[r], default=None)
             if best and company[best] > 0 and not self._unsafe(best):
-                add((1.4 if m >= FINALE else 0.2) + (100 - mi["social"]) / 60, "gather", room=best, why="company")
+                add((0.5 if m >= FINALE else 0.2) + (100 - mi["social"]) / 60, "gather", room=best, why="company")
         # the Director's opportunities and the plotter's own errand
         self.director_arrange(tick, cid, m, sc, reach)
         if pl and pl.get("stage") in ("stalking", "striking") and pl["target"] in w.agents:
@@ -538,9 +590,7 @@ class FreeTimeMixin:
             sc = [x for x in sc if x[1] in NIGHT_ACTS]
         if m >= FINALE and not night:
             # the last half hour leans towards company, but somebody with something in hand (work, a lead, a need) carries on with it
-            sc = [(x[0] + (0.45 if x[1] == "gather" else 0.0),) + x[1:] for x in sc]
-        if m >= 90:
-            sc = [x for x in sc if x[2] == here or x[1] == "flee"] or [(0, "gather" if self._crowd(here, cid) else "look", here, None, "company" if self._crowd(here, cid) else "", None)]    # too late to set out: the conversation starts at about 95
+            sc = [(x[0] + (0.15 if x[1] == "gather" else 0.0),) + x[1:] for x in sc]
         if not sc:
             return self._start(tick, cid, "look", here, None, m)
         best = max(sc, key=lambda x: x[0])
@@ -593,7 +643,7 @@ class FreeTimeMixin:
         """Who this person would go and talk to right now, and why: somebody they were after, company, closeness, a quarrel. Adds a 'chat' choice for the best partner."""
         w, s = self.world, self.s
         a = w.agents[cid]
-        if self._chat_n >= (MAX_CHATS + 1 if self.brain_on() else MAX_CHATS) or m >= 90:
+        if self._chat_n >= (MAX_CHATS + 1 if self.brain_on() else MAX_CHATS) or m >= LAST_START:
             return
         mind = self.mind(cid)["needs"] if self.mind_on() else {"social": 50}
         gr = self.facet(cid, "gregariousness") if self.mind_on() else 50
@@ -816,7 +866,50 @@ class FreeTimeMixin:
             return end                                                   # the way there killed them (a fall, a trap)
         self._effect(tick, cid, act, m, at)
         self.plan_done_by_act(cid, act, a["room"])
+        if act in GAME_MOMENTS and getattr(self, "_tl", None) is not None and end - m >= 20:
+            if self.rng.random() < 0.5:
+                self._tl.at(m + (end - m) / 2, self._game_moment, tick, cid, act, a["room"], "mid", prio=7)
+            self._tl.at(end - 1, self._game_moment, tick, cid, act, a["room"], "end", prio=7)
         return end
+
+    def _game_moment(self, tick, cid, act, room, when):
+        """A shared game has its moments: the engine decides who wins (or a draw), and a good game warms the players to each other."""
+        w = self.world
+        a = w.agents.get(cid)
+        m = self._m
+        if not a or a["room"] != room or a.get("out"):
+            return
+        playing = lambda c: any(sg["act"] == act and sg["room"] == room and sg["m0"] <= m < sg["m1"] for sg in tick["free"].get(c) or [])
+        if not playing(cid):
+            return
+        others = [o for o in sorted(w.agents) if o != cid and w.agents[o]["room"] == room and playing(o)]
+        done = self.__dict__.setdefault("_games", [])
+        key = [id(tick), act, room, when, sorted([cid] + others), int(m // 10)]
+        if key in done:
+            return
+        done.append(key)
+        del done[:-40]
+        win, draw, mid, solo = GAME_MOMENTS[act]
+        here = [o for o in w.occupants(room) if o in w.agents]
+        if not others:
+            if when == "end" and self.rng.random() < 0.4:
+                self._fev(tick, cid, m, solo.format(a=self.nm(cid)), "free", "viewer", witnesses=here)
+            return
+        b = others[0]
+        if when == "mid":
+            self._fev(tick, cid, m, mid.format(a=self.nm(cid), b=self.nm(b)), "free", "viewer", witnesses=here)
+            return
+        if draw and self.rng.random() < 0.15:
+            self._fev(tick, cid, m, draw.format(a=self.nm(cid), b=self.nm(b)), "free", "viewer", witnesses=here)
+            winner = loser = None
+        else:
+            skill = lambda c: self.facet(c, "curiosity") + self.facet(c, "assertiveness") if self.mind_on() else 100
+            pw = skill(cid) / max(1, skill(cid) + skill(b))
+            winner, loser = (cid, b) if self.rng.random() < pw else (b, cid)
+            self._fev(tick, winner, m, win.format(w=self.nm(winner), l=self.nm(loser)), "free", "viewer", witnesses=here)
+        for x, y in ((cid, b), (b, cid)):
+            sore = y == winner and x == loser and self.mind_on() and self.facet(x, "vanity") >= 65
+            w.adjust_aff(x, y, -1 if sore else (1 if self.rng.random() < 0.6 else 0))
 
     def _start_chat(self, tick, cid, partner, m, why):
         """Two people sit or stand together and talk for half an hour. The partner stops what they were idling at; the conversation itself is written when the block ends."""

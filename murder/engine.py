@@ -785,6 +785,8 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         title, sub = self.SEGMENTS.get(hour, (None, None))
         if title == "Free time" and kind != "free":
             title, sub = {10: ("Morning", "The day goes on."), 14: ("Afternoon", "The day goes on."), 16: ("Late afternoon", "The day goes on."), 20: ("Evening", "The day goes on.")}.get(hour, (None, None))
+        if kind == "free" and hour in (12, 18):
+            title, sub = {12: ("Lunch, then free time", "The midday is yours, after the meal."), 18: ("Dinner, then free time", "The evening is yours, after the meal.")}[hour]
         return {"title": title, "sub": sub, "hour": hour, "free": kind == "free"} if title else None
 
     def run_tick(self, hour, kind=None):
@@ -794,7 +796,8 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         self.clock_start()
         self.sim_turn(tick)
         self.convo_reset()
-        tick["segment_msg"] = self.segment_msg(hour, kind)
+        free = kind == "free" or (kind == "morning" and self.free_hour(hour))
+        tick["segment_msg"] = self.segment_msg(hour, "free" if free else kind)
         s["_hour"] = hour
         if self.degrade_note:
             tick["events"].append({"type": "system", "who": "terevi", "room": "foyer", "vis": "viewer", "text": self.degrade_note})
@@ -916,11 +919,13 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         self.resolve_impulses(tick, hour, decisions, intents)
         self.resolve_end_lives(tick, hour)
         meal_draw, meal_m = self.meal_in_turn(hour)
-        if meal_draw and not s.get("over") and not (self.occasion_now and self.occasion_now.get("where") == meal_draw["room"]):
+        if meal_draw and (s.get("over") or (self.occasion_now and self.occasion_now.get("where") == meal_draw["room"])):
+            meal_draw = None
+        if meal_draw and not free:
             self.clock_to(max(self._m, meal_m))
             self.meal_call(tick, hour, meal_draw, self._m)
-        if kind == "free" and not s.get("over"):
-            self.free_time(tick, hour, decisions)
+        if free and not s.get("over"):
+            self.free_time(tick, hour, decisions, (meal_draw, max(self._m, meal_m)) if meal_draw else None)
             self.clock_to(90)
         else:
             self.clock_to(40)
@@ -980,9 +985,9 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             if self.rng.random() < p:
                 groups[room] = occ
         self._talk_meta = {}
-        self.clock_to(92 if kind == "free" else 56)
+        self.clock_to(92 if free else 56)
         self.sim_sync(tick, self._m)
-        if kind == "free":
+        if free:
             groups, modes = self.free_chat_groups(tick, groups, modes, intents)
         # ordinary conversations are live (the engine resolves every move as it happens); staged ones (an occasion, TereVi on the monitor) are still written whole
         staged = {g: occ for g, occ in groups.items() if self.staged_talk(g, occ, modes)}
@@ -995,7 +1000,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                 want = [h for h in humans if decisions.get(h, {}).get("talk_to")]
                 order = want + [h for h in humans if h not in want]
                 self.start_convo(tick, order, g.split("#")[0], m_talk + 2 * gi, tl, why=intents.get(order[0], "") if order else "", kind="gather",
-                                 dur=max(10.0, (120 if kind == "free" else 60) - (m_talk - (92 if kind == "free" else 56))))
+                                 dur=max(10.0, (120 if free else 60) - (m_talk - (92 if free else 56))))
             tl.run()
         if staged:
             self.run_conversations(tick, staged, intents, hour, modes=modes)
@@ -1007,7 +1012,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         self.occasion_now = None
         self.island_tick_effects(tick, hour)
         self.enforce_ai_rule(tick, hour)
-        self.booth_turn(tick, hour, kind)
+        self.booth_turn(tick, hour, "free" if free else kind)
         self.voice_booth(tick, hour)
         self.inner_turn(tick, hour)                               # thoughts and muttering (innervoice.py)
 
