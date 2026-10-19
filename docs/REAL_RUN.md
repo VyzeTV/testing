@@ -6,6 +6,28 @@ For curiosity: it shows what the voices do with the engine's beats. In the stage
 
 After this run, three things were fixed: whispers now vary, the last call gives people different stances (drawing lots, bargaining with TereVi, protecting a friend, a dark joke, watching everyone's hands), and an executed killer is remembered as a betrayal, not mourned like a victim.
 
+## The live engine, watched live (2026-10-19, phase F gate)
+
+One ordinary day (day 3, 08:00 to dawn) with the real model through the `claude` command, watched in the browser at the Fast pace (`MC_BACKEND=cli MC_PACE=60 node tests/stream_check.js`). 92 calls, 13 blocks, no errors, every conversation voiced by the model (no template fallbacks).
+
+- **Waiting:** 34 seconds before the first block of the day (TereVi's morning announcement and everyone's first decisions come before anything can play), and 35 seconds at the end, before dawn (everyone's diary and the day's recap). Nothing in between: from 10:00 to 20:00 and through the night every block was ready when the viewer reached it.
+- **Deciding ahead:** 20 early answers used, 4 wasted.
+- **Positions laid late:** 3 walks in the whole day were asked for a minute already past (and started at the engine's minute instead).
+
+From the lunch table, NeoVi serving:
+
+> **Ayden:** Would you stay a minute? The light's better when someone's watching it with me.
+> **NeoVi:** Sorry. I only serve. Would you like the soup?
+> **Ayden:** You've been quiet since breakfast, Chloe. I liked watching you think.
+> **Chloe:** I... um, thank you. I was just thinking about the light. Sorry, that sounds silly.
+
+In the garden, Shintaro wanting a word with Chloe:
+
+> **Shintaro:** The afternoon is holding up nicely, Chloe. Do you think it will last?
+> **Chloe:** I... I hope so. It's nicer out here with company.
+> **Ayden:** I took the best photograph of the island yesterday, Chloe. The light was almost unfair.
+> **Shintaro:** Careful, Chloe, your face does a thing when you lie. I have been studying it.
+
 ## The introductions
 > **TereVi:** Welcome, my darlings, to the Dining Hall! Gather round the table, fix your hair, and try to look like people worth watching. It's time for your formal introductions.
  One by one, give me your name, your fame, one fun fact, and what you hope to win from this little adventure. Be charming. Be brief. B...
