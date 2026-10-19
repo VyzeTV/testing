@@ -6883,6 +6883,7 @@ DayRunner(wf_, LLM(backend="mock"), tf_.append, step=2, murders=True, rule_mode=
 clock_.ClockMixin.clock_to = _ct
 DayRunner.clock_to = _ct
 final_ = {(t["day"], int(t["hour"])): t["live"]["tracks"] for t in tf_ if t.get("live") and t.get("phase") != "night" and t.get("type") is None}
+dur_ = {(t["day"], int(t["hour"])): t["live"].get("dur", 120) for t in tf_ if t.get("live") and t.get("phase") != "night" and t.get("type") is None}
 moved_, checked_ = [], 0
 for key_, d_, h_, past_ in snaps_:
     tr_ = final_.get((d_, h_))
@@ -6892,6 +6893,8 @@ for key_, d_, h_, past_ in snaps_:
         if c not in tr_:
             continue
         for t, p in enumerate(pts):
+            if t >= dur_[(d_, h_)]:
+                break                                          # past the block's end: never played, only the end-of-block clamp
             checked_ += 1
             if pos_on_(tr_[c], t) != p:
                 moved_.append((d_, h_, c, t))
@@ -7193,6 +7196,52 @@ w.state["gm_pending"] = [{"type": "torment", "a": v_, "kind": "collar"}]
 tk_ = r.new_tick(10)
 r.apply_gm(tk_, 10)
 check("the GM's Director action 'torment' torments the chosen person", (w.state.get("torments") or [{}])[-1].get("who") == v_ and w.agents[v_].get("collared") == r.day)
+
+# ---- fixes after the real five-day season (2026-10-19)
+w, r, _ = fresh(2601)
+w.state["revealed"] = True
+r.ensure_wardrobe()
+a_, b_ = sorted(w.agents)[:2]
+w.agents[a_]["inv"][f"clothes_{b_}"] = 1
+tk_ = r.new_tick(10)
+d_ = {"action": "use", "item": f"clothes_{b_}", "qty": 1, "to": "", "target": "", "activity": "", "thought": ""}
+try:
+    r.apply_act(tk_, a_, d_, {}, [], 0)
+except Exception:
+    pass
+check("using someone else's clothes means wearing them", r.worn(a_) == f"clothes_{b_}")
+check("the referee is told whose clothes someone wears", w.cast[b_]["name"].split()[0] in r.wearing_desc(a_) and "their own" in r.wearing_desc(b_))
+w, r, _ = fresh(2602)
+a_, b_ = sorted(w.agents)[:2]
+w.agents[a_]["aff"][b_] = w.agents[b_]["aff"][a_] = 7
+tk_ = r.new_tick(10)
+r.apply_bonds(tk_, [{"a": a_, "b": b_, "kind": "romance"}], [a_, b_])
+r.apply_bonds(tk_, [{"a": a_, "b": b_, "kind": "pact"}], [a_, b_])
+n_ = sum(1 for e in tk_["events"] if "now in a romance" in e.get("text", ""))
+r.apply_bonds(tk_, [{"a": a_, "b": b_, "kind": "romance"}], [a_, b_])
+kinds_ = sorted(e["kind"] for e in w.state["bonds"])
+check("a romance and a pact are held together, and the romance is not announced again", kinds_ == ["pact", "romance"] and n_ == 1
+      and sum(1 for e in tk_["events"] if "now in a romance" in e.get("text", "")) == 1, str(kinds_))
+r.betrayal(tk_, a_, b_, "turns on")
+check("a betrayal ends both the romance and the pact", not w.state["bonds"])
+w, r, _ = fresh(2603)
+ids_ = sorted(w.agents)
+crew_ = ids_[:2]
+for c in crew_:
+    w.end_agent(c, "escaped", "escaped on a raft")
+r.outside()["crews"].append({"ids": crew_, "alive": list(crew_), "stage": "ashore", "days": 2, "food": 2, "proof": False, "tries": 0, "day": r.day, "log": []})
+r.lost_at_sea(crew_[1])
+g_ = next(g for g in w.state["graveyard"] if g["id"] == crew_[1])
+check("someone lost at sea is dead, not escaped", g_["status"] == "dead" and g_["how"] == "lost at sea" and w.state["agents"][crew_[1]]["status"] == "dead")
+r.outside()["crews"][0]["alive"] = [crew_[0]]
+tk_ = r.new_tick(22)
+r.run_reckoning(tk_)
+check("the Reckoning settles the crews out there and a survivor makes it bittersweet",
+      w.state["over"]["tier"] == "bittersweet" and w.state["over"]["survivors"] == [crew_[0]] and "out there" in w.state["over"]["text"])
+w, r, _ = fresh(2604)
+tk_ = r.new_tick(22)
+r.run_reckoning(tk_)
+check("with nobody out there the Reckoning is still bad", w.state["over"]["tier"] == "bad" and w.state["over"]["survivors"] == [])
 
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]

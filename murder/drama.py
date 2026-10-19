@@ -156,7 +156,8 @@ class DramaMixin:
                 continue
             if kind == "pact" and not (ax >= 3 and ay >= 3):
                 continue
-            s["bonds"] = [e for e in s["bonds"] if {e["a"], e["b"]} != {x, y}]
+            # a romance and a pact can be held together; a feud ends both, and either ends a feud
+            s["bonds"] = [e for e in s["bonds"] if {e["a"], e["b"]} != {x, y} or (kind != "feud" and e["kind"] != "feud")]
             s["bonds"].append({"a": x, "b": y, "kind": kind, "since": self.day})
             txt = {"romance": f"{self.nm(x)} and {self.nm(y)} are now in a romance.",
                    "feud": f"{self.nm(x)} and {self.nm(y)} are now bitter enemies.",

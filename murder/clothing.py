@@ -73,6 +73,15 @@ class ClothingMixin:
         k = self.worn(cid)
         return "their underwear" if k is None else self.world.item_name(k)
 
+    def wearing_desc(self, cid):
+        """What someone has on and whose it is, for the referee."""
+        k = self.worn(cid)
+        if k is None:
+            return "their underwear"
+        own = self.owner_of(k)
+        whose = "their own" if own == cid else f"{self.nm(own)}'s" if own else "nobody's in particular"
+        return f"{self.world.item_name(k)} ({whose})"
+
     def clothing_note(self, cid):
         """A short remark for what others see: nothing when someone is simply in their own clothes."""
         if cid not in self.world.agents:

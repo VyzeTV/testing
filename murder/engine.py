@@ -1370,6 +1370,8 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             else:
                 self.log_event(tick, {"type": "system", "who": cid, "room": a["room"], "vis": "gm", "text": f"{name} could not give {item}: {err}."}, actor=cid)
                 w.remember(cid, f"{hhmm(tick['hour'])} You tried to give {self.nm(d['to'])} the {w.item_name(item)} but could not ({err}).")
+        elif act == "use" and item and "clothing" in self.tags(item):
+            self.wear(tick, cid, item)                                      # putting clothes on is wearing them
         elif act == "use" and item:
             eff, err = w.use(cid, item, d["qty"])
             if eff is not None:

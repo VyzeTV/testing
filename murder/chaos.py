@@ -359,10 +359,11 @@ class ChaosMixin:
     # ------------------------------------------------------------------ betrayals
     def betrayal(self, tick, actor, victim, what):
         w, s = self.world, self.s
-        b = next((e for e in s["bonds"] if {e["a"], e["b"]} == {actor, victim} and e["kind"] in ("romance", "pact")), None)
-        if not b:
+        held = [e for e in s["bonds"] if {e["a"], e["b"]} == {actor, victim} and e["kind"] in ("romance", "pact")]
+        if not held:
             return
-        s["bonds"] = [e for e in s["bonds"] if e is not b]
+        b = next((e for e in held if e["kind"] == "romance"), held[0])
+        s["bonds"] = [e for e in s["bonds"] if e not in held]                     # a betrayal ends the romance and the pact alike
         self.adjust_any_aff(victim, actor, -6)
         self.stat(tick, victim, "sanity", -7 if b["kind"] == "romance" else -5, "betrayed")
         self.log_event(tick, {"type": "betrayal", "who": actor, "room": w.agents[actor]["room"], "vis": "public",

@@ -115,16 +115,12 @@ class OutsideMixin:
                 if crew["alive"] and self.rng.random() < (0.25 if storm else 0.08) + (0.15 if crew["food"] < 0 else 0):
                     gone = self.rng.choice(crew["alive"])
                     crew["alive"].remove(gone)
-                    for g in s["graveyard"]:
-                        if g["id"] == gone and g["how"] == "escaped on a raft":
-                            g["how"] = "lost at sea"
+                    self.lost_at_sea(gone)
                     self.outside_snip(tick, crew, self.rng.choice(SEA["lost_one"]).format(who=self.nm(gone)))
                 if not crew["alive"] or (crew["food"] < -1 and self.rng.random() < 0.4) or crew["days"] > 6:
                     crew["stage"] = "lost"
                     for c in crew["alive"]:
-                        for g in s["graveyard"]:
-                            if g["id"] == c and g["how"] == "escaped on a raft":
-                                g["how"] = "lost at sea"
+                        self.lost_at_sea(c)
                     crew["alive"] = []
                     self.outside_snip(tick, crew, SEA["lost"][0])
                     self.terevi_says(tick, f"Some news from the sea, darlings. The raft came back. Empty. Hehe. Who's next?")
@@ -153,6 +149,37 @@ class OutsideMixin:
                     self.outside_snip(tick, crew, self.rng.choice(ASHORE["dismissed"]))
                 else:
                     self.outside_snip(tick, crew, self.rng.choice(ASHORE["dismissed"]))
+
+    def lost_at_sea(self, cid):
+        """Someone who sailed away died out there: dead, not escaped, in the record and the graveyard."""
+        s = self.s
+        if cid in s["agents"]:
+            s["agents"][cid]["status"] = "dead"
+        for g in s["graveyard"]:
+            if g["id"] == cid and g["status"] == "escaped":
+                g["status"], g["how"] = "dead", "lost at sea"
+
+    def crews_coda(self, tick):
+        """The season ends while crews are still out there: settle each one, so the ending knows who lived.
+        Returns the ids who reached safety and a line for each crew."""
+        safe, lines = [], []
+        for crew in self.outside()["crews"]:
+            if not crew["alive"] or crew.get("kind") == "killer" or crew["stage"] not in ("sea", "ashore", "believed"):
+                continue
+            names = " and ".join(self.nm(c) for c in crew["alive"])
+            if crew["stage"] == "sea" and self.rng.random() >= 0.45 + 0.1 * min(max(crew["food"], 0), 3) - 0.05 * crew["days"]:
+                for c in crew["alive"]:
+                    self.lost_at_sea(c)
+                crew["alive"], crew["stage"] = [], "lost"
+                text = f"The raft carrying {names} is never seen again."
+            else:
+                if crew["stage"] == "sea":
+                    crew["stage"] = "ashore"
+                safe += crew["alive"]
+                text = f"{names} reach the mainland alive. Nobody believes their story, but they are free."
+            self.outside_snip(tick, crew, text)
+            lines.append(text)
+        return safe, lines
 
     def outside_snip(self, tick, crew, text):
         crew["log"].append({"day": self.day, "text": text})

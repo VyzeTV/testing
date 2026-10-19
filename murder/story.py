@@ -633,10 +633,16 @@ class StoryMixin:
         scene = self.make_broadcast("reckoning", {"ids": ids, "neovi": self.neovi_enforce(tick, None, 22)})
         for cid in ids:
             w.end_agent(cid, "executed", "died in the Reckoning")
+        safe, coda = self.crews_coda(tick)                                   # crews still out there are settled (outside.py)
+        tier = "bittersweet" if safe else "bad"
+        if coda:
+            scene = f"{scene}\n\n**Meanwhile, out there.** " + " ".join(coda)
         tick["reckoning"] = {"ids": ids, "scene": scene}
-        tick["ending"] = {"kind": "reckoning", "title": "THE RECKONING", "text": scene, "ids": ids, "tier": "bad"}
-        s["over"] = {"kind": "reckoning", "day": self.day, "title": "THE RECKONING", "text": scene, "tier": "bad"}
-        res = "Nobody died before the deadline, so everyone was executed. The season is over."
+        tick["ending"] = {"kind": "reckoning", "title": "THE RECKONING", "text": scene, "ids": ids, "tier": tier, "survivors": safe}
+        s["over"] = {"kind": "reckoning", "day": self.day, "title": "THE RECKONING", "text": scene, "tier": tier, "survivors": safe}
+        res = "Nobody died before the deadline, so everyone left on the island was executed. The season is over."
+        if safe:
+            res += f" Out at sea, {', '.join(self.nm(c) for c in safe)} made it."
         tick["events"].append({"type": "system_notable", "who": "terevi", "room": "foyer", "vis": "public", "text": res})
         self.day_notable.append(res)
 

@@ -236,7 +236,7 @@ class RefereeMixin:
             talk = " / ".join(said.get(cid, [])) or "(said nothing aloud)"
             prev = self.rule_prev.get(cid)
             rows.append(f"- {cid} ({self.nm(cid)}): in the {w.room_name(a['room'])} ({'OUTDOORS' if ROOMS[a['room']][1] == 'grounds' else 'indoors'}); doing: {a['activity']}"
-                        + (f" (the turn before: {prev[:70]})" if prev else "") + f"; carrying: {items}; said: {talk[:300]}")
+                        + (f" (the turn before: {prev[:70]})" if prev else "") + f"; wearing: {self.wearing_desc(cid)}; carrying: {items}; said: {talk[:300]}")
         texts = ([rule["text"]] if judge_rule else []) + [f"HOUSE RULE (always in force): {h} " + rulelib.PUNISHMENT_TEXT for h in house]
         extra = ""
         sysm = ("You are the impartial referee of a house rule on a reality show. Punish only CLEAR violations supported by the record below. "
