@@ -10,7 +10,7 @@ from urllib.parse import urlparse, parse_qs
 
 from murder.data_cast import CHARACTERS, HOSTS
 from murder.data_world import ROOMS, ITEMS, SECRET_ROOMS, ESCAPE_ROUTES, COMMON_ITEMS
-from murder.session import Game
+from murder.session import Game, STATE_DIR
 from murder.world import build_edges
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -55,7 +55,33 @@ LOGIN_PAGE = """<!doctype html><meta charset="utf-8"><meta name="viewport" conte
 form{background:#181a24;border:1px solid #2d3145;border-radius:14px;padding:22px;width:min(320px,86vw)}h1{font-size:15px;color:#ff5fa2;letter-spacing:.08em;margin:0 0 14px}
 input{width:100%;box-sizing:border-box;padding:10px;border-radius:8px;border:1px solid #2d3145;background:#1f2230;color:#e8eaf2;font-size:16px}
 button{margin-top:12px;width:100%;padding:10px;border:0;border-radius:8px;background:#3ee0d0;color:#062421;font-weight:700;font-size:16px}.e{color:#ff6b6b;margin-top:8px;font-size:13px;min-height:16px}</style>
-<form method="post" action="/login"><h1>MURDER CHANNEL</h1><input type="password" name="password" placeholder="Password" autofocus autocomplete="current-password"><button>Enter</button><div class="e">__ERR__</div></form>"""
+<form method="post" action="/login"><h1>MURDER CHANNEL</h1><input type="password" name="password" placeholder="__PH__" autofocus autocomplete="current-password"__NUM__><button>Enter</button><div class="e">__ERR__</div></form>"""
+
+
+MAX_TRIES = 5                 # wrong tries from one device before it is locked out
+MAX_TRIES_ALL = 20            # wrong tries from all devices in an hour before everyone but the PC is locked out
+LOCK_SECONDS = 900
+REMOTE_FILE = os.path.join(STATE_DIR, "remote.json")
+
+
+def is_pin():
+    return bool(AUTH["password"]) and AUTH["password"].isdigit() and len(AUTH["password"]) == 4
+
+
+def remote_auth():
+    """The PIN and cookie secret, kept between runs so the phone stays logged in. A --password or MC_PASSWORD replaces the PIN."""
+    try:
+        saved = json.load(open(REMOTE_FILE, encoding="utf-8"))
+    except (OSError, ValueError):
+        saved = {}
+    pin = saved.get("pin") if str(saved.get("pin", "")).isdigit() and len(str(saved.get("pin"))) == 4 else f"{secrets.randbelow(10000):04d}"
+    secret = saved.get("secret") or secrets.token_hex(24)
+    try:
+        os.makedirs(STATE_DIR, exist_ok=True)
+        json.dump({"pin": pin, "secret": secret}, open(REMOTE_FILE, "w", encoding="utf-8"))
+    except OSError:
+        pass
+    return pin, bytes.fromhex(secret)
 
 
 def auth_token():
@@ -77,25 +103,30 @@ class Handler(BaseHTTPRequestHandler):
 
     def _login(self, post):
         ip = self.client_address[0]
-        fails = [t for t in AUTH["fails"].get(ip, []) if _time.time() - t < 300]
+        now = _time.time()
+        fails = [t for t in AUTH["fails"].get(ip, []) if now - t < LOCK_SECONDS]
         AUTH["fails"][ip] = fails
+        AUTH["all_fails"] = [t for t in AUTH.get("all_fails", []) if now - t < 3600]
         err = ""
         if post:
             n = int(self.headers.get("Content-Length", 0) or 0)
-            pw = (_pq(self.rfile.read(n).decode("utf-8", "ignore")).get("password") or [""])[0]
-            if len(fails) >= 8:
-                err = "Too many tries. Wait five minutes."
+            pw = (_pq(self.rfile.read(n).decode("utf-8", "ignore")).get("password") or [""])[0].strip()
+            if len(fails) >= MAX_TRIES or len(AUTH["all_fails"]) >= MAX_TRIES_ALL:
+                err = "Too many tries. Wait fifteen minutes."
             elif hmac.compare_digest(pw.encode(), AUTH["password"].encode()):
+                AUTH["fails"].pop(ip, None)
                 self.send_response(303)
                 self.send_header("Set-Cookie", f"mc_auth={auth_token()}; Path=/; HttpOnly; SameSite=Strict; Max-Age=2592000")
                 self.send_header("Location", "/")
                 self.end_headers()
                 return
             else:
-                fails.append(_time.time())
+                fails.append(now)
+                AUTH["all_fails"].append(now)
                 _time.sleep(1)
-                err = "Wrong password."
-        data = LOGIN_PAGE.replace("__ERR__", err).encode("utf-8")
+                err = "Wrong PIN." if is_pin() else "Wrong password."
+        data = (LOGIN_PAGE.replace("__ERR__", err).replace("__PH__", "PIN" if is_pin() else "Password")
+                .replace("__NUM__", ' inputmode="numeric" pattern="[0-9]*" maxlength="4"' if is_pin() else "")).encode("utf-8")
         self.send_response(200 if not err else 401)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
@@ -313,8 +344,9 @@ def main():
     remote = "--host" in sys.argv
     if remote:
         pw = os.environ.get("MC_PASSWORD") or (sys.argv[sys.argv.index("--password") + 1] if "--password" in sys.argv else "")
+        pin, AUTH["secret"] = remote_auth()
         generated = not pw
-        AUTH["password"] = pw or secrets.token_urlsafe(6)
+        AUTH["password"] = pw or pin
     srv = ThreadingHTTPServer(("0.0.0.0" if remote else "127.0.0.1", PORT), Handler)
     url = f"http://localhost:{PORT}"
     print(f"Murder Channel viewer running at {url}  (Ctrl+C to stop)")
@@ -322,7 +354,7 @@ def main():
         print("Remote access is ON. On your phone open one of:")
         for ip in local_ips():
             print(f"    http://{ip}:{PORT}")
-        print(f"Password: {AUTH['password']}" + ("  (made up for this run; set your own with --password or MC_PASSWORD)" if generated else ""))
+        print(f"PIN: {AUTH['password']}  (the same every run; delete state/remote.json for a new one)" if generated else f"Password: {AUTH['password']}")
         print("Only use this on your own Wi-Fi or over a private network such as Tailscale; never forward the port on your router.")
     if "--no-browser" not in sys.argv:
         threading.Timer(0.8, lambda: webbrowser.open(url)).start()
