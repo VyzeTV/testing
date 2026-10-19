@@ -1,6 +1,6 @@
 # Next steps (after the real Day 3, 2026-10-19)
 
-Where the work stands, what the real-model days showed, and the agreed plan. Phases A and B are done; Phase C is next. Ask the user before starting each phase; commit each step with tests passing (`python tests/smoke.py`, `python tests/baseline.py` at or below about 91.7 calls a day, `python tests/balance.py`).
+Where the work stands, what the real-model days showed, and the agreed plan. Phases A and B are done, with one follow-up each still open (speaking of people consistently; shared activities without voicing); Phase C is next. Ask the user before starting each phase; commit each step with tests passing (`python tests/smoke.py`, `python tests/baseline.py` at or below about 91.7 calls a day, `python tests/balance.py`).
 
 ## Already done (commits 96ad566 and after)
 
@@ -36,6 +36,8 @@ The user confirmed on Day 3: movement is easier to follow, simultaneous conversa
 4. Looks only when new or notable (fresh clothes, blood, a missing accessory); a catchphrase at most once per scene.
 5. Check: a real-model evening; nobody answers their own line, no "morning" after noon.
 
+**Follow-up, open (added 2026-10-19 from the user's run): speaking of people consistently.** People spoke ill of someone they liked, sometimes in front of them, then complimented them or talked normally about them again. Likely causes: `social.move_options` lets someone gossip about whoever a rumour they heard is about, and warn about anyone on their suspect list (for example someone known to keep a weapon), with no check of their own feelings toward that person or whether that person is in the conversation; nothing keeps a later line in the same scene consistent with an earlier one. Plan: gossip, warnings, mocking and reveals about a third person need cool or hostile feelings toward them (or a strong reason: a lie caught, a weapon seen, real fear), and are not said in front of them unless it is a confrontation; once someone has spoken against a person in a scene, they do not turn warm about them in the same scene; the voice prompt says how each speaker feels about everyone a beat mentions, so the wording matches. Check: a mock week counting moves against a liked person (aff 3+) and remarks about someone present; a real evening.
+
 ### Phase B: Pacing
 **Phase B is done** (2026-10-19). Steps 1 and 2 (2026-10-19): every daytime block is free time with the meal inside, talk happens live (chats and one gathering a block), picks run to the end, shared games have moments. Dead five-minute stretches (`tests/pacing.py`, 8 seeds): meal blocks 4.0 (were about 11), free blocks 4.5 (were about 6). Mock calls 91.8 a day. Verdicts over 60 extra weeks unchanged (43/23 against 44/24).
 Steps 3 and 4 done: the quick clock for dead air (pause settings, 4x by default; 54% of daytime minutes have nobody walking or talking, so a Normal-pace daytime drops from about 28 to about 17 minutes) and block starts that do not stop the clock (title card over the running map, broadcasts inside the block; `tests/pace_check.js` measures the map standing still about 0.1 s at a block start, against the 08:00 rule roulette's 11 s, kept as a staged moment).
@@ -44,6 +46,8 @@ Steps 3 and 4 done: the quick clock for dead air (pause settings, 4x by default;
 3. Viewer: a quick clock through dead air (nobody moving, talking or acting: the clock runs several times faster until something happens), switchable in the pause settings.
 4. Block starts do not freeze: the title card overlays a running clock; TereVi's broadcasts get a minute inside the block.
 5. Check: dead five-minute stretches per meal block from 10-13 down to 4 or fewer; a Normal-pace day takes noticeably less real time.
+
+**Follow-up, open (added 2026-10-19 from the user's request): shared activities without voicing.** More things people do together that the engine resolves without a model call, each with small relationship and sanity changes: gaming (pool, chess and darts already have a winner and a moment, step 2), watching a film, watching the sunset, taking pictures together, cooking a meal for others, karaoke, and talking about a subject, a person or something that happened on the island (an outcome and a feed line, not voiced lines: who agreed, who argued, who left feeling closer or hurt). How it goes depends on feelings, mood and nature (a shy person dreads karaoke, a grieving one gets through a sunset, a rival can spoil a film night); good times restore sanity, a sour one costs it. They fill free time between voiced conversations, which stay the only ones that cost a call. Check: a mock week with these activities, their effects on affinity and sanity in `docs/BALANCE.md`, mock calls a day unchanged.
 
 ### Phase C: Intrusions and waking
 1. Night wake checks every few minutes (`night.py`), from the noise made at that minute, instead of once per block.
