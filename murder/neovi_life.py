@@ -1,8 +1,9 @@
 """NeoVi's own body and mind, while she is still the housemaid (kumiko.py makes her a person; this makes her mortal).
 
 She has health and sanity of her own (`nv["hp"]`, `nv["sanity"]`); both carry over if TereVi makes her a participant.
-- What wears her down: every death on the island (she cleans up after it; worse if she liked them), tasing someone she likes, being attacked, TereVi's
-  punishments. What lifts her: a kind word, a lover, a quiet night with nobody dead. Her health comes back a little each night.
+- What moves her most is how she is treated: cruel words, being attacked, and TereVi's torment at night (`nv_torment`, likelier after she was soft
+  on the cast or helped them). What lifts her: kind words, a welcome at a door, a lover, someone sitting with her. Deaths cost her little. Her
+  health comes back a little each night.
 - Her grudge against TereVi (`nv["tv_grudge"]`, 0-100) grows with every death and every punishment and makes helping the cast likelier.
 - She can be attacked: by someone with a grudge against her, by someone who snaps, by someone after her master key, or by a model decision aimed
   at "neovi". For the fight she is briefly a person on the board (`nv_embody`), so the ordinary blow-by-blow fight runs. She carries a taser.
@@ -69,9 +70,9 @@ class NeoViLifeMixin:
 
     # ------------------------------------------------------------------ drivers
     def nv_kind(self, cid, d):
-        """A kind (or cruel) word from someone lifts (or lowers) her a little."""
+        """How the cast treats her is what moves her most: a kind word lifts her, a cruel one hurts more."""
         if self.neovi_maid():
-            self.nv_stat(None, "sanity", d)
+            self.nv_stat(None, "sanity", 2 * d if d > 0 else 3 * d)
             if d < 0:
                 self.nv_blame(cid, 1)
 
@@ -128,7 +129,7 @@ class NeoViLifeMixin:
         for g in grave[seen:]:
             if g.get("status") in ("dead", "executed") and g["id"] != KUMIKO_ID:
                 liked = nv["aff"].get(g["id"], 0) >= 4
-                self.nv_stat(tick, "sanity", -(9 if liked else 4), f"cleaning up after {self.nm(g['id'])}")
+                self.nv_stat(tick, "sanity", -(3 if liked else 1), f"cleaning up after {self.nm(g['id'])}")
                 self.nv_grudge(6 if liked else 3)
         nv["mourned"] = len(grave)
         died = any(g.get("day") == self.day for g in grave)
@@ -138,8 +139,40 @@ class NeoViLifeMixin:
         carers = [c for c in sorted(w.agents) if self.nv_feel(c) >= 5]
         if carers and not died:
             self.nv_stat(tick, "sanity", 2 + min(2, len(carers) - 1), "someone cares")
+        self.nv_torment(tick)
         out = self.nv_low(tick)
         return out
+
+    def nv_torment(self, tick):
+        """TereVi's nightly cruelty toward her housemaid: likelier when she has been soft on the cast, helped them, or TereVi is bored. Returns the kind, or None."""
+        s = self.s
+        nv = self.nv_stats()
+        p = 0.2 + (0.25 if nv.get("slipped") == self.day else 0) + (0.2 if nv.get("helped", 0) > nv.get("_helped_seen", 0) else 0) \
+            + (0.15 if not self.death_today and self.day > 3 else 0)
+        nv["_helped_seen"] = nv.get("helped", 0)
+        if self.rng.random() >= p:
+            return None
+        kind, text, loss, public = self.rng.choice([
+            ("names", "TereVi spends an hour on the laundry speaker reading NeoVi's old life back to her, and laughing at the good parts.", 5, False),
+            ("chores", "TereVi has NeoVi scrub the Foyer floor on her knees until dawn, live, and keeps moving the bucket.", 4, True),
+            ("toy", "TereVi makes NeoVi taser herself on air, once for every rule broken today. The audience votes for an encore.", 8, True),
+            ("rabbit", "TereVi takes NeoVi's stuffed rabbit away for the night and hangs it in front of a camera where she can see it.", 6, False),
+            ("praise", "TereVi praises NeoVi to the cast, warmly and in detail, for things she never did to them. Some of them believe it.", 5, True),
+        ])
+        if kind == "praise":
+            for c in sorted(self.world.agents):
+                if self.nv_feel(c) < 5 and self.rng.random() < 0.4:
+                    self.nv_feel_add(c, -1)
+        self.nv_stat(tick, "sanity", -loss, "TereVi's torment")
+        self.nv_grudge(5)
+        nv.setdefault("tormented", []).append({"day": self.day, "kind": kind})
+        self.log_event(tick, {"type": "neovi", "who": "neovi", "room": "foyer" if public else self.nv_where(), "vis": "public" if public else "viewer", "text": text},
+                       witnesses=list(self.world.agents) if public else None)
+        if public:
+            for c in sorted(self.world.agents):
+                if self.nv_feel(c) >= 3:
+                    self.stat(tick, c, "sanity", -1, "watching TereVi torment NeoVi")
+        return kind
 
     # ------------------------------------------------------------------ low sanity
     def nv_low(self, tick):

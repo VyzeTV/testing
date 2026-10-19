@@ -1828,6 +1828,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                                   "text": f"NeoVi pretends not to see {self.nm(cid)} breaking the rule."}, actor=cid)
             w.remember(cid, f"{hhmm(hour)} (private) NeoVi looked the other way just when it mattered.")
             self.neovi_log.append(f"I looked away when {self.nm(cid)} broke the rule.")
+            s["npcs"]["neovi"]["slipped"] = self.day                         # TereVi notices, later (neovi_life.nv_torment)
             return
         strikes = rule["strikes"].get(cid, 0) + 1
         rule["strikes"][cid] = strikes

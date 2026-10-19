@@ -7000,8 +7000,20 @@ san0_, g0_ = nv_["sanity"], nv_["tv_grudge"]
 w.end_agent(liked_, "dead", "murdered")
 nv_["hp"] = 50
 r.nv_night(tk_)
-check("NeoVi has health and sanity of her own: a death she cleans up after costs her, her grudge against TereVi grows, and she heals at night",
-      nv_["sanity"] <= san0_ - 9 and nv_["tv_grudge"] > g0_ and nv_["hp"] > 50, f"{san0_}->{nv_['sanity']}")
+check("NeoVi has health and sanity of her own: a death she cleans up after costs her a little, her grudge against TereVi grows, and she heals at night",
+      nv_["sanity"] < san0_ and nv_["tv_grudge"] > g0_ and nv_["hp"] > 50, f"{san0_}->{nv_['sanity']}")
+w, r, _ = fresh(2002)
+w.state["revealed"] = True
+nv_ = r.nv_stats()
+c_ = sorted(w.agents)[0]
+s0_ = nv_["sanity"]
+r.nv_kind(c_, -1)
+s1_ = nv_["sanity"]
+r.nv_kind(c_, 1)
+check("how the cast treats her moves her more than a death does: a cruel word -3, a kind one +2", s1_ == s0_ - 3 and nv_["sanity"] == s1_ + 2)
+nv_["slipped"] = r.day
+torm_ = Counter(r.nv_torment(r.new_tick(25)) for _ in range(40))
+check("TereVi torments her at night, more after she has been soft on the cast", sum(v for k, v in torm_.items() if k) >= 10 and nv_["tv_grudge"] > 0, str(torm_))
 murdered_ = None
 for s_ in range(40):
     w, r, _ = fresh(2100 + s_)
