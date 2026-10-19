@@ -521,7 +521,9 @@ class SocialMixin:
         """One exchange: the next speaker makes a move on someone, they reply, and sometimes a third person sides with one of them. Returns the beats."""
         w = self.world
         members = [m for m in conv["members"] if m in w.agents and not w.agents[m].get("out")]
-        if conv.get("nv") and members and (len(members) < 2 or self.rng.random() < (0.6 if conv.get("nv_seek") else 0.15)):
+        p_nv = 0.6 if conv.get("nv_seek") else 0.5 if conv.get("nv_fed") and not conv.get("nv_spoke") else 0.15     # the one serving is thanked or asked first
+        if conv.get("nv") and members and (len(members) < 2 or self.rng.random() < p_nv):
+            conv["nv_spoke"] = True
             last = conv["beats"][-1]["who"] if conv.get("beats") else None
             a = next((m for m in members if m != last), members[0])
             return self.nv_exchange(tick, conv, a)                      # someone turns to NeoVi (neoviday.py)

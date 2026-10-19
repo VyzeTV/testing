@@ -507,7 +507,8 @@ class SimMixin:
         plan = [(float(c[0]), c[2]) for c in tick.get("nv_plan") or [] if c[2] in nav.rooms]
         if plan:
             # a block of chores: she walks from chore to chore at their minutes, and to anyone she punishes on the way
-            stops = sorted(plan[1:] + [(max(0.0, due[r] - 12.0), r) for r in due], key=lambda x: x[0])
+            cut = max(due.values()) - 12.0 if due else None              # a punishment comes last: the rule is enforced after the chores, and she stays there
+            stops = sorted([x for x in plan[1:] if cut is None or x[0] < cut] + [(max(0.0, due[r] - 12.0), r) for r in due], key=lambda x: x[0])
             last = plan[-1][1]
             for at, room in stops:
                 if room in due and abs(at - (due[room] - 12.0)) < 0.01:
