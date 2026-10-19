@@ -6,25 +6,25 @@ The mock backend scripts what characters say and decide, so these numbers show h
 
 | Metric | Default | Violent mock cast |
 | --- | --- | --- |
-| Model calls per day | 87.9 | 80.9 |
-| Deaths per week | 2.9 | 3.5 |
-| How the weeks ended | shutdown 1, still going 6, ultimatum 1 | shutdown 1, still going 7 |
-| Deaths by cause | murdered 6, executed after the trial 4, escaped the island 3, died in an accident 3, killed 2, wrongly executed 2, lost at sea 1, escaped on a raft 1, taken by TereVi's parting shot 1 | murdered 8, executed after the trial 7, killed 6, wrongly executed 3, escaped the island 3, was poisoned 1 |
-| Trials (all weeks) | 7 | 10 |
-| Verdicts right / wrong / none | 4 / 2 / 1 | 7 / 3 / 0 |
-| Average sanity of survivors at the end of the week | 60.4 | 60.3 |
-| Median sanity at the end of each week | 68 / 65.0 / 61.0 / 61.0 / 64.0 / 57 / 56.0 / 60 | 65 / 68.0 / 55.5 / 68 / 68 / 68 / 47 / 62 |
-| Aimless share of free-time activities | 0.3 | 0.28 |
-| Meal attendance (share of the living) | 0.65 | 0.66 |
-| Calm meals (share) | 0.62 | 0.62 |
-| Night blocks where everyone sleeps (share) | 0.38 | 0.39 |
-| People awake per night block | 1.3 | 1.3 |
-| Exhausted at dawn (share of the living) | 0.06 | 0.12 |
+| Model calls per day | 86.7 | 75.2 |
+| Deaths per week | 4.1 | 5.4 |
+| How the weeks ended | battle 1, still going 6, winners 1 | battle 3, still going 3, winners 2 |
+| Deaths by cause | murdered 9, executed after the trial 7, escaped on a raft 5, killed 4, died in the final battle 2, wrongly executed 2, escaped the island 2, died in an accident 2 | murdered 11, escaped the island 8, wrongly executed 7, died in the final battle 4, executed after the trial 4, escaped on a raft 4, killed 3, died in an accident 2 |
+| Trials (all weeks) | 9 | 12 |
+| Verdicts right / wrong / none | 7 / 2 / 0 | 4 / 7 / 1 |
+| Average sanity of survivors at the end of the week | 57.7 | 53.0 |
+| Median sanity at the end of each week | 68.0 / 75 / 47 / 64.0 / 34.5 / 58.0 / 58 / 68.0 | 19 / 52.5 / 61.0 / 40 / 65.0 / 70 / 67 / 55 |
+| Aimless share of free-time activities | 0.3 | 0.29 |
+| Meal attendance (share of the living) | 0.66 | 0.68 |
+| Calm meals (share) | 0.63 | 0.67 |
+| Night blocks where everyone sleeps (share) | 0.37 | 0.35 |
+| People awake per night block | 1.47 | 1.4 |
+| Exhausted at dawn (share of the living) | 0.09 | 0.12 |
 | Beliefs per survivor at the end | 80.0 | 80.0 |
-| False beliefs (share) | 0.001 | 0.002 |
-| Lies caught: real / honest people wrongly caught | 6 / 0 | 10 / 2 |
-| Secret meetings per week | 1.8 | 2.0 |
-| Snooping per week / snoopers caught (all weeks) | 2.8 / 4 | 1.6 / 3 |
-| Intrusions and waking (all weeks) | confronted 62, walked_in 44, thrown_out 32, welcome 15, woke 7, bedside_strike 6, scream 4, pretend 4, confront 4, fight 2 | confronted 41, walked_in 31, woke 11, welcome 9, scream 6, confront 4, bedside_strike 3, pretend 3, fight 2 |
-| Pastimes per week (films, sunsets, talks, journals...) | 70.5 | 62.4 |
-| How pastimes went (all weeks) | done 298, good 130, alone 87, tense 27, sour 11, flat 8, seen 2, caught 1 | done 246, good 128, alone 58, tense 49, flat 10, sour 7, seen 1 |
+| False beliefs (share) | 0.001 | 0.001 |
+| Lies caught: real / honest people wrongly caught | 8 / 0 | 3 / 0 |
+| Secret meetings per week | 3.1 | 0.6 |
+| Snooping per week / snoopers caught (all weeks) | 2.0 / 2 | 2.1 / 4 |
+| Intrusions and waking (all weeks) | walked_in 46, confronted 30, welcome 11, woke 11, pretend 6, scream 3, bedside_held_back 2, bedside_strike 2, confront 2 | confronted 53, walked_in 26, welcome 15, woke 14, confront 6, scream 5, pretend 5, fight 2, bedside_held_back 1, thrown_out 1 |
+| Pastimes per week (films, sunsets, talks, journals...) | 73.6 | 50.6 |
+| How pastimes went (all weeks) | done 302, good 137, alone 87, tense 37, sour 13, flat 9, seen 4 | done 200, good 111, alone 50, tense 29, flat 7, sour 5, seen 2, caught 1 |
