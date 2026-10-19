@@ -45,21 +45,18 @@ A Danganronpa-style killing-game simulation. **The engine decides what happens; 
 - `run()` loop: the day's turns at 8..20 in 2-hour steps (`run_tick`), special scenes when due (trial, vigil, last call, presentations, reveal, endgame, finales), then `run_bedtime`, the night blocks (`run_night_block`) and `run_dawn`.
 - `run_night()` is a one-tick compatibility version used by tests.
 - `emit(tick)` finalises every tick: env, mind, positions, hearing and the deadline hours.
-- `run_tick` runs on a minute cursor:
+- `run_tick` (phase F1) opens the block (`block_open`, `block_decide` at minute 0), then runs everything else on **one Timeline** (`bk["tl"]`, also `self._block_tl`), each phase at its minute:
 
   | Minute | What runs |
   |---|---|
-  | 0 | Decisions, then arrivals (`arrive_and_act`) |
-  | 15 | Passive systems |
-  | Meet minute | Attacks |
-  | 20 | Assaults |
-  | About 30 | Meal call |
-  | Free blocks | Free time (`freetime.py`, 15-minute slices) |
-  | 40 / 90 | Hazards |
-  | 60 | Dread and drains |
-  | 56 | Live conversations outside free time (free blocks talk live during the block) |
+  | 0 onwards | Arrivals (`arrival_step` → `arrive_and_act`), each at its own minute |
+  | 15 | Passive systems (`block_passive`), then attacks scheduled at the minute attacker and target meet (`block_strikes`; later ones as they come), then free time starts (`block_middle`; slices at 15, 30 ... 105, the meal at its minute) |
+  | 20 | Assaults, sabotage, impulses (`block_violence`) |
+  | 40 / 90 (free) | Hazards, discovery, the investigation, experiments, TereVi, the rule (`block_world`) |
+  | 60 | Dread and drains (`block_drains`) |
+  | 56 / 92 (free) | Conversations outside free time and staged ones (`block_talk`; free blocks talk live during the block) |
 
-  After the conversations: voice, then `meal_settle`, reactions and the booth.
+  When the timeline has run out: `block_talk_end` (free-time books closed, voicing, `sim_talk`, `meal_settle`), then `block_close` (reactions, the booth, the inner voice, the director, goals, the proposer). Night blocks still use `free_time` with a timeline of its own.
 - **Free time** (`freetime.free_pick`) scores activities from needs and facets.
   - At night only `NIGHT_ACTS` are allowed, plus a `sleep` act.
   - `add(..., far=True)` lets a real need search beyond the normal reach.

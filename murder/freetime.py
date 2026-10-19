@@ -245,9 +245,10 @@ class FreeTimeMixin:
             return
         busy[cid] = self.free_pick(tick, cid, hour, m)
 
-    def free_time(self, tick, hour, decisions, meal=None):
+    def free_time(self, tick, hour, decisions, meal=None, tl=None):
         """Play the block out in slices. Called from run_tick after the main decisions have been applied and resolved. `meal` (draw, minute): a meal or summons
-        called at its own minute inside the block."""
+        called at its own minute inside the block. With `tl` (the block's own timeline) the slices are scheduled on it and run with everything else in the block;
+        `free_time_end` closes the books afterwards. Without it the free time runs here, on a timeline of its own (the night uses this)."""
         w, s = self.world, self.s
         tick["segment"] = "free"
         tick["free"] = {}
@@ -279,16 +280,21 @@ class FreeTimeMixin:
             busy[cid] = dur
             self._seg(tick, cid, 0, dur, a["room"], act, label, "main")
         self._gathers = 0
-        tl = self._tl = Timeline(self)
+        own = tl is None
+        tl = self._tl = tl or Timeline(self)
         if tick.get("phase") != "night":
             self.nv_schedule(tick, hour, tl)                            # NeoVi's chores (neoviday.py)
         if meal:
             tl.at(meal[1], self._meal_in_block, tick, hour, meal[0], busy, prio=2)
         tl.every(SLICE, lambda m: self.free_slice(tick, hour, int(m), busy), until=TICK_MIN - SLICE)
-        tl.run()
+        if own:
+            tl.run()
+            self.free_time_end(tick)
+
+    def free_time_end(self, tick):
+        """Close the books: everybody's last segment runs to the end of the block."""
         self._tl = None
         self._free_busy = None
-        # close the books: everybody's last segment runs to the end of the block
         for cid, segs in tick["free"].items():
             if segs:
                 segs[-1]["m1"] = TICK_MIN

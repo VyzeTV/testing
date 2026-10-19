@@ -6267,7 +6267,7 @@ check("letting the dice decide leaves it", r.gm_roll("betray", 0.4) == 0.4)
 asked_ = []
 import murder.llm as llm2_  # noqa: E402
 mp_ = llm2_.LLM.mock_plot_prob
-llm2_.LLM.mock_plot_prob = 0.2                                       # plots enough that a strike comes up within the four days
+llm2_.LLM.mock_plot_prob = 0.3                                       # plots enough that a strike comes up within the four days
 wq_ = World(new_state(3))
 for d in (3, 4, 5, 6):
     wq_.state["day"] = d

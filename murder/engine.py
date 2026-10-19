@@ -799,9 +799,22 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         """One block of the day, as a sequence of phases at their minutes (block_open at 0 ... block_close at the end). `bk` carries what the phases share."""
         tick = self.new_tick(hour)
         bk = {"tick": tick, "hour": hour, "kind": kind, "free": False}
-        for phase in (self.block_open, self.block_decide, self.block_arrivals, self.block_passive, self.block_violence, self.block_middle,
-                      self.block_world, self.block_drains, self.block_talk, self.block_close):
-            phase(bk)
+        self.block_open(bk)
+        self.block_decide(bk)
+        free = bk["free"]
+        tl = bk["tl"] = self._block_tl = Timeline(self)                 # one timeline for the whole block: every system runs at its own minute
+        self.block_arrivals(bk)
+        tl.at(15, self.block_passive, bk, prio=4)
+        tl.at(15, self.block_strikes, bk, prio=6)
+        tl.at(20, self.block_violence, bk, prio=4)
+        tl.at(15, self.block_middle, bk, prio=7)                        # free time from the first quarter hour (its slices at 15, 30, ... 105)
+        tl.at(90 if free else 40, self.block_world, bk, prio=4)
+        tl.at(60, self.block_drains, bk, prio=4)
+        tl.at(92 if free else 56, self.block_talk, bk, prio=8)
+        tl.run()
+        self._block_tl = None
+        self.block_talk_end(bk)
+        self.block_close(bk)
         return tick
 
     def block_open(self, bk):
@@ -912,20 +925,32 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         arrivals = []
         for cid in self.apply_order(rest):
             self.apply_decision(tick, cid, decisions[cid], intents, attacks, defer=arrivals)
-        self._m = 0.0
         self._arrived = {cid: m for m, cid, _, _ in arrivals}
-        tl = Timeline(self)
+        tl = bk["tl"]
         for m, cid, d, start in arrivals:
-            tl.at(m, self.arrive_and_act, tick, cid, d, intents, attacks, start)
-        tl.run()
-        self.sim_sync(tick, self._m)
+            tl.at(m, self.arrival_step, bk, cid, d, start)
+
+    def arrival_step(self, bk, cid, d, start):
+        """Someone arrives and does what they came for; an attack that comes of it is scheduled at the minute the two meet (once the passive systems have run at 15)."""
+        n = len(bk["attacks"])
+        self.arrive_and_act(bk["tick"], cid, d, bk["intents"], bk["attacks"], start)
+        self.sim_sync(bk["tick"], self._m)
+        if bk.get("strikes_on"):
+            for cid_, d_ in bk["attacks"][n:]:
+                bk["tl"].at(max(self._m, self.meet_minute(cid_, d_.get("target"))), self.strike, bk["tick"], cid_, d_, bk["hour"])
+
+    def block_strikes(self, bk):
+        """Minute 15: the attacks decided so far are scheduled at the minute attacker and target meet; later ones as they come."""
+        bk["strikes_on"] = True
+        for cid, d in bk["attacks"]:
+            bk["tl"].at(max(self._m, self.meet_minute(cid, d.get("target"))), self.strike, bk["tick"], cid, d, bk["hour"])
 
     def block_passive(self, bk):
         """Minute 15: the passive systems."""
         w, s = self.world, self.s
         tick, hour, kind, free = bk["tick"], bk["hour"], bk["kind"], bk["free"]
         decisions = bk["decisions"]
-        self.clock_to(15)
+        self.sim_sync(tick, self._m)
         self.stale_notices(decisions)
         if hour >= 20:
             self.auto_sleep(hour)
@@ -950,12 +975,6 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         w, s = self.world, self.s
         tick, hour, kind, free = bk["tick"], bk["hour"], bk["kind"], bk["free"]
         decisions, intents, attacks = bk["decisions"], bk["intents"], bk["attacks"]
-        if attacks:
-            tl = Timeline(self)
-            for cid, d in attacks:
-                tl.at(self.meet_minute(cid, d.get("target")), self.strike, tick, cid, d, hour)
-            tl.run()
-        self.clock_to(20)
         assaults, sabs, self.assaults, self.sabotages = self.assaults, self.sabotages, [], []
         self.resolve_assaults(tick, assaults, hour)
         self.resolve_sabotages(tick, sabs, hour)
@@ -971,13 +990,10 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         if meal_draw and (s.get("over") or (self.occasion_now and self.occasion_now.get("where") == meal_draw["room"])):
             meal_draw = None
         if meal_draw and not free:
-            self.clock_to(max(self._m, meal_m))
-            self.meal_call(tick, hour, meal_draw, self._m)
+            bk["tl"].at(max(self._m, meal_m), lambda: self.meal_call(tick, hour, meal_draw, self._m), prio=2)
         if free and not s.get("over"):
-            self.free_time(tick, hour, decisions, (meal_draw, max(self._m, meal_m)) if meal_draw else None)
-            self.clock_to(90)
-        else:
-            self.clock_to(40)
+            bk["free_on"] = True
+            self.free_time(tick, hour, decisions, (meal_draw, max(self._m, meal_m)) if meal_draw else None, tl=bk["tl"])
 
     def block_world(self, bk):
         """Minute 40 (90 in free time): hazards, discovery, the investigation, experiments, occasions, TereVi, the rule."""
@@ -1005,7 +1021,6 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         """Minute 60: dread, drains and friction."""
         w, s = self.world, self.s
         tick, hour, kind, free = bk["tick"], bk["hour"], bk["kind"], bk["free"]
-        self.clock_to(60)
         self.tick_dread(tick, hour)
         self.baseline_drain(tick, hour)
         self.pressure_drain(tick, hour)
@@ -1050,7 +1065,6 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             if self.rng.random() < p:
                 groups[room] = occ
         self._talk_meta = {}
-        self.clock_to(92 if free else 56)
         self.sim_sync(tick, self._m)
         if free:
             groups, modes = self.free_chat_groups(tick, groups, modes, intents)
@@ -1058,7 +1072,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         staged = {g: occ for g, occ in groups.items() if self.staged_talk(g, occ, modes)}
         live = [(g, occ) for g, occ in groups.items() if g not in staged]
         if live:
-            tl = Timeline(self)
+            tl = bk["tl"]
             m_talk = self._m
             for gi, (g, occ) in enumerate(live):
                 humans = [o for o in occ if o in w.agents]
@@ -1066,9 +1080,14 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                 order = want + [h for h in humans if h not in want]
                 self.start_convo(tick, order, g.split("#")[0], m_talk + 2 * gi, tl, why=intents.get(order[0], "") if order else "", kind="gather",
                                  dur=max(10.0, (120 if free else 60) - (m_talk - (92 if free else 56))))
-            tl.run()
         if staged:
             self.run_conversations(tick, staged, intents, hour, modes=modes)
+
+    def block_talk_end(self, bk):
+        """Once the block's timeline has run out: the free-time books are closed, conversations are voiced, and their walks laid."""
+        tick, hour = bk["tick"], bk["hour"]
+        if bk.get("free_on"):
+            self.free_time_end(tick)
         self.voice_convos(tick, hour)
         self.sim_talk(tick)
         self.meal_settle(tick, hour)
