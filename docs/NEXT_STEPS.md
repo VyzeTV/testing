@@ -38,6 +38,7 @@ The user confirmed on Day 3: movement is easier to follow, simultaneous conversa
 
 ### Phase B: Pacing
 Steps 1 and 2 done (2026-10-19): every daytime block is free time with the meal inside, talk happens live (chats and one gathering a block), picks run to the end, shared games have moments. Dead five-minute stretches (`tests/pacing.py`, 8 seeds): meal blocks 4.0 (were about 11), free blocks 4.5 (were about 6). Mock calls 91.8 a day. Verdicts over 60 extra weeks unchanged (43/23 against 44/24).
+Steps 3 and 4 done: the quick clock for dead air (pause settings, 4x by default; 54% of daytime minutes have nobody walking or talking, so a Normal-pace daytime drops from about 28 to about 17 minutes) and block starts that do not stop the clock (title card over the running map, broadcasts inside the block; `tests/pace_check.js` measures the map standing still about 0.1 s at a block start, against the 08:00 rule roulette's 11 s, kept as a staged moment).
 1. Free time in every daytime block: 08:00, 12:00 and 18:00 become free-time blocks with the meal inside (no extra model calls).
 2. No dead block endings: free-time picks run to the end of the block; the gathering joins the conversations instead of replacing them.
 3. Viewer: a quick clock through dead air (nobody moving, talking or acting: the clock runs several times faster until something happens), switchable in the pause settings.

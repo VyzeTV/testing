@@ -680,6 +680,21 @@ async function showBroadcast(b, tok) {
   await Promise.all([waitClock(Math.max(2500, b.text.length * 42)), speak("terevi", b.text)]);
   if (tok === S.token) $("#banner").style.display = "none";
 }
+// A broadcast inside a running block: the banner shows and TereVi speaks while the clock creeps on. Returns how long it needs to be read.
+function bannerOn(b, tok) {
+  $("#bannerImg").src = "portraits/terevi.png";
+  $("#bannerWho").textContent = b.kind === "tease" ? "TereVi · on the monitor" : "TereVi · " + b.kind + " broadcast";
+  $("#bannerTxt").textContent = b.text;
+  $("#banner").classList.toggle("red", RED_KINDS.includes(b.kind));
+  $("#banner").classList.toggle("tease", b.kind === "tease");
+  $("#banner").style.display = "flex";
+  feedBroadcast(b);
+  speak("terevi", b.text);
+  const ms = Math.max(2500, b.text.length * 42);
+  clearTimeout(S.bannerT);
+  S.bannerT = setTimeout(() => { if (tok === S.token) $("#banner").style.display = "none"; }, ms);
+  return ms;
+}
 async function typeInto(el, text, tok, step, delay) {
   let i = 0;
   while (i < text.length) {
@@ -1000,6 +1015,38 @@ async function animateTo(m, minMs, per, tok) {
   await waitClock(span);
   if (tok === S.token) { S.tileAnim = null; TileMap.setMinute(Math.max(from, m)); }
 }
+// Dead air plays faster: minutes in which nobody walks run at the quick-clock speed (pause settings) until something happens.
+function activeMinutes(L) {
+  const n = Math.ceil(L.dur) + 1, act = new Uint8Array(n);
+  for (const tr of Object.values(L.tracks || {})) {
+    for (let i = 1; i < tr.length; i++) {
+      const a = tr[i - 1], b = tr[i];
+      if (a[1] === b[1] && a[2] === b[2] && a[3] === b[3]) continue;
+      for (let k = Math.floor(a[0]); k <= Math.min(n - 1, Math.ceil(b[0])); k++) act[k] = 1;
+    }
+  }
+  const span = {};
+  for (const x of L.talk || []) { const sp = span[x.g] || (span[x.g] = [x.m, x.m]); sp[0] = Math.min(sp[0], x.m); sp[1] = Math.max(sp[1], x.m); }
+  for (const [a, b] of Object.values(span)) for (let k = Math.floor(a); k <= Math.min(n - 1, Math.ceil(b)); k++) act[k] = 1;      // a conversation between its exchanges is still talk
+  return act;
+}
+async function animateSpan(m, minMs, per, tok, act) {
+  const q = window.TileMap ? TileMap.quickClock() : 1;
+  let from = TileMap.minute();
+  if (!act || q <= 1 || m - from < 1) return animateTo(m, minMs, per, tok);
+  while (from < m - 1e-6) {
+    const k = Math.floor(from), busy = !!act[k];
+    let to = Math.min(m, k + 1);
+    while (to < m - 1e-6 && !!act[Math.floor(to)] === busy) to = Math.min(m, Math.floor(to) + 1);
+    const last = to >= m - 1e-6;
+    S.airFast = !busy;
+    await animateTo(to, last ? minMs : 0, busy ? per : per / q, tok);
+    if (tok !== S.token) return;
+    from = TileMap.minute();
+    if (!last && from < to - 1e-6) from = to;
+  }
+  S.airFast = false;
+}
 function showCry(l) {
   // "Objection!": a contradiction was caught. The speaker's cry is stamped over the map for a moment.
   const el = $("#crycard");
@@ -1028,7 +1075,7 @@ function practiceActs(t) {
   return out;
 }
 async function playWindow(t, tok, late) {
-  const L = t.live, dur = L.dur, per = Math.max(40, S.pace * 1000 / 60);
+  const L = t.live, dur = L.dur, per = Math.max(40, S.pace * 1000 / 60), act = activeMinutes(L);
   S.freeActs = L.acts && Object.keys(L.acts).length ? L.acts : practiceActs(t);
   TileMap.setTick(t, 0);
   const byText = {};
@@ -1039,6 +1086,7 @@ async function playWindow(t, tok, late) {
   (L.talk || []).forEach((x, i) => { const g = t.talk[x.g]; if (!g) return; const li = lineIdx[x.g] = (lineIdx[x.g] || 0); lineIdx[x.g]++; if (g.lines[li]) items.push({ m: x.m, o: 1000 + i, k: "line", g, l: g.lines[li], gi: x.g, first: li === 0 }); });
   t.talk.forEach((g, gi) => { if (!(gi in lineIdx)) { let m = Math.min(dur - 2, dur * 0.5 + gi); g.lines.forEach((l, li) => items.push({ m: m + li * 2, o: 2000 + gi * 100 + li, k: "line", g, l, gi, first: li === 0 })); } });
   for (const f of t.fx || []) items.push({ m: f.m != null ? f.m : 0, o: 3000, k: "fx", f });
+  if (t._bcLive) bcList(t).forEach((b, i) => items.push({ m: 0.5 + i * 1.5, o: -10 + i, k: "bc", b }));
   if (t.scene_body) { const be = t.events.find((e) => e.type === "body"); items.push({ m: be && be.m != null ? be.m + 0.05 : 1, o: 4000, k: "body" }); }
   (t.confessionals || []).forEach((c, i) => { if (c.m != null) items.push({ m: c.m, o: 5000 + i, k: "conf", c }); });
   (t.inner || []).forEach((c, i) => items.push({ m: c.m, o: 6000 + i, k: "think", c }));
@@ -1050,9 +1098,11 @@ async function playWindow(t, tok, late) {
   const chatGroups = new Set((L.groups || []).filter((g) => g.chat).map((g) => g.g));
   for (const it of items) {
     const m = Math.min(it.m, dur - 0.05);
-    await animateTo(m, it.k === "line" ? readUntil - S.clock : 0, per, tok);
+    await animateSpan(m, it.k === "line" || it.k === "bc" ? readUntil - S.clock : 0, per, tok, act);
     if (tok !== S.token) return;
-    if (it.k === "ev") {
+    if (it.k === "bc") {
+      readUntil = S.clock + bannerOn(it.b, tok);
+    } else if (it.k === "ev") {
       feedEvent(it.e); eventSfx(it.e);
       if (it.e.type === "punish") S.flashes.push({ id: it.e.who, until: S.clock + 2200 });
       if (m > lastDlg) { await TileMap.dialogFor(t, { from: lastDlg < 0 ? 0 : lastDlg, to: m + 0.001 }); lastDlg = m + 0.001; if (tok !== S.token) return; }
@@ -1073,7 +1123,7 @@ async function playWindow(t, tok, late) {
       showThought(it.c);
     }
   }
-  await animateTo(dur, Math.max(0, readUntil - S.clock), per, tok);
+  await animateSpan(dur, Math.max(0, readUntil - S.clock), per, tok, act);
   if (tok !== S.token) return;
   S.talkRoom = null; S.bubbles = [];
 }
@@ -1100,8 +1150,8 @@ async function showSegment(t, tok) {
   const el = $("#segcard");
   el.innerHTML = `<div class="st">${esc(m.title)}</div><div class="ss">Day ${t.day} \u00b7 ${hh}${m.sub ? " \u00b7 " + esc(m.sub) : ""}</div>`;
   el.className = m.free ? "free" : "turn"; el.style.display = "block";
-  await waitClock(m.free ? 1900 : 1500);
-  if (tok === S.token) el.style.display = "none";
+  clearTimeout(S.segT);
+  S.segT = setTimeout(() => { if (tok === S.token) el.style.display = "none"; }, m.free ? 2600 : 2000);     // the clock keeps running under the card
 }
 async function playTick(i, tok) {
   const t = S.ticks[i];
@@ -1110,7 +1160,9 @@ async function playTick(i, tok) {
   S.weather = t.island ? t.island.id : null; S.weatherRoom = t.island ? t.island.room : null; setDrone();
   feedTime(t); updateUI(); $("#tally").style.display = "none";
   await showSegment(t, tok); if (tok !== S.token) return;
-  for (const b of bcList(t)) { await showBroadcast(b, tok); if (tok !== S.token) return; }
+  const tilesLive = S.mapMode === "tiles" && window.TileMap && TileMap.ready() && t.live && !t.live_error;
+  t._bcLive = tilesLive && !t.trial;                                   // in the live player a broadcast plays at its minute, inside the block
+  if (!t._bcLive) for (const b of bcList(t)) { await showBroadcast(b, tok); if (tok !== S.token) return; }
   if (t.rule_announce) { await playRule(t.rule_announce, tok); if (tok !== S.token) return; }
   // Result lines would spoil the verdict, so they are held back until the scene has played.
   const late = (t.trial || t.execution) ? t.events.filter((e) => e.type === "system_notable") : [];
