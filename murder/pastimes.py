@@ -115,13 +115,13 @@ class PastimeMixin:
             return "split", x, self.nm(x)
         return "subject", None, self.rng.choice(SUBJECTS)
 
-    def start_talk(self, tick, cid, partner, m, dur):
-        """Two people fall to talking (not voiced): the outcome is decided when the talk ends."""
+    def start_talk(self, tick, cid, partner, m, dur, topic=None):
+        """Two people fall to talking (not voiced): the outcome is decided when the talk ends. `topic` (kind, about, text) sets the subject."""
         w = self.world
         if partner not in w.agents or not self._available(tick, partner, m, self._free_busy or {}):
             return False
         room = w.agents[cid]["room"]
-        kind, about, text = self.talk_topic(cid, partner)
+        kind, about, text = topic or self.talk_topic(cid, partner)
         label = f"talking about {text}" if kind != "gripe" else f"grumbling about {text}"
         for c in (cid, partner):
             self._seg(tick, c, m, m + dur, room, "talk", label, "free")

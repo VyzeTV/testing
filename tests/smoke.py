@@ -6771,6 +6771,40 @@ r.habit_after(tk2_, hc_, h1_[0], "lounge", 30, 60)
 check("and once done it does not pull again that day", not any(y_ == h1_[2] for _a, _s, y_ in opts_(hc_, hh_, 75)))
 check("a morning wash and a wash before bed are part of the day", any("morning wash" in y_ for _a, _s, y_ in opts_(hb_, 8, 20)) and any("before bed" in y_ for _a, _s, y_ in opts_(hb_, 20, 60)))
 
+# ---- investigation focus
+w, r, _ = fresh(1701)
+w.state["revealed"] = True
+ids_ = sorted(w.agents)
+vk_, kk_, ik_, jk_ = ids_[0], ids_[1], ids_[2], ids_[3]
+for c in ids_:
+    w.agents[c]["room"] = "lounge"
+w.agents[kk_]["room"] = w.agents[vk_]["room"] = "library"
+tk_ = r.new_tick(14)
+tk_["free"] = {}
+r.open_case(tk_, "murder", vk_, culprit=kk_, wkind="sharp", weapon=None, room="library", hour=14, witnesses=[])
+w.state["case"]["announced"] = True
+r._free_busy = {}
+got_ = []
+r.inquiry_options(tk_, ik_, 14, 30, lambda sc, act, **k: got_.append((act, k.get("room"), k.get("partner"))), lambda k: 50, r._reach(ik_))
+check("while a death is investigated, free time offers examining the scene, searching a room tied to it and questioning someone",
+      ("examine", "library", None) in got_ and any(a_ == "inquire" for a_, _r, _p in got_) and any(a_ == "question" and p_ for a_, _r, p_ in got_), str(got_))
+sc_ = [(1.0, "chess", "games_room", None, "", None), (1.0, "eat", "kitchen", None, "", None), (1.0, "examine", "library", None, "", None)]
+foc_ = {x[1]: x[0] for x in r.inquiry_focus(ik_, sc_)}
+check("leisure is cut back, needs and the case are not", foc_["chess"] < 0.5 and foc_["eat"] == 1.0 and foc_["examine"] == 1.0, str(foc_))
+w.agents[jk_]["sanity"] = 20
+check("the very unstable still drift off", {x[1]: x[0] for x in r.inquiry_focus(jk_, sc_)}["chess"] == 1.0)
+w.agents[ik_]["room"] = "library"
+r.inquiry_effect(tk_, ik_, "examine", 40)
+check("examining the scene turns up what is there to see and is seen by others", "library" in w.agents[ik_]["inquiry"]["rooms"]
+      and any(e.get("type") == "search" and "examines the scene" in e["text"] for e in tk_["events"]))
+w.agents[ik_]["room"] = w.agents[kk_]["room"] = "games_room"
+r.rng.random = lambda: 0.0
+r.inquiry_after(tk_, kk_, "chess", "games_room", 50)
+del r.rng.random
+check("a killer relaxing over a game while the others hunt for clues strikes them as odd", any("as if nothing had happened" in x for x in str(w.agents[ik_]["memory"]).split("'")))
+w.state["case"]["resolved"] = True
+check("once the case is closed, free time goes back to normal", r.inquiry_focus(ik_, sc_) == sc_)
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

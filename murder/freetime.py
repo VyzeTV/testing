@@ -85,6 +85,9 @@ ACTS = {
     "rescue":   ("dragging someone out of danger", 15, [], [], "goes in after someone"),
     "fight":    ("fighting the fire", 15, [], [], "tackles the fire"),
     "warn":     ("warning the others", 15, [], [], "shouts a warning"),
+    "examine":  ("examining the scene", 30, [], [], "examines the scene"),
+    "inquire":  ("looking for clues", 30, [], [], "searches for clues"),
+    "question": ("asking where everyone was", 20, [], [], "asks questions"),
 }
 ACTS.update(PASTIME_ACTS)
 ACTS["seek_nv"] = ("looking for NeoVi", 15, [], [], "goes to find NeoVi")
@@ -592,6 +595,7 @@ class FreeTimeMixin:
                 add(0.6 + fond / 6 + (100 - mi["social"]) / 70 + (gr - 50) / 120, "gather", room=cv["room"], why=f"joining {', '.join(self.nm(o) for o in cv['members'][:2])}")
                 a["join_conv"] = cv["id"]
         self.chat_options(tick, cid, hour, m, reach, add)
+        self.inquiry_options(tick, cid, hour, m, add, f, reach)        # a death under investigation (inquiry.py)
         if m >= FINALE or (100 - mi["social"]) > 55:
             company = {}
             for rid in list(reach) + [here]:
@@ -618,6 +622,7 @@ class FreeTimeMixin:
         if m >= FINALE and not night:
             # the last half hour leans towards company, but somebody with something in hand (work, a lead, a need) carries on with it
             sc = [(x[0] + (0.15 if x[1] == "gather" else 0.0),) + x[1:] for x in sc]
+        sc = self.inquiry_focus(cid, sc)
         if not sc:
             return self._start(tick, cid, "look", here, None, m)
         best = max(sc, key=lambda x: x[0])
@@ -903,6 +908,15 @@ class FreeTimeMixin:
             if self.start_talk(tick, cid, partner, m, dur):
                 return m + dur
             act, label, dur, verb, at = "look", "looking around", 15, "looks around", None
+        if act == "question":
+            case = self.inquiry_case()
+            if case and partner in w.agents and w.agents[partner]["room"] == a["room"] and self.start_talk(
+                    tick, cid, partner, m, dur, topic=("death", case["victim"], f"where everyone was when {self.nm(case['victim'])} died")):
+                a.setdefault("inquiry", {}).setdefault("asked", []).append(partner)
+                st_ = self.s.setdefault("inquiry_stats", {})
+                st_["question"] = st_.get("question", 0) + 1
+                return m + dur
+            act, label, dur, verb, at = "look", "looking around", 15, "looks around", None
         if act == "explore":
             label = "exploring the " + w.room_name(room)
         if act in CATLIKE and self.has_trait(cid, "catlike"):
@@ -919,6 +933,7 @@ class FreeTimeMixin:
             self._effect(tick, cid, act, m, at)
         self.plan_done_by_act(cid, act, a["room"])
         self.habit_after(tick, cid, act, a["room"], m, end)
+        self.inquiry_after(tick, cid, act, a["room"], m)
         if act in GAME_MOMENTS and getattr(self, "_tl", None) is not None and end - m >= 20:
             if self.rng.random() < 0.5:
                 self._tl.at(m + (end - m) / 2, self._game_moment, tick, cid, act, a["room"], "mid", prio=7)
@@ -1023,6 +1038,8 @@ class FreeTimeMixin:
                 a["hunger"] = max(0, a.get("hunger", 0) - 25)
                 note(f"{name} {verb}.")
             a["thirst"] = max(0, a.get("thirst", 0) - 15)
+        elif act in ("examine", "inquire"):
+            self.inquiry_effect(tick, cid, act, m)
         elif act == "confess":
             self.booth_visit(tick, cid, m)
         elif act == "snoop":
