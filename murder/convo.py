@@ -30,17 +30,20 @@ class ConvoMixin:
         return next((c for c in self.convos() if c["state"] == "talking" and cid in c["members"]), None)
 
     # ------------------------------------------------------------------ starting
-    def start_convo(self, tick, members, room, m0, tl, why="", matters=(), at=None, kind="chat", dur=30):
-        """Begin a conversation at minute m0 on timeline `tl`. Returns it, or None if fewer than two people can take part."""
+    def start_convo(self, tick, members, room, m0, tl, why="", matters=(), at=None, kind="chat", dur=30, nv=False):
+        """Begin a conversation at minute m0 on timeline `tl`. Returns it, or None if fewer than two people can take part. `nv`: a word with NeoVi (one person is enough);
+        NeoVi takes part in any conversation in the room she is working in (conv["nv"], neoviday.py)."""
         w = self.world
         members = [m for m in dict.fromkeys(members) if m in w.agents and not w.agents[m].get("out") and not w.agents[m].get("asleep") and not self.in_convo(m)]
-        if len(members) < 2 or room not in ROOMS:
+        nv = nv and self.nv_here(room)
+        if len(members) < (1 if nv else 2) or room not in ROOMS:
             return None
         self._convo_n = self.__dict__.get("_convo_n", 0) + 1
         sm = self.sim_turn(tick)
         conv = {"id": f"{room}#{self._convo_n}", "room": room, "members": members, "initiator": members[0], "why": why, "matters": sorted(set(matters or [])),
                 "at": list(at) if at else None, "m0": float(m0), "end": min(sm.dur - 1.0, float(m0) + dur), "state": "talking", "beats": [], "joined": [], "left": [],
-                "kind": kind, "hour": tick["hour"], "used": {}, "last_m": float(m0), "wary": False, "seen_by": set(), "exchanges": 0}
+                "kind": kind, "hour": tick["hour"], "used": {}, "last_m": float(m0), "wary": False, "seen_by": set(), "exchanges": 0,
+                "nv": bool(nv or self.nv_here(room)), "nv_seek": bool(nv), "nv_fed": self.s["npcs"]["neovi"].get("doing") in ("serving breakfast", "serving lunch", "serving dinner")}
         self.convos().append(conv)
         if kind == "gather":
             self.convo_gather(tick, conv, m0)
@@ -94,7 +97,9 @@ class ConvoMixin:
             if gone:
                 conv["members"].remove(cid)
                 conv["left"].append([round(m, 1), cid])
-        if len(conv["members"]) < 2:
+        if conv.get("nv") and not self.nv_here(conv["room"]):
+            conv["nv"] = False                                     # NeoVi has moved on to her next chore
+        if len(conv["members"]) < (1 if conv.get("nv") and conv.get("nv_seek") else 2):
             return self.convo_end(tick, conv, "parted", m)
         # something happening in the room cuts it short
         rooms = {nav.room_at(*sm.pos_at(c, m)) for c in conv["members"]}

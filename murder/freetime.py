@@ -87,6 +87,7 @@ ACTS = {
     "warn":     ("warning the others", 15, [], [], "shouts a warning"),
 }
 ACTS.update(PASTIME_ACTS)
+ACTS["seek_nv"] = ("looking for NeoVi", 15, [], [], "goes to find NeoVi")
 CAP = {"sofa": 2, "bench": 2, "table": 4, "poolTable": 2, "chessTable": 2, "firepit": 3, "fireplace": 3, "bed": 1}
 SEATS = ["sofa", "armchair", "bench", "deckChair", "firepit", "fireplace", "table", "chair", "hammock"]       # where a conversation likes to happen
 IDLE_ACTS = {"look", "explore", "stroll", "gather", "stay", "sit", "walk", "jukebox", "mirror"}               # an activity somebody can be talked out of
@@ -263,6 +264,8 @@ class FreeTimeMixin:
                 label, dur = "asleep", TICK_MIN
             else:
                 label = _tag(act, d) or act
+                if "neovi" in (d.get("talk_to") or []) and self.neovi_maid():
+                    a["want_nv"] = {"day": self.day, "why": str(d.get("intent") or "")[:80]}
                 if d.get("talk_to"):
                     dur = max(dur, 30)
                     want = [x for x in d["talk_to"] if x in w.agents and x != cid][:2]
@@ -274,6 +277,8 @@ class FreeTimeMixin:
             self._seg(tick, cid, 0, dur, a["room"], act, label, "main")
         self._gathers = 0
         tl = self._tl = Timeline(self)
+        if tick.get("phase") != "night":
+            self.nv_schedule(tick, hour, tl)                            # NeoVi's chores (neoviday.py)
         if meal:
             tl.at(meal[1], self._meal_in_block, tick, hour, meal[0], busy, prio=2)
         tl.every(SLICE, lambda m: self.free_slice(tick, hour, int(m), busy), until=TICK_MIN - SLICE)
@@ -298,12 +303,13 @@ class FreeTimeMixin:
         for cid in came:
             busy[cid] = max(busy.get(cid, 0), meal_["end_m"])
             self._seg(tick, cid, int(m), int(meal_["end_m"]), meal_["room"], label, meal_["label"].lower(), "main")
-        if len(came) >= 2 and self._tl is not None:
+        alone_nv = len(came) == 1 and self.nv_here(meal_["room"])            # a lone diner talks with NeoVi as she serves
+        if (len(came) >= 2 or alone_nv) and self._tl is not None:
             self._gathers = self.__dict__.get("_gathers", 0) + 1
             dur = max(10.0, min(45.0, meal_["end_m"] - m - 3))
             tick["free_chats"].append({"gid": f"{meal_['room']}#table", "room": meal_["room"], "m": m + 3, "dur": dur, "members": list(came), "at": None,
                                        "why": f"talk at the table over {meal_['label'].lower()}", "matters": [], "table": True})
-            self.start_convo(tick, came, meal_["room"], m + 3, self._tl, why=f"talk at the table over {meal_['label'].lower()}", kind="gather", dur=dur)
+            self.start_convo(tick, came, meal_["room"], m + 3, self._tl, why=f"talk at the table over {meal_['label'].lower()}", kind="gather", dur=dur, nv=alone_nv)
 
     def free_chat_groups(self, tick, groups, modes, intents):
         """The conversation phase of a free-time block: one conversation for every chat that started during the block (each at its own minute and place), and the gathering for whoever
@@ -531,6 +537,9 @@ class FreeTimeMixin:
         if 11 <= hour <= 17 and self.worn(cid) is not None:
             add(0.35 + (cour - 40) / 150, "swim", why="a swim")
         self.pastime_options(tick, cid, hour, m, add, f, mi, here)       # films, sunsets, karaoke, talks, a journal... (pastimes.py)
+        wn = a.get("want_nv") or {}
+        if wn.get("day") == self.day and not wn.get("done") and self.neovi_maid() and m < LAST_START and tick.get("phase") != "night":
+            add(2.0, "seek_nv", room=self.s["npcs"]["neovi"]["room"], why=wn.get("why") or "a word with NeoVi")
         # work: whatever they were at in their last decision goes on, and things they could make
         tk = self.tinker_option(cid)
         if tk:
@@ -877,6 +886,13 @@ class FreeTimeMixin:
             act, label, dur, verb, at = "look", "looking around", 15, "looks around", None     # the one they meant to talk to died meanwhile
         if act == "chat":
             return self._start_chat(tick, cid, partner, m, why)
+        if act == "seek_nv":
+            if self.nv_here(a["room"]) and getattr(self, "_tl", None) is not None and self.start_convo(tick, [cid], a["room"], m, self._tl, why=why or "a word with NeoVi",
+                                                                                                    kind="chat", dur=15, nv=True):
+                a["want_nv"]["done"] = True
+                self._seg(tick, cid, m, m + 15, a["room"], "chat", "talking with NeoVi", "free")
+                return m + 15
+            act, label, dur, verb, at = "look", "looking for NeoVi", 15, "looks for NeoVi", None
         if act == "talk":
             if self.start_talk(tick, cid, partner, m, dur):
                 return m + dur

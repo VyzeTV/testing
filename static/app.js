@@ -968,6 +968,14 @@ async function playFree(t, tok, tiles, played) {
   S.freeTick = null; S.curMin = endMin;
 }
 function roomName(id) { return (S.W.rooms[id] || {}).name || id; }
+// NeoVi in Who's where while she is the housemaid: her room and the chore she is on.
+function nvRow(st, m, now) {
+  const nv = (st.npcs || {}).neovi, act = actAt("neovi", m);
+  if (nv ? nv.room === "none" || nv.participant : !act) return "";
+  const room = act ? act[4] : nv.room, label = act ? act[3] : (nv.doing || "at work");
+  const said = S.said.neovi && S.said.neovi.until > now ? S.said.neovi : null;
+  return `<div class="rr ${S.selected === "neovi" ? "sel" : ""}" data-id="neovi" style="--c:${info("neovi").color || "#7a3c8f"}"><img src="portraits/neovi.png" onerror="this.style.visibility='hidden'"><div><b>NeoVi</b> <span class="rm">${esc(roomName(room))}</span></div><div class="ra">${esc(String(label).slice(0, 70))}</div>${said ? `<div class="rs">${said.act ? "" : "“"}${esc(said.text.slice(0, 90))}${said.act ? "" : "”"}</div>` : ""}</div>`;
+}
 function renderRoster() {
   const box = $("#roster");
   if (!box || !$("#stage").classList.contains("roster-on") || !S.W) return;
@@ -981,7 +989,7 @@ function renderRoster() {
     const label = dead ? "dead" : act ? act[3] || act[2] : (a.activity || "");
     const i = info(id);
     return `<div class="rr ${dead ? "dead" : ""} ${S.selected === id ? "sel" : ""}" data-id="${id}" style="--c:${i.color}"><img src="portraits/${id}.png" onerror="this.style.visibility='hidden'"><div><b>${esc(i.short || i.name)}</b> <span class="rm">${esc(roomName(room))}</span></div><div class="ra">${esc(String(label).slice(0, 70))}</div>${said ? `<div class="rs">${said.act ? "" : "“"}${esc(said.text.slice(0, 90))}${said.act ? "" : "”"}</div>` : ""}</div>`;
-  }).join("");
+  }).join("") + nvRow(st, m, now);
   const key = rows;
   if (box._key !== key) { box.innerHTML = `<div class="rh">Who's where · ${String(Math.floor(((S.hour || 8) * 60 + m) / 60) % 24).padStart(2, "0")}:${String(Math.floor(((S.hour || 8) * 60 + m) % 60)).padStart(2, "0")}</div>` + rows; box._key = key; box.querySelectorAll(".rr").forEach((r) => (r.onclick = () => { S.selected = r.dataset.id; if (onTiles()) TileMap.focusOn(r.dataset.id); setTab("cast"); renderCast(); })); }
 }

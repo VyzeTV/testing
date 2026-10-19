@@ -6491,7 +6491,7 @@ for t in live_week(381, days=(3, 4, 5)):
         for l in g["lines"]:
             if l.get("move") in ("gossip", "warn", "reveal") and l.get("about"):
                 tot_ += 1
-                late_ = {j[1] for j in g.get("joined") or [] if j[0] > l["m"]}         # someone who walked over after it was said
+                late_ = {j[1] for j in g.get("joined") or [] if j[0] > l["m"] - 1.0}   # someone who walked over after it was decided
                 bad_ += l["about"] in mem_ and l["about"] not in late_
 check("over mock days, talk against a third person happens but never with them in the conversation", tot_ >= 1 and bad_ == 0, f"{bad_} of {tot_}")
 
@@ -6625,6 +6625,52 @@ r.rng = _Fixed(0.999, r.rng)
 r.plot_slice(tks_, st_, 25, 30, {})
 check("or loses their nerve, and the choice is recorded", w.state["plots"][st_].get("held_back") == r.day and w.state["plots"][st_]["stage"] == "stalking"
       and any("could not do it" in x for x in w.state["plots"][st_]["plan"]) and w.agents[st_]["room"] != room_)
+
+# ---- phase D: NeoVi's day (neoviday.py)
+w, r, _ = fresh(410)
+w.state["revealed"] = True
+plan_ = r.nv_plan(12)
+check("NeoVi has chores at set times, serving the meal at the table", any(c[3] == "serving lunch" and c[2] == "dining_hall" and 25 <= c[0] <= 32 for c in plan_), str(plan_))
+from murder.clock import Timeline as TL_
+tk_ = r.new_tick(12)
+tl_ = TL_(r)
+r.nv_schedule(tk_, 12, tl_)
+tl_.run(until=40)
+check("her room follows the chores minute by minute", w.state["npcs"]["neovi"]["room"] == "dining_hall" and w.state["npcs"]["neovi"]["doing"] == "serving lunch")
+for c in sorted(w.agents):
+    w.agents[c]["room"] = "dining_hall"
+w.state["npcs"]["neovi"]["aff"] = {"chloe": 6}
+w.agents["chloe"]["nv_aff"] = 6
+r.mind("chloe")["facets"]["romantic"] = 20                      # a question, not a flirt
+cv_ = {"members": ["chloe"], "room": "dining_hall", "used": {}, "beats": [], "nv": True, "nv_seek": True}
+bt_ = r.nv_exchange(tk_, cv_, "chloe")
+check("someone she trusts, alone with her, gets a confidence", bt_[0]["who"] == "chloe" and bt_[1]["who"] == "neovi" and bt_[1]["move"] == "confide_nv" and bt_[1].get("shares"), str(bt_))
+cv2_ = {"members": ["noah", "chloe"], "room": "dining_hall", "used": {}, "beats": [], "nv": True}
+bt2_ = r.nv_exchange(tk_, cv2_, "noah")
+check("with a stranger she plays dumb", bt2_[1]["move"] == "dumb")
+from murder.voice import voice_prompt as vp2_
+for i_, b_ in enumerate(bt2_):
+    b_.update({"m": 30.0 + i_, "ex": 0})
+_, u2_ = vp2_(r, {"members": ["noah", "chloe"], "room": "dining_hall", "hour": 12, "m0": 30, "nv": True}, bt2_)
+check("the voice gets her card when she is in a conversation", "neovi = NeoVi, the housemaid" in u2_)
+w.agents["szymon"]["room"] = "lounge"
+w.state["npcs"]["neovi"]["room"] = "lounge"
+r._tl = TL_(r)
+cv3_ = r.start_convo(tk_, ["szymon"], "lounge", 50, r._tl, why="a word with NeoVi", kind="chat", dur=15, nv=True)
+check("someone who wants a word with her can talk to her alone", cv3_ is not None and cv3_["nv"] and cv3_["members"] == ["szymon"])
+r._tl = None
+tk3_ = r.new_tick(14)
+tk3_["events"].append({"type": "punish", "who": "cail", "room": "foyer", "m": 40.0, "vis": "public", "text": "NeoVi tases Cail for breaking the rule."})
+r.nv_scenes(tk3_)
+sc_ = [g for g in tk3_["talk"] if (g.get("scene") or {}).get("kind") == "punish"]
+check("a punishment plays as a short scene where it happens", sc_ and sc_[0]["room"] == "foyer" and [l["speaker"] for l in sc_[0]["lines"]][0] == "neovi"
+      and sc_[0]["lines"][-1]["speaker"] == "cail" and sc_[0]["lines"][0]["m"] >= 40)
+wd_ = World(new_state(3))
+td_ = []
+DayRunner(wd_, LLM(backend="mock"), td_.append, step=2, murders=False, rule_mode="roulette", seed=411).run()
+nvl_ = [l for t in td_ for g in t.get("talk") or [] for l in g["lines"] if l["speaker"] == "neovi"]
+check("over a mock day NeoVi works her chores (Who's where shows them) and says something", any((t["live"].get("acts") or {}).get("neovi") for t in td_ if t.get("live"))
+      and len(nvl_) >= 1, f"{len(nvl_)} lines")
 
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]

@@ -472,6 +472,8 @@ class SimMixin:
                 if r_ and r_ != s_["room"]:
                     s_["room"] = r_
         acts ={cid: [[round(sg["m0"]), round(sg["m1"]), sg.get("act"), sg.get("label"), sg.get("room")] for sg in segs] for cid, segs in free.items()} if free else {}
+        if tick.get("nv_plan") and acts:
+            acts["neovi"] = [[c[0], c[1], "chore", c[3], c[2]] for c in tick["nv_plan"]]          # her chores for Who's where
         live = {"v": 2, "start": sm.start, "dur": dur, "tracks": sm.tracks, "flags": flags, "talk": sorted(self._sim_said, key=lambda s_: (s_["m"], s_["g"])), "events": events, "acts": acts,
                 "segment": tick.get("segment", "turn"), "groups": self._sim_groups}
         if sm.jumps:
@@ -502,18 +504,33 @@ class SimMixin:
         for e in events:
             if e["type"] == "punish" and e.get("room") in nav.rooms:
                 due.setdefault(e["room"], e["m"])
-        stops = [r for r in dict.fromkeys(path[1:]) if r in due]
-        if path[-1] not in stops:
-            stops.append(path[-1])
-        t = float(self._stagger("neovi", tick))
-        for room in stops:
-            if room in due:
-                at = max(sm.end_t("neovi"), due[room] - 12.0)
-                t = sm.go_room("neovi", room, at, deadline=max(at + 0.5, due[room] - 0.3))
-            else:
-                t = sm.go_room("neovi", room, max(t, sm.end_t("neovi")))
-        if nav.room_at(*sm.cur["neovi"]) == path[-1]:
-            sm.idle("neovi", path[-1], (tick["day"], int(tick["hour"])))
+        plan = [(float(c[0]), c[2]) for c in tick.get("nv_plan") or [] if c[2] in nav.rooms]
+        if plan:
+            # a block of chores: she walks from chore to chore at their minutes, and to anyone she punishes on the way
+            stops = sorted(plan[1:] + [(max(0.0, due[r] - 12.0), r) for r in due], key=lambda x: x[0])
+            last = plan[-1][1]
+            for at, room in stops:
+                if room in due and abs(at - (due[room] - 12.0)) < 0.01:
+                    at = max(sm.end_t("neovi"), at)
+                    sm.go_room("neovi", room, at, deadline=max(at + 0.5, due[room] - 0.3))
+                else:
+                    sm.go_room("neovi", room, max(at, sm.end_t("neovi")))
+                    last = room
+            if nav.room_at(*sm.cur["neovi"]) == last:
+                sm.idle("neovi", last, (tick["day"], int(tick["hour"])))
+        else:
+            stops = [r for r in dict.fromkeys(path[1:]) if r in due]
+            if path[-1] not in stops:
+                stops.append(path[-1])
+            t = float(self._stagger("neovi", tick))
+            for room in stops:
+                if room in due:
+                    at = max(sm.end_t("neovi"), due[room] - 12.0)
+                    t = sm.go_room("neovi", room, at, deadline=max(at + 0.5, due[room] - 0.3))
+                else:
+                    t = sm.go_room("neovi", room, max(t, sm.end_t("neovi")))
+            if nav.room_at(*sm.cur["neovi"]) == path[-1]:
+                sm.idle("neovi", path[-1], (tick["day"], int(tick["hour"])))
         for q in sm.tracks["neovi"]:
             q[0] = round(min(q[0], dur - 0.05), 2)
         flags["neovi"] = {"dead": False, "out": False, "hiding": False}

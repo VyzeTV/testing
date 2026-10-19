@@ -77,6 +77,7 @@ from .reflection import ReflectionMixin
 from .proposer import ProposerMixin
 from .pastimes import PastimeMixin
 from .intrusion import IntrusionMixin
+from .neoviday import NeoViDayMixin
 from .claimtrial import ClaimTrialMixin
 from .perception import PerceptionMixin
 from .envsys import EnvironmentMixin
@@ -163,7 +164,7 @@ class Stop(Exception):
     pass
 
 
-class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, ScheduleMixin, BeliefMixin, NightLifeMixin, MurderPlanMixin, FightMixin, CarryMixin, EvidenceMixin, GearMixin, MarksMixin, LooksMixin, SceneMixin, EscapeWorkMixin, FinaleMixin, OutsideMixin, KumikoMixin, InnerVoiceMixin, IntimacyMixin, TwistMixin, EndingsMixin, DeparturesMixin, SiftingMixin, GoalsMixin, PauseMixin, ReflectionMixin, ProposerMixin, PastimeMixin, IntrusionMixin, ClaimTrialMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
+class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, ScheduleMixin, BeliefMixin, NightLifeMixin, MurderPlanMixin, FightMixin, CarryMixin, EvidenceMixin, GearMixin, MarksMixin, LooksMixin, SceneMixin, EscapeWorkMixin, FinaleMixin, OutsideMixin, KumikoMixin, InnerVoiceMixin, IntimacyMixin, TwistMixin, EndingsMixin, DeparturesMixin, SiftingMixin, GoalsMixin, PauseMixin, ReflectionMixin, ProposerMixin, PastimeMixin, IntrusionMixin, NeoViDayMixin, ClaimTrialMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
     def __init__(self, world, llm, on_tick, gate=None, should_stop=None, step=2, workers=6, seed=None,
                  murders=True, motive="", rule_mode="roulette", rule_text="", confessionals=True, mischief="occasional", chaos="normal",
                  variation=0, gm_pull=None, lean=False, call_cap=0, autodir=False, autodir_get=None, tuning_get=None, ask_gm=None):
@@ -831,8 +832,10 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                 self.deadline_dread(tick)
             self.scenario_twist(tick, hour)
 
-        # NeoVi walks her routine first
-        nroom = self.neovi_target(hour)
+        # NeoVi walks her routine first (in a block with chores, to the first of them; neoviday.py)
+        plan_ = self.nv_plan(hour) if kind in ("free", "morning") else []
+        ins_ = s.get("_inspect")
+        nroom = plan_[0][2] if plan_ and not (ins_ and ins_["day"] == self.day and ins_["hour"] == hour) else self.neovi_target(hour)
         nstart = s["npcs"]["neovi"]["room"]
         npath = [nstart]
         if nroom != nstart:
@@ -946,6 +949,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             self.terevi_intervention(tick, hour, self.force_tease)
         self.force_tease = None
         self.enforce_rule(tick, hour)
+        self.nv_scenes(tick)                                    # her punishments and stills as short scenes (neoviday.py)
         self.sim_sync(tick, self._m)                            # whoever those systems moved walks there now
         self.clock_to(60)
         self.tick_dread(tick, hour)
