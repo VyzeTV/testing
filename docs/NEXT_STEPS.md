@@ -97,3 +97,48 @@ Steps 3 and 4 done: the quick clock for dead air (pause settings, 4x by default;
 
 **Risks.** The core loop changes, so many tests will need updating; F1's same-output check is the safety net for the rest. Faster reactions (F4) may shift balance. Night blocks use the same machinery and come along with each step.
 
+
+## Future features (planned 2026-10-19; ask before starting any of them)
+
+The user listed these for later. Suggested order: H1 (it is the frame the modes need), then H2, H3, H4, H5, H6, H7. Each step is committed with tests passing.
+
+### H1: Game modes
+A `s["game_mode"]` chosen on the start screen: **Classic** (today's rules), **Danganronpa**, **Battle Royale**. TereVi's bible, the morning broadcast, the endings and the season report read it. Check: a mock season in each mode reaches an ending.
+
+### H2: Danganronpa mode
+* A **wrong verdict executes everyone except the culprit**, who "graduates" and leaves (a new ending, THE BLACKENED GRADUATES, tier bad). A right verdict executes the culprit, as now.
+* The cast knows the stakes: a killer's plan now includes surviving the trial to win, and everyone's willingness to speak at the trial goes up (`claimtrial` willingness).
+* TereVi announces the rule on Day 1 (the reveal) and at every trial opening.
+* Open choices for the user: keep the weekly deadline (or use motives only, as in the games); keep the ways out.
+* Check: forced wrong verdicts end the season with the culprit alone; 80 seasons for the tiers.
+
+### H3: Battle Royale mode
+* **No trials, no investigation**: a death is announced at once with the killer's name kept secret (or shown: user's choice); the last one standing wins.
+* Pressure instead of the deadline: rooms close day by day (doors locked by TereVi, a shrinking map), supply drops in the open, and a collar countdown if nobody has died for a set number of hours.
+* Plots and alliances matter more: alliances last until only the allies are left, then break.
+* Endings: the last one standing (bittersweet), nobody left (bad); the ways out stay possible (good) unless the user turns them off.
+* Check: mock seasons end with one survivor or nobody, and no trial ever opens.
+
+### H4: TereVi's torments for participants
+**Possible today?** Only partly. The Director's "Twist" asks TereVi's model to tease, and a tease can be a whisper, a **dare**, a gift, a motive video, an announcement or a blackout. But nothing checks whether a dare was done and nothing happens if it was not, and there is no torment aimed at one participant (the nearest is the rule's punishment, and NeoVi's torment, which is hers alone).
+The plan (`torments.py`, reusing NeoVi's `nv_torment` pattern):
+* **Challenges the engine can judge**: TereVi's dares become structured tasks with a deadline (go somewhere, spend the night somewhere, eat or drink something, tell a secret, insult or kiss someone, hand over an item). The engine checks them from the world state.
+* **Torments** for failing a challenge, or because TereVi is bored (no death or drama for some hours), or for her favourite target (the hottest story from story sifting): public humiliation, a secret played on every screen, a night locked out, an item taken, a shock collar for a day, a fake motive aimed at a friend. Sanity costs, and people who like the victim are hurt watching.
+* A GM action **"Torment"** (target and kind), and a dial `torment_rate`.
+* Check: failed dares are tormented, done ones rewarded; mock calls stay under the ceiling.
+
+### H5: Bigger pool of preset characters
+* About 24 to 30 presets (today: the default eight plus the newcomer sketches), each a full sheet: persona, backstory, secret, speech, facets, values, traits, looks, objection cry.
+* The start screen draws a cast from the pool (random, or picked), and weekly newcomers come from the same pool.
+* Portraits: the user supplies them, or a plain placeholder until then.
+
+### H6: Cast editor with a helper
+* A viewer page to make or edit a character: name, role, gender, age, persona, **backstory**, secret, likes and dislikes, speech, the 16 facets and 7 values as sliders, **traits** as chips (today's traits plus new ones), drive, looks (hair, eyes, outfit, accessory), objection cry, and starting ties to the rest of the cast.
+* **The helper** (one model call, optional): fills in what is blank, suggests traits from the persona and backstory, flags contradictions (a gentle persona with cruelty 90), and offers three variations. Without a model, the facets are derived from the persona's words (`derive_mind`, which exists).
+* Casts are saved as files (a library), and can be exported and imported.
+
+### H7: Cast size and newcomers
+* A cast of 6 to 16. Above 8: **shared bedrooms** (two beds per room: roommates see and hear each other at night, which changes alibis, intimacy and bedside strikes) or **a new dorm wing** (new rooms on the map, through the map plan files and the validator).
+* A start-screen toggle: **weekly newcomers on or off** (today they are on until NeoVi joins or dies).
+* What scales with size: the deadline, meal seating, trial voting, ending thresholds (a "lone survivor" with 16), and model calls (about 11 a day per person: 16 people is about 180 calls a day).
+* Check: balance and 80 seasons at 6, 8, 12 and 16.
