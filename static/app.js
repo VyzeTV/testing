@@ -1876,8 +1876,8 @@ function dirSync() {
   const show = (id, v) => ($("#" + id).style.display = v ? "" : "none");
   show("dToF", t === "whisper" || t === "rumor"); show("dAboutF", t === "rumor"); show("dRoomF", t === "item" || (t === "schedule" && $("#dSOp").value !== "cancel")); show("dEvF", t === "event");
   show("dSchedF", t === "schedule"); show("dSId", t === "schedule" && $("#dSOp").value !== "add"); show("dSAt", t === "schedule" && $("#dSOp").value !== "cancel");
-  show("dTextF", t !== "event" && t !== "goal" && !(t === "schedule" && $("#dSOp").value !== "add"));
-  show("dGoalF", t === "goal");
+  show("dTextF", t !== "event" && t !== "goal" && t !== "propose" && !(t === "schedule" && $("#dSOp").value !== "add"));
+  show("dGoalF", t === "goal"); show("dPropF", t === "propose");
   const gk = $("#dGKind").value, need = { enemies: 2, friends: 2, romance: 2, betrayal: 2, protect: 1, breakdown: 1 }[gk] || 0;
   $("#dGA").style.display = need >= 1 ? "" : "none"; $("#dGB").style.display = need >= 2 ? "" : "none";
   $("#dToL").textContent = t === "rumor" ? "Who hears it" : "To";
@@ -1889,7 +1889,7 @@ $("#dSOp").onchange = dirSync;
 $("#btnDirector").onclick = () => {
   const alive_ = Object.keys(S.W.characters).filter((id) => (S.W.characters[id].status || "alive") === "alive" && !(S.state && S.state.agents[id] && !alive(S.state.agents[id])));
   const opts = alive_.map((id) => `<option value="${id}">${esc(info(id).name)}</option>`).join("");
-  $("#dTo").innerHTML = `<option value="all">Everyone</option>` + opts; $("#dAbout").innerHTML = opts; $("#dGA").innerHTML = opts; $("#dGB").innerHTML = opts;
+  $("#dTo").innerHTML = `<option value="all">Everyone</option>` + opts; $("#dAbout").innerHTML = opts; $("#dGA").innerHTML = opts; $("#dGB").innerHTML = opts; $("#dPA").innerHTML = opts;
   $("#dRoom").innerHTML = Object.entries(S.W.rooms).map(([id, r]) => `<option value="${id}">${esc(r.name)}</option>`).join("");
   $("#dErr").textContent = ""; $("#dText").value = ""; dirSync();
   $("#dmodal").style.display = "flex";
@@ -1902,6 +1902,7 @@ $("#dSend").onclick = async () => {
   else if (t === "rumor") { body.about = $("#dAbout").value; body.claim = text; body.to = $("#dTo").value; }
   else if (t === "item") { body.room = $("#dRoom").value; body.name = text; }
   else if (t === "event") body.id = $("#dEv").value;
+  else if (t === "propose") body.a = $("#dPA").value;
   else if (t === "goal") { body.kind = $("#dGKind").value; body.a = $("#dGA").value; body.b = $("#dGB").value; body.days = parseInt($("#dGDays").value, 10) || 3;
     if (["enemies", "friends", "romance", "betrayal"].includes(body.kind) && body.a === body.b) { $("#dErr").textContent = "Pick two different people."; return; } }
   else if (t === "schedule") { const [hh, mm] = ($("#dSAt").value || "15:30").split(":").map(Number); body.op = $("#dSOp").value; body.id = $("#dSId").value; body.at = hh * 60 + mm; body.room = $("#dRoom").value; body.text = text; }

@@ -427,6 +427,8 @@ class StoryMixin:
                     self.gm_schedule(tick, it, hour)
                 elif t == "goal":
                     self.set_goal(tick, it, hour)                         # goals.py
+                elif t == "propose" and it.get("a") in w.agents:
+                    s.setdefault("propose_requests", []).append({"who": it["a"]})    # proposer.py
                 elif t == "announce":
                     text = str(it["text"]).strip()[:400]
                     if text:

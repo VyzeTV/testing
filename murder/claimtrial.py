@@ -301,6 +301,8 @@ class ClaimTrialMixin:
         w = self.world
         ids = sorted(w.agents)
         killer = case.get("killer")
+        if len(ids) < 2:                                              # no one left to argue with: no debate, no votes
+            return []
         claims = self.trial_claims(case, ids)
         facts = self.trial_facts(case, ids)
         if any(f.get("mind") for f in facts):                         # a broken mind's honest but false testimony (innervoice.py)

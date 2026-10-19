@@ -6326,6 +6326,56 @@ for d in (3, 4, 5):
     DayRunner(wk2_, LLM(backend="mock"), lambda t: None, step=2, murders=False, rule_mode="roulette", seed=340 + d).run()
 check("over a few mock nights the engine's reflections make choices", sum((wk2_.state.get("reflect_stats") or {}).values()) >= 1, str(wk2_.state.get("reflect_stats")))
 
+# ---- phase 8e: the model proposer (proposer.py)
+w, r, _ = fresh(350)
+w.state["revealed"] = True
+a_, t_ = sorted(w.agents)[:2]
+drop_ = next(rm for rm in sorted(w.state["room_items"]) if r.drop_edges(rm)) if any(r.drop_edges(rm) for rm in w.state["room_items"]) else None
+check("an unknown scheme is rejected", not r.check_plan(a_, t_, {"scheme": "fly", "room": "library"})[0])
+check("a room that does not exist is rejected", not r.check_plan(a_, t_, {"scheme": "alone", "room": "moon_base"})[0])
+check("a drowning needs water", not r.check_plan(a_, t_, {"scheme": "drown", "room": "library"})[0])
+check("a plan that waits somewhere needs a place they have seen the target", not r.check_plan(a_, t_, {"scheme": "drown", "room": "pool"})[0])
+for rm_ in ["pool"] + ([drop_] if drop_ else []):
+    r.believe(a_, {"k": "at", "s": t_, "r": rm_, "src": "seen", "c": 0.9, "t0": r.abs_now(), "true": True})
+check("once seen there, a drowning in the pool is accepted", r.check_plan(a_, t_, {"scheme": "drown", "room": "pool"})[0])
+check("a push needs a real drop", not r.check_plan(a_, t_, {"scheme": "height", "room": "pantry"})[0]
+      and (drop_ is None or r.check_plan(a_, t_, {"scheme": "height", "room": drop_})[0]))
+home_ = w.cast[t_]["home"]
+ok_, _, sc_ = r.check_plan(a_, t_, {"scheme": "asleep", "room": home_, "when": "night", "steps": [{"do": "go", "room": home_}]})
+check("a sleeping target must be in their own bedroom", ok_ and sc_["kind"] == "asleep" and sc_["proposed"]
+      and not r.check_plan(a_, t_, {"scheme": "asleep", "room": "library"})[0])
+check("a step the engine cannot do rejects the whole plan", not r.check_plan(a_, t_, {"scheme": "asleep", "room": home_, "steps": [{"do": "teleport"}]})[0])
+check("an item nobody has is rejected", not r.check_plan(a_, t_, {"scheme": "alone", "room": "library", "item": "laser_cannon"})[0])
+w.state["plots"] = {a_: {"target": t_, "stage": "striking", "stage_ticks": 5, "reason": "a grudge", "plan": [], "scheme": {"kind": "alone", "why": "catch them alone"}}}
+r.llm.propose = lambda sy, us, ctx: {"scheme": "asleep", "room": ctx["home"], "when": "night", "cover": "I slept.", "steps": [{"do": "wait"}]}
+tk_ = r.new_tick(14)
+r.proposer_tick(tk_, 14)
+p_ = w.state["plots"][a_]
+check("a stalled plot gets a proposal and an accepted plan replaces the scheme", p_["scheme"]["kind"] == "asleep" and p_.get("cover") == "I slept."
+      and w.state["proposer_stats"].get("plan_ok") == 1, str(p_.get("scheme")))
+r.llm.propose = lambda sy, us, ctx: {"move": "confront", "to": a_, "about": ""}
+r._proposed_today = int(r.tune("proposer_calls"))
+w.state["propose_requests"] = [{"who": t_}]
+r.proposer_tick(tk_, 14)
+check("the budget caps proposals per day", w.state["proposer_stats"].get("move_ok", 0) == 0 and "proposed_move" not in w.agents[t_])
+r._proposed_today = 0
+w.state["propose_requests"] = [{"who": t_}]
+r.proposer_tick(tk_, 14)
+check("a GM request asks for a social move for someone without a plot", w.state["proposer_stats"].get("move_ok") == 1
+      and w.agents[t_].get("proposed_move", {}).get("move") == "confront")
+w.agents[t_]["proposed_move"]["day"] = r.day
+check("the proposed move is picked once, then the engine chooses again", r.pick_move({}, t_, w.agents[t_]["proposed_move"]["to"]) == ("confront", None)
+      and "proposed_move" not in w.agents[t_])
+r._proposed_today = 0
+r.llm.propose = lambda sy, us, ctx: {"move": "dance", "to": a_}
+w.state["propose_requests"] = [{"who": t_}]
+r.proposer_tick(tk_, 14)
+check("a move the engine does not know is rejected", w.state["proposer_stats"].get("move_rejected") == 1)
+w, r, _ = fresh(351)
+for o in sorted(w.agents)[1:]:
+    w.state["agents"][o]["status"] = "dead"
+check("a trial with one person left has no debate and no votes", r.run_claim_trial(r.new_tick(20), 20, {"killer": "x", "kind": "murder"}) == [])
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

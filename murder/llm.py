@@ -249,6 +249,23 @@ class LLM:
             return out
         return self._json(self.participant_model, system, user, 450)
 
+    def propose(self, system, user, ctx):
+        """A proposed plan or social move (proposer.py). The mock proposes from the same options, sometimes impossibly, so the checks get used."""
+        if self.mock:
+            r = self._mrng(user)
+            if ctx.get("kind") == "move":
+                ids = ctx.get("ids") or [""]
+                return {"move": r.choice(["comfort", "confide", "warn", "confront", "accuse", "gossip", "pact", "flirt", "dance"]), "to": r.choice(ids), "about": ""}
+            o = ctx.get("offers") or {}
+            kind = r.choice(["asleep", "alone", "height", "drown", "poison", "hang", "lure", "fly"])
+            seen = o.get("seen") or []
+            room = {"asleep": ctx.get("home"), "height": r.choice(o.get("drops") or ["nowhere"]), "drown": r.choice(o.get("water") or ["pool"])}.get(
+                kind, r.choice(seen + ["library", "moon_base"]))
+            item = r.choice((o.get("items") or []) + [""])
+            return {"scheme": kind, "room": room, "item": item, "when": r.choice(["day", "night"]), "cover": "Say I was in the library.",
+                    "steps": [{"do": r.choice(["go", "fetch", "wait", "teleport"]), "room": room, "item": item}]}
+        return self._json(self.host_model, system, user, 500)
+
     def adjudicate(self, system, user, ctx):
         """Game-master ruling on an escape experiment."""
         if self.mock:

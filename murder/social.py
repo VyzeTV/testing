@@ -203,6 +203,9 @@ class SocialMixin:
         return out
 
     def pick_move(self, conv, a, t):
+        pm = self.proposed_move_for(a, t)                         # a move the model proposed and the engine accepted (proposer.py)
+        if pm and pm[0] in MOVES:
+            return pm
         opts = self.move_options(conv, a, t)
         if not opts:
             return "chat", None
