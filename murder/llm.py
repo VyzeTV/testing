@@ -163,6 +163,7 @@ class LLM:
     # ---------- public API used by the engine ----------
     def decide(self, system, user, ctx):
         if self.mock:
+            self._mock_wait()
             return self._mock_decide(ctx, user)
         return self._json(self.participant_model, system, user, 350)
 
@@ -184,6 +185,7 @@ class LLM:
     def voice(self, system, user, ctx):
         """Lines for a conversation the engine has already resolved: {"lines": [{"beat", "speaker", "kind", "text"}]}. The mock leaves every beat to the template voice."""
         if self.mock:
+            self._mock_wait()
             return {"lines": []}
         return self._json(self.participant_model, system, user, 120 + 45 * int(ctx.get("beats", 8)))
 
@@ -328,6 +330,12 @@ class LLM:
     mock_experiment_prob = float(os.environ.get("MC_MOCK_EXPERIMENT", 0.06))
     mock_host_prob = float(os.environ.get("MC_MOCK_HOST", 0.05))
     mock_murder_prob = float(os.environ.get("MC_MOCK_MURDER", 0.0))        # chance per tick a mock character attacks
+    mock_latency = float(os.environ.get("MC_MOCK_LATENCY", 0.0))           # seconds a mock decision or voicing call takes (to test the viewer against a slow model)
+
+    def _mock_wait(self):
+        if self.mock_latency > 0:
+            import time
+            time.sleep(self.mock_latency)
     mock_vote_killer_prob = float(os.environ.get("MC_MOCK_VOTE", 0.5))     # chance a mock voter picks the true killer
     mock_plot_prob = float(os.environ.get("MC_MOCK_PLOT", 0.0))            # chance per tick a mock character declares a murder plot
     mock_suicide_prob = float(os.environ.get("MC_MOCK_SUICIDE", 0.0))      # chance per tick a broken mock character ends their life

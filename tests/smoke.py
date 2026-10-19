@@ -6920,6 +6920,32 @@ check("a conversation's lines are asked for when it ends, while the block goes o
       and all(x[2] is None or abs(x[1] - x[2]) < 3.0 for x in day_), f"{len(day_)} asked, {sum(1 for x in day_ if x[1] < 100)} before minute 100")
 check("and every conversation of the day still gets its lines", all(g["lines"] for t in tv_ for g in t.get("talk") or [] if g.get("live")))
 
+# ---- phase F5: pieces of a block for the viewer, as they are made
+wp_ = World(new_state(3))
+tp_, parts_ = [], []
+wp_.state["day"] = 3
+rp_ = DayRunner(wp_, LLM(backend="mock"), tp_.append, step=2, murders=True, rule_mode="roulette", seed=5)
+rp_.on_part = parts_.append
+rp_.run()
+fin_ = {t["idx"]: t for t in tp_}
+pm_, pn_ = 0, 0
+for p_ in parts_:
+    t_ = fin_.get(p_["idx"])
+    if not t_:
+        pm_ += 1
+        continue
+    for c, tr in p_["live"]["tracks"].items():
+        for mm in range(0, int(p_["live"]["upto"])):
+            pn_ += 1
+            if tuple(pos_on_(tr, mm)) != tuple(pos_on_(t_["live"]["tracks"][c], mm)):
+                pm_ += 1
+    said_ = {(x["m"], x["who"], x["text"]) for x in t_["live"]["talk"]}
+    pm_ += sum(1 for x in p_["live"]["talk"] if (x["m"], x["who"], x["text"]) not in said_)
+    pm_ += sum(1 for x in p_["live"]["talk"] if x["m"] >= p_["live"]["upto"])
+check("each piece of a block handed to the viewer agrees with the finished block (positions and lines), and never runs past its limit",
+      len(parts_) >= 20 and pn_ > 5000 and pm_ == 0, f"{len(parts_)} pieces, {pm_} of {pn_} differ")
+check("a piece never cuts into a conversation still going on", all(not any(g["m"] < p_["live"]["upto"] < g["m"] + 0.01 for g in p_["live"]["groups"]) for p_ in parts_))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

@@ -189,7 +189,7 @@ class Handler(BaseHTTPRequestHandler):
             q = parse_qs(u.query)
             since = int(q.get("since", ["0"])[0])
             pos = q.get("pos", [None])[0]
-            return self._json(game.ticks(since, int(pos) if pos not in (None, "") else None))
+            return self._json(game.ticks(since, int(pos) if pos not in (None, "") else None, int(q.get("pv", ["0"])[0] or 0)))
         if path == "/api/gridmap":
             from murder import gridmap as _gm
             return self._json({"ok": True, "custom": _gm.load_custom() is not None, "map": _gm.load_custom() or _gm.build_grid_map()})

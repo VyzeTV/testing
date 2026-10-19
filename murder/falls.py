@@ -121,6 +121,7 @@ class FallMixin:
         sm = self.__dict__.get("_sim")
         if sm is not None and sm.tick_id is not None and cid in sm.tracks and m is not None:
             sm._cut(cid, m)
+            m = max(m, sm.tracks[cid][-1][0])                         # (in forward mode the cut is never before the engine's minute)
             t1 = round(min(sm.dur - 0.05, m + 0.05 + 0.05 * levels), 2)
             stood = list(sm.tracks[cid][-1][1:]) if sm.tracks[cid] else list(frm)    # over the railing from where they stood
             sm.tracks[cid].append([t1, to[0], to[1], to[2]])

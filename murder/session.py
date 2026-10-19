@@ -456,6 +456,15 @@ class Game:
                 pass
             with self.cv:
                 sess["ticks"].append(tick)
+                sess["partial"] = None
+                sess["usage"] = dict(llm.usage)
+                self.cv.notify_all()
+
+        def on_part(part):
+            with self.cv:                                               # a piece of the block being made, for the viewer to start on (phase F5)
+                sess["partial_v"] = sess.get("partial_v", 0) + 1
+                part["pv"] = sess["partial_v"]
+                sess["partial"] = part
                 sess["usage"] = dict(llm.usage)
                 self.cv.notify_all()
 
@@ -469,6 +478,7 @@ class Game:
                            mischief=sess["mischief"], confessionals=sess["confessionals"],
                            chaos=sess["chaos"], variation=sess["variation"], gm_pull=lambda: self._pull_gm(sess), lean=sess["lean"], call_cap=0, autodir=sess["autodir"], autodir_get=lambda: sess["autodir"], tuning_get=lambda: self.tuning,
                            ask_gm=lambda q: self._ask_gm(sess, q))
+        runner.on_part = on_part
         try:
             n = runner.run(resume_after=resume_after, start_idx=start_idx)
             fh.close()
@@ -607,7 +617,7 @@ class Game:
             out, sess["gm"] = sess["gm"], []
         return out
 
-    def ticks(self, since, pos):
+    def ticks(self, since, pos, pv=0):
         with self.cv:
             s = self.session
             if not s:
@@ -615,7 +625,10 @@ class Game:
             if pos is not None and pos > s["pos"]:
                 s["pos"] = pos
                 self.cv.notify_all()
-            return {"ticks": s["ticks"][since:], "done": s["done"], "error": s["error"], "aborted": s["aborted"],
+            part = s.get("partial")
+            fresh = part and part.get("idx") == len(s["ticks"]) and since >= len(s["ticks"]) and part.get("pv", 0) > pv
+            return {"ticks": s["ticks"][since:], "partial": part if fresh else None,
+                    "done": s["done"], "error": s["error"], "aborted": s["aborted"],
                     "ff": s["ff"], "known": len(s["ticks"]), "usage": s.get("usage"), "mode": s["mode"], "day": s["day"], "roll": s.get("roll")}
 
     def fast_forward(self):

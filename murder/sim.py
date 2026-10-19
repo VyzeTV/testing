@@ -499,6 +499,38 @@ class SimMixin:
             groups.append({"g": gi, "m": round(m0, 1), "room": room, "chat": chat, "at": g.get("at"), "why": g.get("why", ""), "matters": g.get("matters") or [], "members": g.get("members") or members})
 
     # ------------------------------------------------------------------ the end of a turn
+    def sim_partial(self, tick, upto):
+        """Forward mode: the live record of the block so far, up to minute `upto` (nothing before it can change any more), for the viewer to start playing."""
+        sm = self.sim_turn(tick)
+        nav = sm.nav
+        tracks = {}
+        for cid, tr in sm.tracks.items():
+            pts = [list(p) for p in tr if p[0] <= upto] or [list(tr[0])]
+            here = pos_on(tr, upto)
+            if here and pts[-1][0] < upto and _key(pts[-1][1:]) != here:
+                pts.append([round(upto, 2), here[0], here[1], here[2]])
+            tracks[cid] = pts
+        said = []
+        for s_ in self._sim_said:
+            if s_["m"] >= upto:
+                continue
+            s2 = dict(s_)
+            if s2["who"] in sm.tracks:
+                r_ = nav.room_at(*sm.pos_at(s2["who"], s2["m"]))
+                if r_:
+                    s2["room"] = r_
+            said.append(s2)
+        free = tick.get("free") or {}
+        acts = {cid: [[round(sg["m0"]), round(sg["m1"]), sg.get("act"), sg.get("label"), sg.get("room")] for sg in segs] for cid, segs in free.items()} if free else {}
+        if tick.get("nv_plan") and acts:
+            acts["neovi"] = [[c[0], c[1], "chore", c[3], c[2]] for c in tick["nv_plan"]]
+        flags = {}
+        for cid in sm.tracks:
+            a = self.world.all_agents.get(cid) or {}
+            flags[cid] = {"dead": a.get("status", "alive") != "alive" if a else False, "out": bool(a.get("out")), "hiding": bool(a.get("hiding"))}
+        return {"v": 2, "start": sm.start, "dur": sm.dur, "tracks": tracks, "flags": flags, "talk": sorted(said, key=lambda s_: (s_["m"], s_["g"])), "events": [],
+                "acts": acts, "segment": tick.get("segment", "turn"), "groups": [g for g in self._sim_groups if g["m"] < upto], "partial": True, "upto": round(upto, 2)}
+
     def sim_finish(self, tick):
         """Close the turn: walk whoever the engine moved since, stage conversations not staged yet, let the idle wander, and return the live record of the turn."""
         sm = self.sim_turn(tick)

@@ -1082,29 +1082,37 @@ function practiceActs(t) {
   for (const [id, m] of Object.entries(P.arrive)) out[id] = [[0, Math.ceil(m), "walk", "Heading to " + lbl, P.room], [Math.ceil(m), dur, "scene", "At " + lbl, P.room]];
   return out;
 }
-async function playWindow(t, tok, late) {
+// `st` (streaming, phase F5): the block is played piece by piece as the engine makes it. st.done holds what has been played, st.upto is how far this version of the
+// block goes (a piece), and the reading clock and the last pause dialog carry over between pieces. Without it the whole finished block plays at once.
+async function playWindow(t, tok, late, st) {
   const L = t.live, dur = L.dur, per = Math.max(40, S.pace * 1000 / 60), act = activeMinutes(L);
+  const part = !!(st && L.partial), upto = part ? L.upto : dur;
   S.freeActs = L.acts && Object.keys(L.acts).length ? L.acts : practiceActs(t);
-  TileMap.setTick(t, 0);
+  if (!st || !st.started) TileMap.setTick(t, 0); else TileMap.setTick(t);
   const byText = {};
   for (const e of L.events || []) byText[e.text.slice(0, 200)] = e.m;
   const items = [];
-  t.events.forEach((e, i) => { if (!late.includes(e)) items.push({ m: e.m != null ? e.m : (byText[e.text.slice(0, 200)] != null ? byText[e.text.slice(0, 200)] : 0), o: i, k: "ev", e }); });
+  t.events.forEach((e, i) => { if (!late.includes(e)) items.push({ m: e.m != null ? e.m : (byText[e.text.slice(0, 200)] != null ? byText[e.text.slice(0, 200)] : 0), o: i, k: "ev", e, key: `ev:${e.m}:${e.type}:${(e.text || "").slice(0, 80)}` }); });
   const lineIdx = {};
-  (L.talk || []).forEach((x, i) => { const g = t.talk[x.g]; if (!g) return; const li = lineIdx[x.g] = (lineIdx[x.g] || 0); lineIdx[x.g]++; if (g.lines[li]) items.push({ m: x.m, o: 1000 + i, k: "line", g, l: g.lines[li], gi: x.g, first: li === 0 }); });
-  t.talk.forEach((g, gi) => { if (!(gi in lineIdx)) { let m = Math.min(dur - 2, dur * 0.5 + gi); g.lines.forEach((l, li) => items.push({ m: m + li * 2, o: 2000 + gi * 100 + li, k: "line", g, l, gi, first: li === 0 })); } });
-  for (const f of t.fx || []) items.push({ m: f.m != null ? f.m : 0, o: 3000, k: "fx", f });
-  if (t._bcLive) bcList(t).forEach((b, i) => items.push({ m: 0.5 + i * 1.5, o: -10 + i, k: "bc", b }));
-  if (t.scene_body) { const be = t.events.find((e) => e.type === "body"); items.push({ m: be && be.m != null ? be.m + 0.05 : 1, o: 4000, k: "body" }); }
-  (t.confessionals || []).forEach((c, i) => { if (c.m != null) items.push({ m: c.m, o: 5000 + i, k: "conf", c }); });
-  (t.inner || []).forEach((c, i) => items.push({ m: c.m, o: 6000 + i, k: "think", c }));
+  (L.talk || []).forEach((x, i) => { const g = t.talk[x.g]; if (!g) return; const li = lineIdx[x.g] = (lineIdx[x.g] || 0); lineIdx[x.g]++; if (g.lines[li]) items.push({ m: x.m, o: 1000 + i, k: "line", g, l: g.lines[li], gi: x.g, first: li === 0, key: `ln:${x.g}:${li}` }); });
+  if (!part) t.talk.forEach((g, gi) => { if (!(gi in lineIdx)) { let m = Math.min(dur - 2, dur * 0.5 + gi); g.lines.forEach((l, li) => items.push({ m: m + li * 2, o: 2000 + gi * 100 + li, k: "line", g, l, gi, first: li === 0, key: `ln:${gi}:${li}` })); } });
+  (t.fx || []).forEach((f, i) => items.push({ m: f.m != null ? f.m : 0, o: 3000, k: "fx", f, key: `fx:${f.m}:${f.kind}:${f.room || ""}:${i}` }));
+  if (t._bcLive) bcList(t).forEach((b, i) => items.push({ m: 0.5 + i * 1.5, o: -10 + i, k: "bc", b, key: `bc:${i}` }));
+  if (t.scene_body) { const be = t.events.find((e) => e.type === "body"); items.push({ m: be && be.m != null ? be.m + 0.05 : 1, o: 4000, k: "body", key: "body" }); }
+  (t.confessionals || []).forEach((c, i) => { if (c.m != null) items.push({ m: c.m, o: 5000 + i, k: "conf", c, key: `cf:${i}` }); });
+  (t.inner || []).forEach((c, i) => items.push({ m: c.m, o: 6000 + i, k: "think", c, key: `th:${i}` }));
   t._confShown = true;
   items.sort((a, b) => a.m - b.m || a.o - b.o);
-  t.events.filter((e) => e.m == null && !late.includes(e)).length && (await TileMap.dialogFor(t, { untimed: true }));
+  if (!st || !st.started) t.events.filter((e) => e.m == null && !late.includes(e)).length && (await TileMap.dialogFor(t, { untimed: true }));
   if (tok !== S.token) return;
-  let readUntil = S.clock, lastDlg = -1;
+  if (st && !st.started) Object.assign(st, { started: true, readUntil: S.clock, lastDlg: -1 });
+  let readUntil = st ? st.readUntil : S.clock, lastDlg = st ? st.lastDlg : -1;
   const chatGroups = new Set((L.groups || []).filter((g) => g.chat).map((g) => g.g));
   for (const it of items) {
+    if (st) {
+      if (st.done.has(it.key) || (part && it.m >= upto)) continue;
+      st.done.add(it.key);
+    }
     const m = Math.min(it.m, dur - 0.05);
     await animateSpan(m, it.k === "line" || it.k === "bc" ? readUntil - S.clock : 0, per, tok, act);
     if (tok !== S.token) return;
@@ -1130,10 +1138,45 @@ async function playWindow(t, tok, late) {
     } else if (it.k === "think") {
       showThought(it.c);
     }
+    if (st) { st.readUntil = readUntil; st.lastDlg = lastDlg; }
   }
+  if (part) { await animateSpan(upto, 0, per, tok, act); return; }       // the rest of the block is still being made
   await animateSpan(dur, Math.max(0, readUntil - S.clock), per, tok, act);
   if (tok !== S.token) return;
   S.talkRoom = null; S.bubbles = [];
+}
+// A block still being made (phase F5): play the pieces as they come, then the finished block from where the pieces left off.
+async function playStream(i, tok) {
+  let t = S.partial;
+  S.streamed = (S.streamed || 0) + 1;
+  S.tileAnim = null; S.freeTick = null; S.freeActs = null;
+  S.hour = t.hour; S.day = t.day; S.thoughts = t.thoughts || {}; S.stories = t.stories || []; S.dread = t.dread || 0;
+  S.weather = t.island ? t.island.id : null; S.weatherRoom = t.island ? t.island.room : null; setDrone();
+  feedTime(t); updateUI(); $("#tally").style.display = "none";
+  await showSegment(t, tok); if (tok !== S.token) return;
+  if (t.rule_announce) { await playRule(t.rule_announce, tok); if (tok !== S.token) return; }
+  const st = { done: new Set(), started: false };
+  for (;;) {
+    const fin = S.ticks[i];
+    if (fin) t = fin;
+    else if (S.partial && S.partial.idx === i) t = S.partial;
+    t._bcLive = true;
+    await playWindow(t, tok, [], st);
+    if (tok !== S.token) return;
+    if (fin) break;
+    const pv = t.pv, w = $("#wait"), since = Date.now();
+    while (tok === S.token && !S.ticks[i] && !(S.partial && S.partial.idx === i && S.partial.pv !== pv) && !S.error) {
+      const secs = Math.round((Date.now() - since) / 1000);
+      if (secs >= 2) { w.textContent = `The island is thinking about the rest of the hour... (${secs}s)`; w.style.display = "block"; }
+      await sleep(150);
+    }
+    w.style.display = "none";
+    if (tok !== S.token || S.error) return;
+  }
+  const { s1, endMap } = buildPaths(t);
+  S.pos = s1.pos; S.rad = s1.rad; S.endMap = endMap;
+  S.state = t.state; renderCast(); renderRoom(); renderWeb();
+  return finishTick(t, tok, []);
 }
 // A chat that starts during a free-time block is played where and when it happens: the day's clock stands still while they talk.
 async function playChat(t, gi, g, minute, tok) {
@@ -1267,6 +1310,14 @@ async function playLoop() {
     if (!S.session) continue;
     if (S.paused) continue;
     const next = S.cursor + 1;
+    if (next >= S.ticks.length && S.partial && S.partial.idx === next && !S.ff && !/[?&]nostream/.test(location.search) && S.mapMode === "tiles" && window.TileMap && TileMap.ready() && S.partial.live) {
+      $("#wait").style.display = "none";
+      const tok = S.token;
+      S.playIdx = next;
+      await playStream(next, tok);                                    // start on the block while the engine is still making it
+      if (tok === S.token && S.ticks[next]) { S.cursor = next; updateUI(); }
+      continue;
+    }
     if (next >= S.ticks.length) {
       if (S.done && S.ticks.length) { onDayEnd(); $("#wait").style.display = "none"; }
       else if (!S.error) {
@@ -1357,11 +1408,12 @@ async function poll() {
     if (!S.session || polling) continue;
     polling = true;
     try {
-      const r = await (await fetch(`/api/ticks?since=${S.ticks.length}&pos=${Math.max(S.cursor, S.playIdx, -1)}`)).json();
+      const r = await (await fetch(`/api/ticks?since=${S.ticks.length}&pos=${Math.max(S.cursor, S.playIdx, -1)}&pv=${S.partial && S.partial.idx === S.ticks.length ? S.partial.pv : 0}`)).json();
       for (const t of r.ticks) {
         for (const k of Object.keys(t.moves || {})) if ((t.moves[k].path || []).some((x) => !S.W.rooms[x])) delete t.moves[k];
         S.ticks.push(t);
       }
+      if (r.partial) S.partial = r.partial;
       S.done = r.done; S.usage = r.usage || S.usage; S.mode = r.mode || S.mode;
       showRoll(r.roll);
       if (r.error && !S.error) { S.error = r.error; showError(r.error); }

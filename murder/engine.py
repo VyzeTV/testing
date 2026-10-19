@@ -3,6 +3,7 @@
 Beyond ordinary life it handles murders, clues, body discovery, the investigation window,
 the class trial (votes), executions, the weekly deadline and newcomer arrivals.
 """
+import json
 import random
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
@@ -175,6 +176,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         world.mem_hook = self.mem_hook
         self.llm = llm
         self.on_tick = on_tick
+        self.on_part = None                                             # the session's hook for pieces of a block as they are made (phase F5)
         self.gate = gate or (lambda idx: None)
         self.should_stop = should_stop or (lambda: False)
         self.step = step
@@ -809,6 +811,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         free = bk["free"]
         tl = bk["tl"] = self._block_tl = Timeline(self)                 # one timeline for the whole block: every system runs at its own minute
         tl.every(22, lambda m: self.sim_idle(tick, m), until=106, prio=9)
+        tl.every(15, lambda m: self.block_piece(bk, m), until=105, prio=20)     # a finished piece of the block for the viewer (phase F5)
         self.block_arrivals(bk)
         tl.at(15, self.block_passive, bk, prio=4)
         tl.at(15, self.block_strikes, bk, prio=6)
@@ -1089,6 +1092,27 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         if staged:
             self.run_conversations(tick, staged, intents, hour, modes=modes)
             self.sim_talk(tick, "staged")                               # walked to now, at the minute they are written
+
+    def block_piece(self, bk, m):
+        """Every quarter hour of a day block: take in the conversations that have ended, and hand the viewer the block so far, up to the start of any conversation
+        still going on (so a minute it plays never lacks its lines). Saved games and replays still use the whole block (`emit`)."""
+        tick, hour = bk["tick"], bk["hour"]
+        self.voice_collect(tick, hour)
+        self.sim_talk(tick)
+        if not self.on_part:
+            return
+        talking = [c["m0"] for c in self.convos() if c["state"] == "talking"]
+        upto = min([float(m)] + talking)
+        if upto <= bk.get("upto", 0.0) + 1.0:
+            return
+        bk["upto"] = upto
+        part = {k: v for k, v in tick.items() if k not in ("free", "chron", "free_chats", "live", "events", "talk")}
+        part.update(idx=self.idx, partial=True, events=[e for e in tick["events"] if e.get("m") is not None and e["m"] < upto],
+                    talk=list(tick["talk"]), fx=[f for f in tick.get("fx") or [] if (f.get("m") or 0) < upto], live=self.sim_partial(tick, upto), state=self.world.snapshot())
+        try:
+            self.on_part(json.loads(json.dumps(part, default=str)))
+        except Exception as e:  # the stream is a convenience: never let it break the block
+            tick["errors"].append(f"stream piece failed: {type(e).__name__}: {str(e)[:80]}")
 
     def block_talk_end(self, bk):
         """Once the block's timeline has run out: the free-time books are closed, conversations are voiced, and their walks laid."""
