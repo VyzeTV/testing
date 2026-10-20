@@ -26,11 +26,10 @@
           "id": "p2",
           "refs": [
             "szymon",
-            "kumiko",
             "p1.jpg"
           ],
           "caption": "Day 25, 10:00. The Bathroom.",
-          "prompt": "Page title banner: 'DAY 25 - 10:00 - BATHROOM'. Three panels. Panel 1: a tiled bathroom with a full bathtub; the adult young woman from the second reference (Kumiko, in her twenties: long dark purple hair, red eyes, black blazer with white trim) leans over the tub's edge to wash her face, unaware; behind her in the doorway stands the tall young man from the first reference (Szymon: red face scarf, green patched parka), silent. Panel 2 (large, dramatic, seen from behind Szymon): he leans hard over the bathtub with both arms plunged into the water; the water erupts in a violent splash, bubbles and bright neon pink froth churning on the surface; only her hand is visible, clawing at the tub's edge. Sound effect lettering: 'SPLASH- GLUB-'. Panel 3: afterwards, Szymon sits slumped on the wet floor against the tiles, hood up, tears running down above his scarf; behind him a limp hand hangs over the tub's edge. Caption box: 'He cried where nobody could see.'"
+          "prompt": "Page title banner: 'DAY 25 - 10:00 - BATHROOM'. Three panels. Panel 1: a corridor; the tall young man from the first reference (Szymon: short ginger-blond hair, red face scarf, green patched parka) stands outside a half-open bathroom door, steam drifting out, his hand on the handle, eyes cold. Caption box: 'Kumiko was alone in there.' Panel 2: a wide, silent shot of the empty tiled bathroom afterwards: the water in the tub perfectly still, water spilled across the floor, a toppled soap dish, wet footprints leading to the door. Caption box: 'It did not take long.' Panel 3: Szymon sits slumped on a wet floor in the corridor, back against the wall, hood up, knees drawn in, tears running down above his scarf. Caption box: 'He cried where nobody could see.'"
         },
         {
           "id": "p3",
