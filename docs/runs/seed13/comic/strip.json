@@ -1,0 +1,58 @@
+{
+  "season": "seed 13, default cast (mock replay): Szymon's spree, Days 22 to 27",
+  "model": "nano",
+  "body": {
+    "aspect_ratio": "2:3",
+    "resolution": "1k"
+  },
+  "style": "A full manga / comic page divided into separate panels with clean white gutters and black panel borders, read left to right, top to bottom. Anime visual-novel style of Danganronpa, matching the art style and character designs of the reference portraits exactly (when an earlier comic page is given as a reference, match its rendering and colours too). Clean bold lineart, flat cel shading, halftone texture, saturated pink and magenta accents with deep black shadows. Any blood is bright neon pink, Danganronpa style, never realistic red. All lettering in bold comic font, spelled exactly as given, kept short and legible.",
+  "strips": [
+    {
+      "id": "p",
+      "title": "The Diving Weight",
+      "day": 25,
+      "panels": [
+        {
+          "id": "p1",
+          "refs": [
+            "szymon",
+            "chloe",
+            "terevi"
+          ],
+          "caption": "Days 22 to 24. Szymon leans on Chloe, and starts plotting.",
+          "prompt": "Page title in a pink broadcast banner across the top: 'MURDER CHANNEL - DAY 22'. Four panels. Panel 1 (wide): on a sunny island lawn, the tall young man from the first reference (Szymon: short ginger-blond hair, red face scarf over his mouth, dark green patched hooded parka) and the girl from the second reference (Chloe: short ash-brown hair, pink eyes, dark teal wrap top) sit side by side in the grass, laughing together, her head on his shoulder. Caption box: 'They held each other up.' Panel 2: Szymon alone in a dim pool shed, lifting a heavy round lead diving weight from a shelf, his eyes cold above the scarf. Caption box: 'Day 23.' Panel 3: night, close-up of Szymon lying in bed with his eyes wide open in the dark, the weight's outline under his parka on the chair. Thought bubble: 'Kumiko has become unbearable.' Panel 4: the host from the third reference, TereVi (a small robot whose head is a teal retro TV with ear-like antennae and a smiling screen face), on a wall monitor, winking. Speech balloon: 'Psst, darling: somebody here is not who they claim to be.'"
+        },
+        {
+          "id": "p2",
+          "refs": [
+            "szymon",
+            "kumiko",
+            "p1.jpg"
+          ],
+          "caption": "Day 25, 10:00. The Bathroom.",
+          "prompt": "Page title banner: 'DAY 25 - 10:00 - BATHROOM'. Three panels. Panel 1: a tiled bathroom with a full bathtub; the adult young woman from the second reference (Kumiko, in her twenties: long dark purple hair, red eyes, black blazer with white trim) leans over the tub's edge to wash her face, unaware; behind her in the doorway stands the tall young man from the first reference (Szymon: red face scarf, green patched parka), silent. Panel 2 (large, dramatic, seen from behind Szymon): he leans hard over the bathtub with both arms plunged into the water; the water erupts in a violent splash, bubbles and bright neon pink froth churning on the surface; only her hand is visible, clawing at the tub's edge. Sound effect lettering: 'SPLASH- GLUB-'. Panel 3: afterwards, Szymon sits slumped on the wet floor against the tiles, hood up, tears running down above his scarf; behind him a limp hand hangs over the tub's edge. Caption box: 'He cried where nobody could see.'"
+        },
+        {
+          "id": "p3",
+          "refs": [
+            "szymon",
+            "chloe",
+            "p1.jpg"
+          ],
+          "caption": "Day 25, 14:00. Outdoors, then the Pool & Spa.",
+          "prompt": "Page title banner: 'DAY 25 - 14:00'. Four panels. Panel 1: in a sunny garden, Chloe from the second reference (short ash-brown hair, pink eyes, dark teal wrap top) turns toward Szymon from the first reference with a warm smile. Speech balloon: 'Szymon! I wanted to say thank you.' Panel 2: close-up of Szymon's eyes above the red scarf, empty; the heavy lead diving weight hangs in his hand, a white towel twisted in the other. Panel 3 (large impact panel): the diving weight comes down; Chloe, gagged with the towel, is struck on the head; a huge spray of bright neon pink, shattered teeth flying, speed lines. Sound effect: 'KRAK!' Red stamped banner across the panel: 'BETRAYAL'. Panel 4: dim indoor pool, a tall young man with curly blond hair in a grey cardigan lies face-down by the water, pink splatter up the tiled wall; Szymon's shadow walks away holding the dripping weight. Caption box: 'Bram. Same weight. Same afternoon.'"
+        },
+        {
+          "id": "p4",
+          "refs": [
+            "szymon",
+            "terevi",
+            "p3.jpg"
+          ],
+          "caption": "Day 27. The last trial.",
+          "prompt": "Page title banner: 'DAY 27 - THE LAST TRIAL'. Four panels. Panel 1: a courtroom of circular wooden podiums, almost all empty with black-and-white memorial portraits on stands; only two people face each other: Szymon from the first reference (red face scarf, green patched parka) and a young woman with a short black bob and a red racing jacket (Mara), pointing at him in fury. Mara's balloon: 'It was Szymon! The weight has his handprint!' Panel 2: a big vote board reading 'SZYMON 1 - MARA 1' with a flashing 'TIE'. Panel 3: TereVi from the second reference (teal retro-TV head robot) on a giant screen with an exaggerated shocked-delighted face. Balloon: 'Wrong! The killer strolls off the island with a wave!' Panel 4 (wide, final): at sunset, Szymon in a small motorboat heading away from the island, raising one hand in a wave without looking back; Mara alone on the beach, a small figure. Caption box: 'Szymon changed his name, moved to a new city, and never said a word about the island.'"
+        }
+      ]
+    }
+  ]
+}

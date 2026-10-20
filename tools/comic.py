@@ -11,7 +11,8 @@ from PIL import Image
 API = "https://api.atlascloud.ai/api/v1/model"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PORTRAITS = os.path.join(ROOT, "static", "portraits")
-# name: (model id, field for the reference images, extra body, dollars per image)
+# name: (model id, field for the reference images, extra body, dollars per image as listed by /api/v1/models;
+# the nano readme gives $0.05 per 1k image plus $0.00168 per reference, so the real charge may be higher)
 MODELS = {
     "nano": ("google/nano-banana-2.1-developer/edit", "reference_images", {"aspect_ratio": "1:1", "resolution": "1k"}, 0.018),
     "seed": ("bytedance/seedream-v5.0-flash/edit", "images", {"size": "1536*1536"}, 0.018),
@@ -40,10 +41,10 @@ def call(method, url, body=None):
         return {"error": f"HTTP {e.code}: {e.read()[:300]!r}"}
 
 
-def generate(model, prompt, refs, out, folder="."):
-    """One image; returns an error string or None."""
+def generate(model, prompt, refs, out, folder=".", over=None):
+    """One image; returns an error string or None. `over` replaces body fields (e.g. aspect_ratio for a full page)."""
     mid, field, extra, _ = MODELS[model]
-    body = {"model": mid, "prompt": prompt, field: [ref(r, folder) for r in refs], "enable_base64_output": True, **extra}
+    body = {"model": mid, "prompt": prompt, field: [ref(r, folder) for r in refs], "enable_base64_output": True, **extra, **(over or {})}
     r = call("POST", f"{API}/generateImage", body)
     if "data" not in r:
         return r.get("error") or r.get("msg") or str(r)[:300]
@@ -74,7 +75,7 @@ def main(argv):
             out = os.path.join(folder, p["id"] + ".jpg")
             if os.path.exists(out) and "--redo" not in argv:
                 continue
-            err = generate(model, p["prompt"] + " " + style, p["refs"], out, folder)
+            err = generate(model, p["prompt"] + " " + style, p["refs"], out, folder, {**spec.get("body", {}), **p.get("body", {})})
             if err:
                 print(f"{p['id']}: FAILED ({err}); stopping. Spent ${spent:.3f}")
                 return 1
