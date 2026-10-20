@@ -181,6 +181,7 @@ Dialogue (nobody answers their own line; no "morning" after noon in 527 lines), 
 16. **A body found by one person goes unannounced for twelve hours** and TereVi then mocks the cast for not noticing (seed 11, Day 16). With fewer than three finders, the finder should at least raise the alarm.
 17. **A drowned body is described as a stabbing.** Seed 13 (default), Day 25: Szymon drowns Kumiko in the Bathroom, and Mara finds her "in a spreading pool of blood, torn open by deep wounds". The body description should follow the cause of death (`cases.body_desc`).
 18. **The season's kill list misses the early weeks.** The seed finder's `truths` for seed 11 lack Ayden (Day 5) and Noah (Day 6), so its violence ranking undercounts early killings.
+19. **`looks.OUTFITS` disagree with the character cards** (`static/cards/*.webp`, full-body art). Seul's card shows a cropped hoodie, black shorts and lavender thigh-high socks (OUTFITS: "hoodie and joggers"); Cail's a cropped sailor top, black pleated skirt, one orange-striped and one dark stocking and grey boots; Vixen's grey leggings and black boots; Chloe's cropped beige trousers and flats. Bring OUTFITS (and `looks_line`) in line with the cards.
 
 ### Also open from H4
 After H4, 80 mock seasons gave 29/36/35 (36/29/35 before). Possibly noise (runs swing by about 5 points), possibly the "hand something over" dare taking escape parts. Check with dares off; if it is the dares, keep escape parts and keys out of that dare.

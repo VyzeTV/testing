@@ -14,6 +14,9 @@ from PIL import Image
 API = "https://api.atlascloud.ai/api/v1/model"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PORTRAITS = os.path.join(ROOT, "static", "portraits")
+CARDS = os.path.join(ROOT, "static", "cards")
+# Full-body art from the character cards: the figure stands on the left of each card.
+CARD = {"szymon": 1, "seul": 2, "vixen": 3, "noah": 4, "neovi": 5, "ayden": 6, "shintaro": 7, "terevi": 8, "chloe": 9, "cail": 10}
 # name: (model id, field for the reference images, extra body, dollars per image as listed by /api/v1/models;
 # the nano readme gives $0.05 per 1k image plus $0.00168 per reference, so the real charge may be higher)
 MODELS = {
@@ -25,14 +28,28 @@ MODELS = {
 }
 
 
-def ref(cid, folder="."):
-    """A portrait id, or an earlier panel's file (e.g. "b2.jpg") from the spec's folder."""
-    path = os.path.join(folder, cid) if cid.endswith(".jpg") else os.path.join(PORTRAITS, cid + ".png")
-    im = Image.open(path).convert("RGBA")
-    bg = Image.new("RGBA", im.size, "white")
-    bg.alpha_composite(im)
+def figure(cid):
+    """The full-body figure cut from the character card, with the card's text tags painted out."""
+    im = Image.open(os.path.join(CARDS, f"{CARD[cid]}.webp")).convert("RGB").crop((0, 0, 300, 675))
+    im.paste((255, 255, 255), (245, 425, 300, 675))
+    return im.resize((400, 900), Image.LANCZOS)
+
+
+def ref(cid, folder=".", full=True):
+    """A cast id (full-body card art if there is a card, else the portrait; "id:face" forces the portrait),
+    or an earlier panel's file (e.g. "b2.jpg") from the spec's folder."""
+    if cid.endswith(".jpg"):
+        im = Image.open(os.path.join(folder, cid)).convert("RGB")
+        im.thumbnail((1024, 1024))
+    elif full and cid in CARD:
+        im = figure(cid)
+    else:
+        src = Image.open(os.path.join(PORTRAITS, cid.split(":")[0] + ".png")).convert("RGBA")
+        bg = Image.new("RGBA", src.size, "white")
+        bg.alpha_composite(src)
+        im = bg.convert("RGB").resize((512, 512), Image.LANCZOS)
     buf = io.BytesIO()
-    bg.convert("RGB").resize((512, 512), Image.LANCZOS).save(buf, "PNG")
+    im.save(buf, "PNG")
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
