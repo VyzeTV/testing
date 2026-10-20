@@ -1954,9 +1954,12 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                            "They are INNOCENT (let TereVi relish the irony)")
             else:
                 why = "the deadline passed with nobody dead"
-            user = (f"Write the EXECUTION of {who['name']} ({who['role']}), who is condemned because {why}. Max 150 words. A BRUTAL, merciless, inventive punishment: a cruelly "
+            gore_ = int(self.tune("gore"))
+            user = (f"Write the EXECUTION of {who['name']} ({who['role']}), who is condemned because {why}. Max {220 if gore_ >= 3 else 150} words. A BRUTAL, merciless, inventive punishment: a cruelly "
                     "ingenious device or ordeal tied to who they are, told coldly with unflinching physical detail and mounting dread, TereVi gloating with cold cruelty rather than jokes. "
-                    "No comedy, no slapstick, no confetti: this is horror, and it must not feel like a cartoon. Be creative and never repeat an earlier method. Do not give real-world instructions."
+                    + ("Show it step by step to the end: the device starting, what it does to the body part by part, the sounds and the blood, their struggle and their last moments, "
+                       "and what is left when it stops. No cutaway. " if gore_ >= 3 else "")
+                    + "No comedy, no slapstick, no confetti: this is horror, and it must not feel like a cartoon. Be creative and never repeat an earlier method. Do not give real-world instructions."
                     + (f" NeoVi, the housemaid, is made part of it: {extra['neovi']} Work this in briefly." if extra.get("neovi") else ""))
         elif kind == "escape":
             who = w.cast[extra["victim"]]

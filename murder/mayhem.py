@@ -578,6 +578,7 @@ class MayhemMixin:
                   "blunt": f"{tname} catches {name}'s swing, wrenches the {wn} around and brings it down on {name}'s skull until it goes quiet",
                   "hands": f"{tname} slips under {name}'s grip, gets both hands around {name}'s throat and squeezes until the fight goes out of them"}[kind]
         seen = here if self.blackout_until < self.idx else [o for o in here if w.agents.get(o, {}).get("lit")]     # in the dark only a light shows who
+        brutal += self.kill_detail(kind)
         self.log_event(tick, {"type": "attack", "who": t, "room": room, "vis": "public", "text": f"{brutal}, in the {w.room_name(room)}."}, witnesses=seen, actor=t)
         self.open_case(tick, "manslaughter", cid, culprit=t, wkind=kind, weapon=vweap, room=room, hour=hour, witnesses=seen, aware=True,
                        self_defense=True, aggressor=cid)

@@ -5987,7 +5987,7 @@ b3_ = r.bible()
 r.tuning_get = lambda: {"gore": 0, "flirt_level": 2}
 b0_ = r.bible()
 check("the tone guide is in every voice call: game-show comedy, gore by the dial, sex implied and never explicit",
-      "game show" in b3_ and "unflinchingly" in b3_ and "cut away" in b0_ and "Never explicit" in b3_)
+      "game show" in b3_ and "horror-film explicit" in b3_ and "cut away" in b0_ and "Never explicit" in b3_)
 check("at gore 0 a body is not described", r.body_desc({"kind": "murder", "method": "sharp (knife)"}) == "is dead")
 r.tuning_get = lambda: {}
 a_, b_, c_ = sorted(w.agents)[:3]
@@ -7311,6 +7311,12 @@ snap_ = json.dumps([g[2] for g in got_], sort_keys=True, default=str)
 w.remember(c0_, "Something new happened after the diaries were asked for.")
 check("a diary asked for early gets a snapshot of the world, so thread timing cannot change it (seasons stay repeatable)",
       got_ and json.dumps([g[2] for g in got_], sort_keys=True, default=str) == snap_)
+
+w, r, _ = fresh(2701)
+check("gore is graphic by default: a killing in the feed says how it went, and the execution prompt asks for it step by step",
+      r.tune("gore") == 3 and r.kill_detail("sharp").startswith(": ") and "step by step" in r.tone_guide())
+r.tuning_get = lambda: {"gore": 2}
+check("below gore 3 the killing line stays as it was", r.kill_detail("sharp") == "")
 
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]

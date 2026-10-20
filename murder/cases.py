@@ -34,12 +34,30 @@ BODY_DESC = {
     "accident": ["lies broken where the accident left them, limbs bent the wrong way",
                  "lies still at the foot of the danger that took them, the stillness already wrong"],
 }
-GORE_TAIL = {"sharp": ["and something pale shows through the deepest cut", "the smell of copper thick enough to taste"],
-             "blunt": ["one eye pushed half out of its socket by the swelling", "teeth scattered across the floor like dice"],
-             "hands": ["the face gone a mottled blue-black", "blood dried in the corners of the eyes where the vessels burst"],
-             "poison": ["the bedding soaked through with what came up", "the jaw locked open mid-scream"],
-             "water": ["the skin wrinkled and grey, a pink froth at the nostrils"],
-             "shock": ["the tongue bitten through", "the soles of the feet split and blackened where the current left"]}
+GORE_TAIL = {"sharp": ["and something pale shows through the deepest cut", "the smell of copper thick enough to taste",
+                       "the shirt fused to the body with drying blood, the defensive cuts on the palms opened to the bone",
+                       "one wound in the belly so deep that the floor around it has gone dark and soft"],
+             "blunt": ["one eye pushed half out of its socket by the swelling", "teeth scattered across the floor like dice",
+                       "the back of the head soft and wrong under the matted hair, a spray of blood up the wall to the height of the blows",
+                       "the jaw hanging loose and sideways, the nose flattened into the face"],
+             "hands": ["the face gone a mottled blue-black", "blood dried in the corners of the eyes where the vessels burst",
+                       "the tongue swollen black between the teeth, the throat crushed flat under the purple prints",
+                       "the heels scuffed raw from kicking at the floor"],
+             "poison": ["the bedding soaked through with what came up", "the jaw locked open mid-scream",
+                        "the fingernails torn off against the floorboards, a trail of vomit and blood to the door they never reached"],
+             "water": ["the skin wrinkled and grey, a pink froth at the nostrils", "the eyes open and clouded, hair floating in a slow fan, scratches on the arms where they fought"],
+             "shock": ["the tongue bitten through", "the soles of the feet split and blackened where the current left",
+                       "the skin around the entry burn split open, the air thick with the smell of cooked flesh"],
+             "accident": ["a shard of bone through the skin of one shin", "the neck bent at an angle a living neck never makes"]}
+# Killings told as they happen, at gore 3 (the feed's line, before any model voices it)
+KILL_TAIL = {"sharp": ["the blade grating on bone, blood spattering the walls in long arcs", "wet, ragged gasps until the lungs fill and the gasping stops",
+                       "the first stab into the gut, the next ones anywhere, blood pooling faster than the floor can take it"],
+             "blunt": ["each blow wetter than the last, until the skull gives way with a dull crack", "teeth and blood across the floor, the body twitching long after it should have stopped",
+                       "the face no longer a face by the time the swinging stops"],
+             "hands": ["the eyes reddening as the vessels burst, the heels drumming the floor, then twitching, then still",
+                       "a crack from inside the throat, nails tearing at the hands, the face going purple, then grey"],
+             "water": ["the thrashing slowing, a last spray of bubbles, the body going slack under their hands",
+                       "water and blood-pink froth from the mouth, the fingers still clawing at the edge when it ends"]}
 CAUSES = {"trap_fall": "a shattering fall from something that had been tampered with",
           "trap_drink": "agonising poisoning from a tainted drink",
           "trap_blade": "a rigged blade that opened them up",
@@ -78,6 +96,12 @@ class CaseMixin:
         if g >= 3 and key in GORE_TAIL:
             text += ", " + self.rng.choice(GORE_TAIL[key])
         return text
+
+    def kill_detail(self, kind):
+        """At gore 3, how the killing went, told plainly (", the blade grating on bone..."). Empty below that."""
+        if int(self.tune("gore")) < 3 or kind not in KILL_TAIL:
+            return ""
+        return ": " + self.rng.choice(KILL_TAIL[kind])
 
     @staticmethod
     def close_label(aff):
@@ -221,6 +245,8 @@ class CaseMixin:
                     w.drop(cid, rope, 1)                                   # the rope stays: it is part of the scene
                 elif staged == "accident" and kind == "water":
                     brutal = f"{name} slips {tname}, drugged and limp, under the bathwater and leaves the tap running"
+                if not rope and not (staged == "accident" and kind == "water"):
+                    brutal += self.kill_detail(kind)
                 self.log_event(tick, {"type": "attack", "who": cid, "room": room, "vis": "public",
                                       "text": f"{brutal}, in the {w.room_name(room)}."}, witnesses=seen, actor=cid)
                 self.log_event(tick, {"type": "fight", "who": cid, "room": room, "vis": "gm", "text": self.fight_text(cid, t, res, wname, kind)})

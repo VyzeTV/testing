@@ -19,7 +19,9 @@ GORE = {
     0: "Deaths and wounds are never described: cut away before the blow lands and after the body is found.",
     1: "Violence is clear but restrained: blood and a wound, no lingering on the detail.",
     2: "Violence is vivid and brutal: wounds, blood and broken bodies are described plainly and with weight, and nobody dies prettily.",
-    3: "Violence is graphic and visceral: the full horror of wounds, bodies and executions, described unflinchingly.",
+    3: ("Violence is graphic and visceral, horror-film explicit: name the wound and what it does to the body (the blade grating on bone, the skull giving way, "
+        "the eyes reddening as a throat is crushed), the blood and how it moves, the sounds and smells, how long dying takes, and what the body looks like after. "
+        "Executions are described step by step, the device and the body's response, with no cutaway. Never sexual violence, never cruelty played for laughs."),
 }
 TONE_GUIDE = ("TONE: mature, darkly funny and brutal at once. TereVi runs it as a game show: punishments are 'segments' with sound cues, fake sponsors "
               "('this execution is brought to you by...'), ratings jokes and a studio audience that is not there. The cast's gallows humour, petty feuds and absurd "

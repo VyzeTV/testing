@@ -495,7 +495,7 @@ class NeoViLifeMixin:
         brutal = {"sharp": f"{name} drives the {wname} into NeoVi until the taser falls out of her hand",
                   "blunt": f"{name} brings the {wname} down on NeoVi until she stops trying to get up",
                   "hands": f"{name} gets their hands around NeoVi's throat and does not let go",
-                  "water": f"{name} holds NeoVi under the water until the thrashing stops"}[kind]
+                  "water": f"{name} holds NeoVi under the water until the thrashing stops"}[kind] + self.kill_detail(kind)
         self.log_event(tick, {"type": "attack", "who": cid, "room": room, "vis": "public", "text": f"{brutal}, in the {w.room_name(room)}."}, witnesses=here, actor=cid)
         self.open_case(tick, "murder", KUMIKO_ID, culprit=cid, wkind=kind, weapon=weapon, room=room, witnesses=here)
         if s.get("case"):
