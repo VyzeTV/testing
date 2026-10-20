@@ -177,5 +177,8 @@ Dialogue (nobody answers their own line; no "morning" after noon in 527 lines), 
 13. **Romances form and re-form far too easily.** Seed 13 (default): Szymon is in a romance with about seven people over 27 days; "Cail and Szymon are now in a romance" is announced three times in seed 11. A romance should need time and mutual feeling, and a breakup should cool things for days.
 14. **The same madness line repeats** ("Mara has snapped" three times in one afternoon, seed 13). Announce a snap once.
 
+15. **Old bodies are found again.** Seed 11 (violent): Ayden, killed on Day 5, is "found" by Ilya on Day 8 and by Mara on Day 16. A body already announced (or tried) should not be discovered again.
+16. **A body found by one person goes unannounced for twelve hours** and TereVi then mocks the cast for not noticing (seed 11, Day 16). With fewer than three finders, the finder should at least raise the alarm.
+
 ### Also open from H4
 After H4, 80 mock seasons gave 29/36/35 (36/29/35 before). Possibly noise (runs swing by about 5 points), possibly the "hand something over" dare taking escape parts. Check with dares off; if it is the dares, keep escape parts and keys out of that dare.
