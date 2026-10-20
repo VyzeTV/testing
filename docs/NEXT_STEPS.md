@@ -167,5 +167,11 @@ A real-model season with a 5-day week, played by the user. It ended in the Recko
 ### What worked
 Dialogue (nobody answers their own line; no "morning" after noon in 527 lines), NeoVi (spoke 33 times, served, thanked, flirted with, helped people break the rule), intrusions (caught going through things, walked in on in the shower, a confrontation), a full plot chain (Chloe plotted, watched, chose a method, struck on Day 5, was fought off), specific diaries that remember the raft crew, decide-ahead (44 early decisions used, 3 wasted; 55-92 calls a day), and the outside snippets and experiments.
 
+### Found while voicing seed 28 (2026-10-20)
+9. **Verdicts ignore the strongest evidence.** Seed 28, Day 8: a blue hair and a small hand pointed at Vixen, yet six of seven votes followed a herring clue ("Seul could not stand Cail"). Day 13: Shintaro's alibi (Cold Store) and Szymon's (Bathroom, with Shintaro) contradict each other and nobody raised it. Check the weights in `claimtrial` (suspicion meter vs. herrings; contradiction between two people's alibis).
+10. **People present evidence against themselves** at the trial (Seul: "plenty of people know Seul could not stand Cail"; Ayden presenting a clue naming Ayden). A clue that names the presenter should not be presented by them, or should be framed as a defence.
+11. **TereVi torments NeoVi almost every night**, and the same torment repeats ("taser herself" several times in one season). Lower `nv_torment`'s odds and avoid the last one used.
+12. **A repeated feed line**: in seed 27, "Cail shoves Ayden back out of the door" six times in one day (an intrusion repeating).
+
 ### Also open from H4
 After H4, 80 mock seasons gave 29/36/35 (36/29/35 before). Possibly noise (runs swing by about 5 points), possibly the "hand something over" dare taking escape parts. Check with dares off; if it is the dares, keep escape parts and keys out of that dare.
