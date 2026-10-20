@@ -1,0 +1,77 @@
+<title>Seed 11 Test Strip</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Literata:opsz,wght@7..72,400;7..72,600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a late-night broadcast control room. Each strip is a "segment" with an on-air slug,
+   panels run in reading order in a 3-up grid (2-up, then 1-up on phones), captions under each. */
+:root {
+  --bg: #120b16; --panel: #1d1324; --ink: #f3e8f4; --muted: #a891ad; --rule: #34253c;
+  --tv: #ff4f9a; --rec: #ff3b3b;
+  --display: "Bungee", "Impact", system-ui, sans-serif;
+  --body: "Literata", Georgia, "Times New Roman", serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.55; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 36px 72px; }
+.slug { font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.slug .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--rec); }
+h1 { font-family: var(--display); font-weight: 400; font-size: clamp(30px, 6vw, 52px); line-height: 1.05; margin: 10px 0 12px; color: var(--tv); text-wrap: balance; }
+.lede { max-width: 64ch; color: var(--muted); margin: 0; }
+section { margin-top: 52px; display: grid; gap: 16px; }
+h2 { font-family: var(--display); font-weight: 400; font-size: clamp(22px, 4vw, 30px); margin: 0; text-wrap: balance; }
+h2 small { display: block; font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--tv); margin-bottom: 4px; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 900px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
+figure { margin: 0; background: var(--panel); border: 1px solid var(--rule); display: grid; min-width: 0; }
+figure img { display: block; width: 100%; height: auto; aspect-ratio: 1; max-width: 100%; }
+figcaption { padding: 10px 12px 12px; font-size: 15px; display: flex; gap: 10px; align-items: baseline; }
+figcaption b { font-family: var(--mono); font-size: 12px; color: var(--tv); font-weight: 600; }
+.notes { margin-top: 56px; border-top: 1px solid var(--rule); padding-top: 20px; display: grid; gap: 10px; max-width: 72ch; }
+.notes h3 { font-family: var(--mono); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0; font-weight: 600; }
+.notes ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.num { font-variant-numeric: tabular-nums; }
+</style>
+<div class="wrap">
+  <header>
+    <div class="slug"><span class="dot"></span>Murder Channel · season seed 11 · violent cast</div>
+    <h1>Seed 11 Test Strip</h1>
+    <p class="lede">Two segments drawn from the voiced season: Vixen's execution on Day 8 and Cail's lamp in the bath on Day 16. Twelve panels, made with Nano Banana 2.1 using the cast portraits as references, to settle the style before more strips.</p>
+  </header>
+
+  <section aria-labelledby="sa">
+    <h2 id="sa"><small>Day 8 · trial and execution</small>ACCESS DENIED</h2>
+    <div class="grid">
+      <figure><img src="a1.jpg" alt="TereVi opens the trial in the lighthouse: Welcome to the Voting Grounds, my darlings!"><figcaption><b>1</b>TereVi opens the trial.</figcaption></figure>
+      <figure><img src="a2.jpg" alt="Vixen at the stand, waving: Smile for the cameras, everyone."><figcaption><b>2</b>Vixen, voted guilty six to one.</figcaption></figure>
+      <figure><img src="a3.jpg" alt="NeoVi leads a cuffed Vixen across the lighthouse floor, eyes down."><figcaption><b>3</b>NeoVi walks Vixen across the lighthouse floor. She does not look up.</figcaption></figure>
+      <figure><img src="a4.jpg" alt="Vixen's hands clamped on a keyboard of saw blades under a password screen."><figcaption><b>4</b>One more keyboard.</figcaption></figure>
+      <figure><img src="a5.jpg" alt="The blades spin up in a spray of pink; Vixen screams."><figcaption><b>5</b>There is no delete key.</figcaption></figure>
+      <figure><img src="a6.jpg" alt="A screen reading ACCESS DENIED over a keyboard dripping pink, TereVi reflected in it."><figcaption><b>6</b>The screen reads: ACCESS DENIED.</figcaption></figure>
+    </div>
+  </section>
+
+  <section aria-labelledby="sb">
+    <h2 id="sb"><small>Day 16 · a murder under the compliment rule</small>The Lamp</h2>
+    <div class="grid">
+      <figure><img src="b1.jpg" alt="TereVi points at the viewer: COMPLIMENT QUOTA! Sincere! I'll know."><figcaption><b>1</b>Day 16's rule.</figcaption></figure>
+      <figure><img src="b2.jpg" alt="Seul games in the bath; Cail stands in the doorway holding a plugged-in lamp. The clock reads 8:00."><figcaption><b>2</b>08:00. Seul's bath. Cail at the door.</figcaption></figure>
+      <figure><img src="b3.jpg" alt="The lamp hits the water in a pink electric arc; Seul jolts."><figcaption><b>3</b>The drop.</figcaption></figure>
+      <figure><img src="b4.jpg" alt="A dark corridor with a smoking fuse box; Cail's silhouette walks away."><figcaption><b>4</b>08:45. The fuses trip.</figcaption></figure>
+      <figure><img src="b5.jpg" alt="Outdoors, Cail takes Szymon's arm: Morning, Szymon. You're my favourite person out here."><figcaption><b>5</b>The compliment quota, kept.</figcaption></figure>
+      <figure><img src="b6.jpg" alt="TereVi on screen: BODY DISCOVERY! Not one of you noticed! Beside it, Seul's hand behind the shower curtain."><figcaption><b>6</b>20:00. Nobody noticed.</figcaption></figure>
+    </div>
+  </section>
+
+  <div class="notes">
+    <h3>How these were made</h3>
+    <ul>
+      <li>Model: Nano Banana 2.1 (developer tier) through Atlas Cloud, <span class="num">$0.018</span> an image, with the portraits from <code>static/portraits</code> as references (up to four characters per panel).</li>
+      <li>This strip: <span class="num">12</span> panels, <span class="num">$0.216</span>. No panel was refused, the execution included.</li>
+      <li>Known slip: in Day 16 panel 3 Seul wears her hoodie instead of the swimsuit from panel 2. One re-roll would fix it.</li>
+      <li>Prompts and captions live in <code>docs/runs/seed11/comic/strip.json</code>; <code>tools/comic.py</code> makes the panels and skips any already made.</li>
+    </ul>
+  </div>
+</div>

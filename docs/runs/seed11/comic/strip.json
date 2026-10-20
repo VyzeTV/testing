@@ -1,0 +1,57 @@
+{
+  "season": "seed 11, violent cast (mock replay, voiced Days 8 and 16)",
+  "model": "nano",
+  "style": "Single comic panel in the anime visual-novel style of Danganronpa, matching the art style and character designs of the reference images exactly. Clean bold lineart, flat cel shading, halftone texture, saturated pink and magenta lighting with deep black shadows. Any blood is bright neon pink, Danganronpa style, never realistic red. Lettering in bold comic font, spelled exactly as given.",
+  "strips": [
+    {
+      "id": "a",
+      "title": "ACCESS DENIED",
+      "day": 8,
+      "panels": [
+        {"id": "a1", "refs": ["terevi"],
+         "caption": "TereVi opens the trial.",
+         "prompt": "The host from the reference image, TereVi (a small robot whose head is a teal retro TV set with two ear-like antennae and a simple smiling face on the screen), throws its arms wide in front of a giant broadcast screen in a dim trial room inside a lighthouse. A broadcast overlay frames the panel: red REC dot, pink banner 'MURDER CHANNEL - LIVE'. A big jagged speech balloon: 'Welcome to the Voting Grounds, my darlings!'"},
+        {"id": "a2", "refs": ["vixen"],
+         "caption": "Vixen, voted guilty six to one.",
+         "prompt": "Already generated in the style test."},
+        {"id": "a3", "refs": ["neovi", "vixen"],
+         "caption": "NeoVi walks Vixen across the lighthouse floor. She does not look up.",
+         "prompt": "The maid from the first reference (NeoVi: long black twin tails, red eyes, black and white maid uniform with a pink bow) leads the girl from the second reference (Vixen: short spiky blue hair, cyan eyes, dark jacket, blue scarf) across the wooden floor of a lighthouse by a handcuff. NeoVi's eyes are fixed on the floorboards, her hand trembling on the cuff, sweat on her face. Vixen walks upright, defiant. Long shadows, a single pink spotlight, a heavy steel door ahead. Small caption box: 'She knows what looking up would cost her.'"},
+        {"id": "a4", "refs": ["vixen"],
+         "caption": "One more keyboard.",
+         "prompt": "Vixen from the reference image, terrified now, her wrists locked in steel clamps that press her hands flat onto a huge steel keyboard whose every key is a small circular saw blade set flush. A large monitor above shows a password prompt and a countdown clock. Dramatic low angle, cold steel and pink light. Caption box in TereVi's voice: 'My darling, you spent your life behind keys. Tonight you get one more keyboard.'"},
+        {"id": "a5", "refs": ["vixen"],
+         "caption": "There is no delete key.",
+         "prompt": "Execution scene, Danganronpa style. The blades of the steel keyboard spin up; Vixen from the reference image screams, head thrown back, eyes wide, as the machine feeds her clamped hands forward into the spinning blades. A spray of bright neon pink blood arcs across the steel and the screen, sparks fly, motion lines everywhere. Her hands are hidden in the spray and the blur of the blades. Sound effect lettering: 'WHIRRRR'. Caption box: 'There is no delete key.'"},
+        {"id": "a6", "refs": ["terevi"],
+         "caption": "The screen reads: ACCESS DENIED.",
+         "prompt": "Close-up of a monitor glowing red with big block letters 'ACCESS DENIED'. Below it, the edge of a steel keyboard of circular blades, now still, dripping thick strings of bright neon pink. In the reflection on the screen, faintly, the smiling teal TV-head of TereVi from the reference image. No people in frame. Broadcast overlay: red REC dot."}
+      ]
+    },
+    {
+      "id": "b",
+      "title": "The Lamp",
+      "day": 16,
+      "panels": [
+        {"id": "b1", "refs": ["terevi"],
+         "caption": "Day 16's rule.",
+         "prompt": "TereVi from the reference image (a robot with a teal retro-TV head, ear-like antennae, smiling screen face) leaps toward the viewer on a morning broadcast set with confetti and hearts, pointing straight at the reader. Broadcast overlay: pink banner 'MURDER CHANNEL - DAY 16 - NEW RULE'. Giant jagged speech balloon: 'COMPLIMENT QUOTA!' and a smaller one: 'Sincere! I'll know.'"},
+        {"id": "b2", "refs": ["seul", "cail"],
+         "caption": "08:00. Seul's bath. Cail at the door.",
+         "prompt": "A small tiled bathroom, morning. The girl from the first reference (Seul: long lavender hair, violet eyes with tired shadows) lies relaxed in a full bathtub wearing a sporty one-piece swimsuit, playing a handheld game console, headphones on, eyes on the screen. In the doorway behind her stands the girl from the second reference (Cail: long orange hair in a side ponytail with a green ribbon, teal eyes, white sailor uniform with a green neckerchief), smiling sweetly, holding a lit bedside lamp whose cord runs to a wall socket. Clock on the wall reads 8:00. Tense, quiet composition."},
+        {"id": "b3", "refs": ["seul", "cail"],
+         "caption": "The drop.",
+         "prompt": "Dynamic impact panel. The lit bedside lamp falls into the bathwater; a blinding white and pink electric arc bursts across the surface, lightning branches everywhere. Seul from the first reference jolts rigid, back arched, mouth open in a silent scream, the game console flying out of her hand. Only Cail's hand from the second reference (white sailor sleeve) is visible at the top edge, fingers just opened. Sound effect lettering: 'KZZZT!'"},
+        {"id": "b4", "refs": ["cail"],
+         "caption": "08:45. The fuses trip.",
+         "prompt": "A long dark mansion corridor, all lights out, only grey morning light from a window. A fuse box on the wall hangs open, faintly smoking. At the far end, the silhouette of the girl from the reference (Cail: long orange side ponytail with a ribbon, sailor uniform) walks calmly away, back to the viewer. Caption box: '08:45. The house goes dark.'"},
+        {"id": "b5", "refs": ["cail", "szymon"],
+         "caption": "The compliment quota, kept.",
+         "prompt": "Outdoors on the island, bright morning, a garden path with the sea behind. The girl from the first reference (Cail: long orange side ponytail, teal eyes, white sailor uniform with green neckerchief) hooks her arm through the arm of the tall young man from the second reference (Szymon: short ginger-blond hair, red face scarf over his mouth, dark green patched hooded parka) and beams up at him; he looks tired and unsure. Speech balloon from Cail: 'Morning, Szymon. You're my favourite person out here.'"},
+        {"id": "b6", "refs": ["terevi", "seul"],
+         "caption": "20:00. Nobody noticed.",
+         "prompt": "Split panel. Left: TereVi from the first reference (teal retro-TV head robot) on a giant screen, its face showing an angry scribble, jagged balloon: 'BODY DISCOVERY! Not one of you noticed!' Right: a dark bathroom where a pale hand with lavender hair spilling beside it hangs out from behind a drawn shower curtain, a scorched lamp on the wet floor, small neon pink burn marks, steam gone cold. The hair and hand belong to the girl from the second reference (Seul). Broadcast overlay: red REC dot, banner 'MURDER CHANNEL - 20:00'."}
+      ]
+    }
+  ]
+}
