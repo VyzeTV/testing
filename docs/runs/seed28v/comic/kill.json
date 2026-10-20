@@ -1,0 +1,27 @@
+{
+  "season": "seed 28, violent cast: the moment Seul stabs Vixen (Day 10, 10:00, Dining Hall), a single image",
+  "model": "nano",
+  "body": {
+    "aspect_ratio": "3:2",
+    "resolution": "1k"
+  },
+  "style": "A single full-bleed illustration, no panels, no borders, no text, no lettering, no speech bubbles, no sound effects. Anime visual-novel style of Danganronpa, matching the art style and character designs of the reference portraits exactly. Clean bold lineart, cel shading, dramatic lighting with saturated pink and magenta accents and deep black shadows. Blood is bright neon pink, Danganronpa style, never realistic red.",
+  "strips": [
+    {
+      "id": "kill",
+      "title": "The Steak Knife",
+      "day": 10,
+      "panels": [
+        {
+          "id": "kill1",
+          "refs": [
+            "seul",
+            "vixen"
+          ],
+          "caption": "Day 10, 10:00, the Dining Hall: Seul stabs Vixen.",
+          "prompt": "The moment of the kill, in a dining hall with a long breakfast table. Close, dramatic two-shot. The girl from the first reference (Seul: long lavender hair, violet eyes with tired shadows, light blue hoodie) holds a steak knife in her right fist and has plunged the blade deep into the stomach of the girl from the second reference (Vixen: short spiky blue hair, cyan eyes, black strappy top and dark jacket); the knife handle is clearly visible in Seul's fist, the blade buried in Vixen's belly, and Seul's other hand grips Vixen's shoulder to pull her onto the knife. Seul's face is cold and blank. Vixen screams, eyes wide in disbelief, her hands clutching at Seul's wrist too late. A burst of bright neon pink blood sprays from the wound across the white tablecloth and Seul's hoodie; plates and toast fly, a chair topples. Low angle, motion lines, harsh pink light from the windows. The knife and the wound are the focal point of the image."
+        }
+      ]
+    }
+  ]
+}
