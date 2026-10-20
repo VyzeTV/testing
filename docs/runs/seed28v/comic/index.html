@@ -1,0 +1,52 @@
+<title>The Steak Knife</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Literata:opsz,wght@7..72,400;7..72,600&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: the same late-night broadcast room as the seed 11 strip; here each image is a whole comic page,
+   so pages stack in one reading column, with a slug line above each. */
+:root {
+  --bg: #120b16; --panel: #1d1324; --ink: #f3e8f4; --muted: #a891ad; --rule: #34253c;
+  --tv: #ff4f9a; --rec: #ff3b3b;
+  --display: "Bungee", "Impact", system-ui, sans-serif;
+  --body: "Literata", Georgia, "Times New Roman", serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.55; }
+.wrap { max-width: 760px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 36px 72px; display: grid; gap: 40px; }
+.slug { font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.slug .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--rec); }
+h1 { font-family: var(--display); font-weight: 400; font-size: clamp(30px, 6vw, 52px); line-height: 1.05; margin: 10px 0 12px; color: var(--tv); text-wrap: balance; }
+.lede { max-width: 64ch; color: var(--muted); margin: 0; }
+figure { margin: 0; display: grid; gap: 10px; }
+figure .slug { color: var(--tv); }
+figure img { display: block; width: 100%; height: auto; max-width: 100%; aspect-ratio: 848 / 1264; border: 1px solid var(--rule); }
+figcaption { font-size: 15px; color: var(--muted); }
+.gap { border: 1px dashed var(--rule); background: var(--panel); padding: 18px 20px; display: grid; gap: 6px; }
+.gap p { margin: 0; color: var(--muted); max-width: 64ch; }
+.notes { border-top: 1px solid var(--rule); padding-top: 20px; display: grid; gap: 10px; }
+.notes h3 { font-family: var(--mono); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0; font-weight: 600; }
+.notes ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 68ch; }
+</style>
+<div class="wrap">
+  <header>
+    <div class="slug"><span class="dot"></span>Murder Channel · season seed 28 · violent cast · Days 10 and 11</div>
+    <h1>The Steak Knife</h1>
+    <p class="lede">Seul and Vixen were lovers. In the Dining Hall after breakfast, Seul threw herself between Vixen and Shintaro to save her. Minutes later she picked up a steak knife from the table.</p>
+  </header>
+
+  <figure>
+    <div class="slug">Day 10, 10:00 · the Dining Hall</div>
+    <img src="k1.jpg" alt="Seul shoves Shintaro away from Vixen: 'Don't you touch her!'; Vixen hugs Seul while Seul's hand closes on a steak knife: 'They were lovers.'; Seul stabs Vixen in a spray of pink, BETRAYAL; Seul hides her stained hoodie in the Woods; Day 11, Seul is fired from a glitter cannon while TereVi cheers 'Punishment complete!'">
+    <figcaption>Saved, then stabbed. Seul was voted guilty the next day and fired out of TereVi's glitter cannon.</figcaption>
+  </figure>
+
+  <div class="notes">
+    <h3>How this was made</h3>
+    <ul>
+      <li>One tall 1k page by Nano Banana 2.1 (developer tier) through Atlas Cloud, with the portraits of Seul, Vixen, Shintaro and TereVi as references.</li>
+      <li>Prompt in <code>docs/runs/seed28v/comic/strip.json</code>; <code>tools/comic.py</code> makes the page.</li>
+    </ul>
+  </div>
+</div>

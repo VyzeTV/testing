@@ -1,0 +1,18 @@
+{
+  "season": "seed 28, violent cast (mock replay): Seul and Vixen, Days 10 and 11",
+  "model": "nano",
+  "body": {"aspect_ratio": "2:3", "resolution": "1k"},
+  "style": "A full manga / comic page divided into separate panels with clean white gutters and black panel borders, read left to right, top to bottom. Anime visual-novel style of Danganronpa, matching the art style and character designs of the reference portraits exactly. Clean bold lineart, flat cel shading, halftone texture, saturated pink and magenta accents with deep black shadows. Any blood is bright neon pink, Danganronpa style, never realistic red. All lettering in bold comic font, spelled exactly as given, kept short and legible.",
+  "strips": [
+    {
+      "id": "k",
+      "title": "The Steak Knife",
+      "day": 10,
+      "panels": [
+        {"id": "k1", "refs": ["seul", "vixen", "shintaro", "terevi"],
+         "caption": "Day 10, 10:00, the Dining Hall. Seul saves Vixen, then kills her. Day 11: the glitter cannon.",
+         "prompt": "Page title in a pink broadcast banner across the top: 'MURDER CHANNEL - DAY 10 - 10:00'. Five panels. Panel 1: in a dining hall with a long table still set from breakfast, the young man from the third reference (Shintaro: long dark green hair, red eyes, brown jacket with a white fur collar) lunges at the girl from the second reference (Vixen: short spiky blue hair, cyan eyes, black strappy top and dark jacket); the girl from the first reference (Seul: long lavender hair, violet eyes with tired shadows, light blue hoodie and joggers) throws herself between them and shoves him back. Speech balloon from Seul: 'Don't you touch her!' Panel 2: Vixen, shaken, hugs Seul in relief, eyes closed; over Vixen's shoulder, Seul's face has gone blank and cold, and her hand closes around a steak knife on the table. Caption box: 'They were lovers.' Panel 3 (largest panel): Seul drives the steak knife into Vixen again and again; Vixen screams, her hands up; bright neon pink blood sprays across the table, plates and chairs crash, speed lines. A red stamped banner across the panel: 'BETRAYAL'. Panel 4: in a dark wood, Seul, alone, shoves a pink-stained light blue hoodie under the roots of a tree, her face hidden by her hair. Caption box: 'She hid the hoodie in the Woods.' Panel 5 (wide, final): Day 11 at sunset, Seul is blasted into the sky out of a giant glittering pink cannon, trailing confetti and glitter; on a screen in the corner, the host from the fourth reference, TereVi (a small robot with a teal retro-TV head, ear-like antennae and a smiling screen face), cheers. Balloon from TereVi: 'Punishment complete!' Small caption box: 'Day 11. Guilty, 4 votes to 2.'"}
+      ]
+    }
+  ]
+}
