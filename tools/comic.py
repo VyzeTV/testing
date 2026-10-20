@@ -18,8 +18,10 @@ MODELS = {
 }
 
 
-def ref(cid):
-    im = Image.open(os.path.join(PORTRAITS, cid + ".png")).convert("RGBA")
+def ref(cid, folder="."):
+    """A portrait id, or an earlier panel's file (e.g. "b2.jpg") from the spec's folder."""
+    path = os.path.join(folder, cid) if cid.endswith(".jpg") else os.path.join(PORTRAITS, cid + ".png")
+    im = Image.open(path).convert("RGBA")
     bg = Image.new("RGBA", im.size, "white")
     bg.alpha_composite(im)
     buf = io.BytesIO()
@@ -38,10 +40,10 @@ def call(method, url, body=None):
         return {"error": f"HTTP {e.code}: {e.read()[:300]!r}"}
 
 
-def generate(model, prompt, refs, out):
+def generate(model, prompt, refs, out, folder="."):
     """One image; returns an error string or None."""
     mid, field, extra, _ = MODELS[model]
-    body = {"model": mid, "prompt": prompt, field: [ref(r) for r in refs], "enable_base64_output": True, **extra}
+    body = {"model": mid, "prompt": prompt, field: [ref(r, folder) for r in refs], "enable_base64_output": True, **extra}
     r = call("POST", f"{API}/generateImage", body)
     if "data" not in r:
         return r.get("error") or r.get("msg") or str(r)[:300]
@@ -72,7 +74,7 @@ def main(argv):
             out = os.path.join(folder, p["id"] + ".jpg")
             if os.path.exists(out) and "--redo" not in argv:
                 continue
-            err = generate(model, p["prompt"] + " " + style, p["refs"], out)
+            err = generate(model, p["prompt"] + " " + style, p["refs"], out, folder)
             if err:
                 print(f"{p['id']}: FAILED ({err}); stopping. Spent ${spent:.3f}")
                 return 1
