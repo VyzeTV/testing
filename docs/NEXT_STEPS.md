@@ -183,6 +183,14 @@ Dialogue (nobody answers their own line; no "morning" after noon in 527 lines), 
 18. **The season's kill list misses the early weeks.** The seed finder's `truths` for seed 11 lack Ayden (Day 5) and Noah (Day 6), so its violence ranking undercounts early killings.
 19. **`looks.OUTFITS` disagree with the character cards** (`static/cards/*.webp`, full-body art). Seul's card shows a cropped hoodie, black shorts and lavender thigh-high socks (OUTFITS: "hoodie and joggers"); Cail's a cropped sailor top, black pleated skirt, one orange-striped and one dark stocking and grey boots; Vixen's grey leggings and black boots; Chloe's cropped beige trousers and flats. Bring OUTFITS (and `looks_line`) in line with the cards.
 
+### Found voicing seed 13 (violent) in full (2026-10-20)
+17. **TereVi narrates deaths that did not happen.** The bomb-standoff broadcasts (`make_broadcast` kinds `finale`/`ultimatum`) describe people torn apart who are not even hurt (Day 5 after the cast backed down; Day 8, Cail "gone from the waist down" four hours before she is killed; Day 9, Ayden dead and Mara's skull broken, both alive). Give the prompt the actual outcome and who was hurt (and how badly), and forbid inventing deaths; it also got Seul's and Cail's pronouns wrong. The raft finale put Bram (who stayed ashore) on the raft: pass the crew list.
+18. **The dead stay in gossip.** Rumours and conversation beats keep naming Cail two and three days after her death ("Cail keeps asking who we trust"). Rumours and social moves must not take a dead person as their subject as if alive.
+19. **Witness sightings contradict everyone's alibis** (seed 13, Day 9: everyone says they were alone elsewhere at noon, then everyone saw everyone in the Lounge). Sightings and claims should come from the same record of where people were.
+20. **A body under the dining table is missed through two meals** (seed 13, Day 6). Hidden bodies in a busy room should be found.
+21. **A secret confided again and again as if new** (Ayden tells Seul the same secret four times). Mark what each person has already been told.
+22. **Newcomers speak before their arrival is announced** (seed 13: they talk at dinner and the remembrance on Day 8; the arrival event and TereVi's welcome come on Day 9). This may be the season runner's refill timing; check the viewer's path too.
+
 ### Also open from H4
 After H4, 80 mock seasons gave 29/36/35 (36/29/35 before). Possibly noise (runs swing by about 5 points), possibly the "hand something over" dare taking escape parts. Check with dares off; if it is the dares, keep escape parts and keys out of that dare.
 
