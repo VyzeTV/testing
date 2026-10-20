@@ -1,6 +1,9 @@
 """Comic panels through Atlas Cloud, with the cast portraits as references.
 
-    python tools/comic.py docs/runs/seed11/comic/strip.json [--only a3,b2] [--redo]
+    python tools/comic.py docs/runs/seed11/comic/strip.json [--only a3,b2] [--redo] [--model seed]
+
+--model sends the same prompts to another model (the fallback after a refusal); the spec's
+"body_<model>" (e.g. "body_seed": {"size": "2496*1664"}) then replaces its "body".
 
 Needs ATLASCLOUD_API_KEY. Panels already on disk are skipped (each call costs money);
 the run stops at the first refusal so a bad prompt is not paid for twice.
@@ -16,6 +19,7 @@ PORTRAITS = os.path.join(ROOT, "static", "portraits")
 MODELS = {
     "nano": ("google/nano-banana-2.1-developer/edit", "reference_images", {"aspect_ratio": "1:1", "resolution": "1k"}, 0.018),
     "seed": ("bytedance/seedream-v5.0-flash/edit", "images", {"size": "1536*1536"}, 0.018),
+    "qwen": ("qwen/qwen-image-2.0/edit", "images", {}, 0.028),  # at most 3 references, prompt at most 800 characters
     # the readme's own prices: $0.06 at medium/1k plus $0.01 per input image
     "grok": ("xai/grok-imagine-image-2.0-developer/edit", "image_urls", {"resolution": "1k", "quality": "medium"}, 0.014),
 }
@@ -69,6 +73,10 @@ def main(argv):
     spec = json.load(open(spec_path))
     folder = os.path.dirname(os.path.abspath(spec_path))
     model, style = spec["model"], spec["style"]
+    body = spec.get("body", {})
+    if "--model" in argv:
+        model = argv[argv.index("--model") + 1]
+        body = spec.get("body_" + model, {}) if model != spec["model"] else body
     spent = 0.0
     for strip in spec["strips"]:
         for p in strip["panels"]:
@@ -77,7 +85,7 @@ def main(argv):
             out = os.path.join(folder, p["id"] + ".jpg")
             if os.path.exists(out) and "--redo" not in argv:
                 continue
-            err = generate(model, p["prompt"] + " " + style, p["refs"], out, folder, {**spec.get("body", {}), **p.get("body", {})})
+            err = generate(model, p["prompt"] + " " + style, p["refs"], out, folder, {**body, **p.get("body", {})})
             if err:
                 print(f"{p['id']}: FAILED ({err}); stopping. Spent ${spent:.3f}")
                 return 1

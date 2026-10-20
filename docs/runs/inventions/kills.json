@@ -1,0 +1,59 @@
+{
+  "season": "invented kills with the female cast (not from a season)",
+  "model": "nano",
+  "body": {
+    "aspect_ratio": "3:2",
+    "resolution": "1k"
+  },
+  "style": "A single full-bleed illustration, no panels, no borders, no lettering except what the prompt names on screens. Anime visual-novel style of Danganronpa, matching the art style and character designs of the reference portraits exactly. Clean bold lineart, cel shading, dramatic lighting with saturated pink and magenta accents and deep black shadows. Blood is bright neon pink, Danganronpa style, never realistic red. The kill itself is the focal point.",
+  "strips": [
+    {
+      "id": "inv",
+      "title": "Invented kills",
+      "panels": [
+        {
+          "id": "inv1",
+          "refs": [
+            "cail",
+            "chloe"
+          ],
+          "caption": "Cail, the Internet Celebrity, shoves Chloe off the lighthouse gallery mid-selfie.",
+          "prompt": "Night, the narrow iron gallery at the top of a lighthouse, the great lamp blazing behind. The girl from the first reference (Cail: long orange hair in a side ponytail with a green ribbon, teal eyes, white sailor uniform with a green neckerchief) holds a selfie stick high in one hand, grinning at her phone screen, and with her other hand shoves the girl from the second reference (Chloe: short ash-brown hair, round glasses, pink eyes, dark teal wrap top) hard in the chest. Chloe topples backwards over the railing into the black drop, arms flailing, glasses flying off, mouth open in a scream. The phone screen shows a 'LIVE' badge and a flood of pink hearts. Wind, sea spray, motion lines."
+        },
+        {
+          "id": "inv2",
+          "refs": [
+            "vixen",
+            "seul"
+          ],
+          "caption": "Vixen, the Hacker, garrottes Seul with an ethernet cable in the control room.",
+          "prompt": "A dark control room lit by walls of monitors with green code and camera feeds. Close shot. The girl from the second reference (Seul: long lavender hair, violet eyes, light blue hoodie) is being strangled from behind: a blue ethernet cable is wrapped tightly around her neck, biting into her throat, and the girl from the first reference (Vixen: short spiky blue hair, cyan eyes, blue scarf, dark jacket) stands right behind her, pulling both ends of the cable back hard with her fists, teeth gritted. Seul's fingers dig at the cable at her throat, her eyes bulge and her face is flushed red, mouth open gasping, her gaming headset falling off. A monitor reads 'CONNECTION LOST'. The cable around Seul's neck is the focal point."
+        },
+        {
+          "id": "inv3",
+          "refs": [
+            "seul",
+            "cail"
+          ],
+          "caption": "Seul, the Competitive Gamer, brings a CRT monitor down on Cail in the Games Room.",
+          "prompt": "A games room with arcade cabinets glowing pink and cyan. Impact frame: the girl from the first reference (Seul: long lavender hair, violet eyes, light blue hoodie and joggers) smashes a heavy old CRT monitor down two-handed directly onto the top of the head of the girl from the second reference (Cail: long orange side ponytail with a green ribbon, white sailor uniform), who is on her knees directly below her. The monitor is in contact with Cail's head at the moment of impact: its glass bursts over her, sparks and bright neon pink blood burst from her head, her eyes roll up and her body crumples. Her phone flies from her hand. An arcade cabinet behind flashes 'GAME OVER'. The blow landing on Cail's head is the focal point."
+        },
+        {
+          "id": "inv4",
+          "refs": [
+            "neovi",
+            "vixen"
+          ],
+          "caption": "NeoVi, the maid, drives a silver cake knife into Vixen's back at afternoon tea.",
+          "prompt": "An elegant lounge set for afternoon tea, a silver tea trolley with a cake stand. The maid from the first reference (NeoVi: long black twin tails, red eyes, black and white maid uniform with a pink bow) stands behind the girl from the second reference (Vixen: short spiky blue hair, cyan eyes, dark jacket), who is seated with a teacup, and plunges a long silver cake knife into Vixen's back between the shoulder blades. NeoVi's face is perfectly polite, eyes closed in a serene smile, her free hand still holding the teapot steady. Vixen arches forward, eyes wide, the teacup shattering, bright neon pink blood spattering the white tablecloth and the cake."
+        }
+      ]
+    }
+  ],
+  "body_seed": {
+    "size": "2496*1664"
+  },
+  "body_qwen": {
+    "size": "1536*1024"
+  }
+}
