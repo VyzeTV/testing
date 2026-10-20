@@ -173,5 +173,9 @@ Dialogue (nobody answers their own line; no "morning" after noon in 527 lines), 
 11. **TereVi torments NeoVi almost every night**, and the same torment repeats ("taser herself" several times in one season). Lower `nv_torment`'s odds and avoid the last one used.
 12. **A repeated feed line**: in seed 27, "Cail shoves Ayden back out of the door" six times in one day (an intrusion repeating).
 
+### Found in the themed seed hunt (2026-10-20)
+13. **Romances form and re-form far too easily.** Seed 13 (default): Szymon is in a romance with about seven people over 27 days; "Cail and Szymon are now in a romance" is announced three times in seed 11. A romance should need time and mutual feeling, and a breakup should cool things for days.
+14. **The same madness line repeats** ("Mara has snapped" three times in one afternoon, seed 13). Announce a snap once.
+
 ### Also open from H4
 After H4, 80 mock seasons gave 29/36/35 (36/29/35 before). Possibly noise (runs swing by about 5 points), possibly the "hand something over" dare taking escape parts. Check with dares off; if it is the dares, keep escape parts and keys out of that dare.
