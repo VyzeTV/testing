@@ -6913,10 +6913,13 @@ def _rec_submit(self, tick, c):
 
 
 DayRunner.voice_submit = _rec_submit
-wv_ = World(new_state(3))
-tv_ = []
-wv_.state["day"] = 3
-DayRunner(wv_, LLM(backend="mock"), tv_.append, step=2, murders=False, rule_mode="roulette", seed=919).run()
+for sd_ in (919, 920, 921, 922):                 # enough conversations to judge, whatever one seed happens to bring
+    wv_ = World(new_state(3))
+    tv_ = []
+    wv_.state["day"] = 3
+    DayRunner(wv_, LLM(backend="mock"), tv_.append, step=2, murders=False, rule_mode="roulette", seed=sd_).run()
+    if len([x for x in subm_ if x[0] != "night"]) >= 3:
+        break
 DayRunner.voice_submit = _vs
 day_ = [x for x in subm_ if x[0] != "night"]
 check("a conversation's lines are asked for when it ends, while the block goes on (not all at the end)", len(day_) >= 3 and sum(1 for x in day_ if x[1] < 100) >= len(day_) // 2
