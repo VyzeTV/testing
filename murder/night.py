@@ -9,6 +9,8 @@ lives the block with the free-time machinery (quiet things only, and sooner or l
 block. A block where everyone sleeps is a quiet block (tick["quiet"]) the viewer can skip. Whoever slept less than SHORT_NIGHT hours wakes up exhausted.
 Sleepers are not counted as present, see and hear nothing, and a sleeper can be attacked defencelessly. NightMixin is mixed into DayRunner (engine.py).
 """
+import copy
+
 from .data_world import ROOMS
 
 NIGHT_HOUR = 23
@@ -228,6 +230,7 @@ class NightMixin:
             if not w.agents[cid].get("asleep"):
                 continue
             sysm, user, ctx = self.reflect_prompt(cid)
+            ctx = copy.deepcopy(ctx)                             # the thread must not see the world change under it
             self._diaries[cid] = {"day": self.day, "sig": self.diary_sig(cid), "fut": self.voice_pool().submit(self.llm.reflect, sysm, user, ctx)}
 
     def run_night_turn(self):

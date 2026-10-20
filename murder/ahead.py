@@ -69,7 +69,7 @@ class AheadMixin:
             if got[0] != "ask":
                 continue
             sysm, user, ctx = got[1]
-            self._ahead[cid] = {"day": self.day, "hour": nh, "sig": self.ahead_sig(cid), "fut": self.voice_pool().submit(self.llm.decide, sysm, user, ctx)}
+            self._ahead[cid] = {"day": self.day, "hour": nh, "sig": self.ahead_sig(cid), "fut": self.voice_pool().submit(self.llm.decide, sysm, user, copy.deepcopy(ctx))}
 
     def viewer_close(self):
         """Is someone watching live and close behind the engine (so a faster start of the next block would actually be seen)? The session sets `viewer_pos`."""

@@ -82,8 +82,8 @@ def score(r):
 
 def find(n):
     jobs = [(v, s) for v in (False, True) for s in range(1, n + 1)]
-    with Pool(min(8, os.cpu_count() or 2)) as pool:
-        res = pool.map(season.one_season, jobs)
+    with Pool(min(8, os.cpu_count() or 2), maxtasksperchild=1) as pool:       # a fresh process per season: nothing carries over from the last one
+        res = pool.map(season.one_season, jobs, chunksize=1)
     ranked = sorted(((score(r), r) for r in res), key=lambda x: -x[0][0])
     out = []
     for (sc, why), r in ranked[:12]:

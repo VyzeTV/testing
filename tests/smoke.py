@@ -7288,6 +7288,27 @@ check("voicing again changes only the words: same speakers, minutes and rooms; t
 strip_prompts(tv_)
 check("the kept prompts can be dropped afterwards", not any(t.get("vsys") or t.get("vlog") or any(e.get("vp") for e in t.get("talk") or []) for t in tv_))
 
+w, r, _ = fresh(2601)
+w.state["revealed"] = True
+for a in w.agents.values():
+    a["asleep"] = True
+got_ = []
+
+
+class _Pool:
+    def submit(self, fn, *a):
+        got_.append(a)
+        return None
+
+
+r.voice_pool = lambda: _Pool()
+r.diary_ahead()
+c0_ = sorted(w.agents)[0]
+snap_ = json.dumps([g[2] for g in got_], sort_keys=True, default=str)
+w.remember(c0_, "Something new happened after the diaries were asked for.")
+check("a diary asked for early gets a snapshot of the world, so thread timing cannot change it (seasons stay repeatable)",
+      got_ and json.dumps([g[2] for g in got_], sort_keys=True, default=str) == snap_)
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))
