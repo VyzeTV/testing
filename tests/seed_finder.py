@@ -3,7 +3,7 @@
     python tests/seed_finder.py find --seeds 30            (30 seeds per configuration: rank them by how much happened; no model calls)
     python tests/seed_finder.py record 17 --violent --out DIR
                                                           (play that season again, keeping every day's record and the voicing prompts)
-    python tests/seed_finder.py voice DIR --days 3-5 [--only trial,scene] [--backend cli]
+    python tests/seed_finder.py voice DIR --days 3-5 (or 6,8,13) [--only trial,scene] [--backend cli]
                                                           (voice those days again with the real model; writes DIR_voiced)
 
 A recording is a save slot: copy DIR (or DIR_voiced) into the viewer's data folder, under state/slots/<name>, load it from the Saves menu and
@@ -141,8 +141,8 @@ def voice(slot, day_range=None, only=None, backend="cli", workers=4):
         final = json.load(f)
     runner = DayRunner(World(final), LLM(backend="mock"), lambda t: None, step=2, seed=1)
     llm = LLM(backend=backend)
-    lo, hi = day_range or (0, 10 ** 6)
-    pick = {i for i, (d, _) in enumerate(days) if lo <= d <= hi}
+    want = day_range if isinstance(day_range, set) else set(range(day_range[0], day_range[1] + 1)) if day_range else None
+    pick = {i for i, (d, _) in enumerate(days) if want is None or d in want}
     st = revoice_day([t for _, t in days], runner, llm, workers=workers, only=only, pick=pick)
     out = os.path.normpath(slot) + "_voiced"
     shutil.rmtree(out, ignore_errors=True)
@@ -176,5 +176,5 @@ if __name__ == "__main__":
         record(int(a[1]), "--violent" in a, opt("--out", os.path.join(tempfile.gettempdir(), f"mc_seed_{a[1]}")))
     else:
         rng = opt("--days")
-        dr = tuple(int(x) for x in rng.split("-")) if rng and "-" in rng else ((int(rng), int(rng)) if rng else None)
+        dr = (tuple(int(x) for x in rng.split("-")) if "-" in rng else {int(x) for x in rng.split(",")}) if rng else None
         voice(a[1], dr, set(opt("--only").split(",")) if opt("--only") else None, opt("--backend", "cli"), int(opt("--workers", 4)))
