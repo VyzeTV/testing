@@ -16,6 +16,8 @@ PORTRAITS = os.path.join(ROOT, "static", "portraits")
 MODELS = {
     "nano": ("google/nano-banana-2.1-developer/edit", "reference_images", {"aspect_ratio": "1:1", "resolution": "1k"}, 0.018),
     "seed": ("bytedance/seedream-v5.0-flash/edit", "images", {"size": "1536*1536"}, 0.018),
+    # the readme's own prices: $0.06 at medium/1k plus $0.01 per input image
+    "grok": ("xai/grok-imagine-image-2.0-developer/edit", "image_urls", {"resolution": "1k", "quality": "medium"}, 0.014),
 }
 
 
