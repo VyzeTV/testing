@@ -48,6 +48,27 @@ def _indexed(res, n):
     return got
 
 
+def _swap_any(o, old, new):
+    """Replace the first string equal to `old` anywhere in a tick (an execution or an escape keeps its broadcast in its own record). True if found."""
+    if isinstance(o, dict):
+        for k, v in o.items():
+            if k in ("vlog", "vsys", "vp", "vb"):
+                continue
+            if v == old:
+                o[k] = new
+                return True
+            if isinstance(v, (dict, list)) and _swap_any(v, old, new):
+                return True
+    elif isinstance(o, list):
+        for i, v in enumerate(o):
+            if v == old:
+                o[i] = new
+                return True
+            if isinstance(v, (dict, list)) and _swap_any(v, old, new):
+                return True
+    return False
+
+
 def revoice_day(days, runner, llm, workers=4, log=print, only=None, pick=None):
     """Voice the recorded days again. `days` is a list of tick lists (one per day; a system prompt may be first stored on an earlier day), changed in place.
     `runner` is a DayRunner on the season's state (for names and line tidying); `llm` the model to voice with. `only`: None, or a set of kinds
@@ -70,7 +91,7 @@ def revoice_day(days, runner, llm, workers=4, log=print, only=None, pick=None):
                     jobs.append((kind, e, vp))
             for b in t.get("vlog") or []:
                 if b["s"] in sysd and (only is None or "broadcast" in only):
-                    jobs.append(("broadcast", b, b))
+                    jobs.append(("broadcast", dict(b, at=(ticks, ticks.index(t))), b))
     stats = {"asked": len(jobs), "voiced": 0, "failed": 0, "lines": 0, "broadcasts": 0}
 
     def ask(job):
@@ -88,13 +109,18 @@ def revoice_day(days, runner, llm, workers=4, log=print, only=None, pick=None):
                 answers.append(None)
                 stats["failed"] += 1
                 log(f"  {j[0]} failed: {str(ex)[:100]}")
-    swaps = {}
+    taken = set()
     for (kind, e, vp), res in zip(jobs, answers):
         if res is None:
             continue
         if kind == "broadcast":
-            if isinstance(res, str) and res.strip():
-                swaps[e["t"]] = res.strip()
+            ticks, i = e["at"]
+            spot = next(((ti, bi) for ti in range(i, min(len(ticks), i + 2)) for bi, b in enumerate(ticks[ti].get("broadcasts") or [])
+                         if b.get("text") == e["t"] and (id(ticks), ti, bi) not in taken), None)       # its own block (or the next): the mock says the same thing every day
+            if isinstance(res, str) and res.strip() and (spot or _swap_any(ticks[i], e["t"], res.strip())):
+                if spot:
+                    taken.add((id(ticks),) + spot)
+                    ticks[spot[0]]["broadcasts"][spot[1]]["text"] = res.strip()
                 stats["broadcasts"] += 1
                 stats["voiced"] += 1
             continue
@@ -123,12 +149,6 @@ def revoice_day(days, runner, llm, workers=4, log=print, only=None, pick=None):
                 stats["lines"] += 1
         e["voiced"] = True
         stats["voiced"] += 1
-    if swaps:
-        for ticks in days:
-            for t in ticks:
-                for b in t.get("broadcasts") or []:
-                    if b.get("text") in swaps:
-                        b["text"] = swaps[b["text"]]
     return stats
 
 

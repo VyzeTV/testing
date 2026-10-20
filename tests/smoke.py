@@ -7259,7 +7259,7 @@ class _FakeVoice:
         return {"lines": [{"i": k, "text": f"VOICED {k}"} for k in range(int(ctx.get("beats", 0)))]}
 
     def broadcast(self, system, user, ctx):
-        return "VOICED BROADCAST"
+        return "VOICED BROADCAST " + user[:40]
 
 
 wv_ = World(new_state(3))
@@ -7284,7 +7284,10 @@ after_ = [(e["room"], [(l["speaker"], l.get("m"), l.get("b")) for l in e["lines"
 texts_ = [l["text"] for t in tv_ for e in t.get("talk") or [] for l in e["lines"]]
 check("voicing again changes only the words: same speakers, minutes and rooms; the lines and broadcasts are the new ones",
       before_ == after_ and st_["lines"] > 0 and sum(1 for x in texts_ if x.startswith("VOICED")) >= len(texts_) * 0.8
-      and any(b.get("text") == "VOICED BROADCAST" for t in tv_ for b in t.get("broadcasts") or []), str(st_))
+      and any(b.get("text", "").startswith("VOICED BROADCAST") for t in tv_ for b in t.get("broadcasts") or []), str(st_))
+check("each broadcast is voiced in its own block, even when the mock said the same thing twice",
+      all(b["text"] == "VOICED BROADCAST " + v["u"][:40] for t in tv_ for v in t.get("vlog") or [] for b in t.get("broadcasts") or [] if b["text"].startswith("VOICED") and b["text"][17:] == v["u"][:40])
+      and len({b["text"] for t in tv_ for b in t.get("broadcasts") or [] if b["text"].startswith("VOICED")}) >= 2)
 strip_prompts(tv_)
 check("the kept prompts can be dropped afterwards", not any(t.get("vsys") or t.get("vlog") or any(e.get("vp") for e in t.get("talk") or []) for t in tv_))
 
