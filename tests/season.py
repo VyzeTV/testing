@@ -46,7 +46,9 @@ NEWCOMERS = [
 
 
 def one_season(job):
-    violent, seed = job
+    """job: (violent, seed) or (violent, seed, opts); opts {"record": True} also keeps every day's ticks and starting state, with the voicing prompts (revoice.py)."""
+    violent, seed = job[0], job[1]
+    opts = job[2] if len(job) > 2 else {}
     from murder.engine import DayRunner
     from murder.llm import LLM
     from murder.world import World, new_state
@@ -54,11 +56,21 @@ def one_season(job):
     LLM.mock_murder_prob = 0.02 if violent else 0.0
     w = World(new_state(1))
     trials, finales = [], []
+    evc, margins, segs = Counter(), [], Counter()
+    rec = {"days": [], "starts": []} if opts.get("record") else None
 
     def keep(t):
+        if rec is not None:
+            rec["days"][-1].append(t)
+        for e in t.get("events") or []:
+            evc[e.get("type")] += 1
+        for sg in t.get("segments") or []:
+            segs[sg.get("kind")] += 1
         if t.get("trial"):
             tr = t["trial"]
             trials.append({"day": t["day"], "victim": tr["victim"], "killer": tr["killer"], "accused": tr["accused"], "found": bool(tr["found"])})
+            tl = sorted((tr.get("tally") or {}).values(), reverse=True)
+            margins.append((tl[0] - (tl[1] if len(tl) > 1 else 0)) if tl else 99)
         if t.get("type") == "finale" or (t.get("ending") and t["ending"]["kind"] in ("truth", "shutdown", "raft", "ultimatum")):
             finales.append({"day": t["day"], "ending": (t.get("ending") or {}).get("kind")})
 
@@ -77,10 +89,20 @@ def one_season(job):
                     first = next((f for f in FIRST[v["gender"]] if f not in used), None) or f"{FIRST[v['gender']][len(arrivals) % 12]}-{len(arrivals) + 1}"
                     spec = dict(base, name=f"{first} {base['name'].split()[-1]}")
                 arrivals.append({"id": w.add_newcomer(spec), "day": day})
-        DayRunner(w, LLM(backend="mock"), keep, step=2, murders=True, rule_mode="roulette", seed=seed * 1000 + day).run()
+        dr = DayRunner(w, LLM(backend="mock"), keep, step=2, murders=True, rule_mode="roulette", seed=seed * 1000 + day)
+        if rec is not None:
+            dr.keep_voice = True
+            rec["starts"].append(json.loads(json.dumps(w.dump())))
+            rec["days"].append([])
+        dr.run()
         day = w.state.get("day", day) + (1 if w.state.get("day", day) == day else 0)
     if not w.state.get("over") and not w.agents:                         # the island emptied at the end of a day: the endgame decides
-        DayRunner(w, LLM(backend="mock"), keep, step=2, murders=True, rule_mode="roulette", seed=seed * 1000 + day).run_endgame(8)
+        dr = DayRunner(w, LLM(backend="mock"), keep, step=2, murders=True, rule_mode="roulette", seed=seed * 1000 + day)
+        dr.keep_voice = rec is not None
+        if rec is not None and not rec["days"]:
+            rec["starts"].append(json.loads(json.dumps(w.dump())))
+            rec["days"].append([])
+        dr.run_endgame(8)
     over = w.state.get("over") or {"kind": "unfinished", "title": f"still going after {MAX_DAYS} days", "day": day}
     names = {c: v["short"] for c, v in w.state["cast"].items()}
     nv = (w.state.get("npcs") or {}).get("neovi") or {}
@@ -96,6 +118,8 @@ def one_season(job):
             "rafts": [{"ids": c["ids"], "stage": c["stage"], "day": c["day"]} for c in (w.state.get("outside") or {}).get("crews", []) if c.get("kind") != "killer"],
             "killers_out": [{"id": c["ids"][0], "stage": c["stage"]} for c in (w.state.get("outside") or {}).get("crews", []) if c.get("kind") == "killer"],
             "nv_joined": nv.get("joined_for"), "capped": bool(w.state.get("_capped")), "rescue": w.state.get("rescue"),
+            "events": dict(evc), "margins": margins, "segments": dict(segs), "cases": [dict(g) for g in w.state.get("graveyard", [])],
+            "record": rec, "final": json.loads(json.dumps(w.dump())) if rec is not None else None,
             "escape": {rid: int(round(sum(r["plan"].values()) / len(r["plan"]))) for rid, r in (w.state.get("escape") or {}).get("routes", {}).items()}}
 
 

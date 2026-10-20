@@ -7243,6 +7243,51 @@ tk_ = r.new_tick(22)
 r.run_reckoning(tk_)
 check("with nobody out there the Reckoning is still bad", w.state["over"]["tier"] == "bad" and w.state["over"]["survivors"] == [])
 
+# ---- voicing a finished run again (revoice.py)
+import re as re_  # noqa: E402
+from murder.revoice import revoice_day, strip_prompts  # noqa: E402
+
+
+class _FakeVoice:
+    """Answers like the real model would, in the prompt's own format."""
+    usage = {"calls": 0}
+
+    def voice(self, system, user, ctx):
+        if '"beat": 0' in user:
+            return {"lines": [{"beat": int(m.group(1)), "speaker": m.group(2), "kind": "say", "text": f"VOICED {m.group(1)}"}
+                              for m in re_.finditer(r"^(\d+)\. [^(\n]*\(([a-z0-9_]+)\)", user, re_.M)]}
+        return {"lines": [{"i": k, "text": f"VOICED {k}"} for k in range(int(ctx.get("beats", 0)))]}
+
+    def broadcast(self, system, user, ctx):
+        return "VOICED BROADCAST"
+
+
+wv_ = World(new_state(3))
+wv_.state["day"] = 3
+tv_ = []
+rv_ = DayRunner(wv_, LLM(backend="mock"), tv_.append, step=2, murders=True, rule_mode="roulette", seed=5)
+rv_.keep_voice = True
+rv_.run()
+w0_ = World(new_state(3))
+w0_.state["day"] = 3
+t0_ = []
+DayRunner(w0_, LLM(backend="mock"), t0_.append, step=2, murders=True, rule_mode="roulette", seed=5).run()
+same_ = [len(t.get("talk") or []) for t in t0_] == [len(t.get("talk") or []) for t in tv_] and w0_.state["graveyard"] == wv_.state["graveyard"] \
+    and [e.get("text") for t in t0_ for e in t.get("events") or []] == [e.get("text") for t in tv_ for e in t.get("events") or []]
+check("keeping the voicing prompts does not change the run", same_)
+kept_ = [e for t in tv_ for e in t.get("talk") or [] if e.get("vp")]
+check("with keep_voice, every conversation, trial sequence and gathering keeps its prompt, and broadcasts are logged",
+      kept_ and len(kept_) == sum(len(t.get("talk") or []) for t in tv_) and any(t.get("vlog") for t in tv_) and any(t.get("vsys") for t in tv_))
+before_ = [(e["room"], [(l["speaker"], l.get("m"), l.get("b")) for l in e["lines"]]) for t in tv_ for e in t.get("talk") or []]
+st_ = revoice_day([tv_], DayRunner(World(wv_.dump()), LLM(backend="mock"), lambda t: None, step=2, seed=1), _FakeVoice(), workers=2)
+after_ = [(e["room"], [(l["speaker"], l.get("m"), l.get("b")) for l in e["lines"]]) for t in tv_ for e in t.get("talk") or []]
+texts_ = [l["text"] for t in tv_ for e in t.get("talk") or [] for l in e["lines"]]
+check("voicing again changes only the words: same speakers, minutes and rooms; the lines and broadcasts are the new ones",
+      before_ == after_ and st_["lines"] > 0 and sum(1 for x in texts_ if x.startswith("VOICED")) >= len(texts_) * 0.8
+      and any(b.get("text") == "VOICED BROADCAST" for t in tv_ for b in t.get("broadcasts") or []), str(st_))
+strip_prompts(tv_)
+check("the kept prompts can be dropped afterwards", not any(t.get("vsys") or t.get("vlog") or any(e.get("vp") for e in t.get("talk") or []) for t in tv_))
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

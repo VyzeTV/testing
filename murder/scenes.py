@@ -250,6 +250,7 @@ class SceneMixin:
         user = (f"{TITLES[kind]}. {CONTEXT[kind]} Rewrite each numbered line in the speaker's voice: same meaning, same person named, max 25 words, no new facts or events. "
                 f"An action stays an action (third person, no name at the start).\nSPEAKERS:\n" + "\n".join(cards) + f"\nLINES:\n{listing}\n"
                 'Reply as JSON: {"lines": [{"i": <number>, "text": "..."}]}')
+        self._vp_last = self.vkeep(sysm, user, {"beats": len(beats), "scene": kind})          # revoice.py
         try:
             res = self.llm.voice(sysm, user, {"beats": len(beats), "scene": kind}) or {}
         except Exception as e:
@@ -272,6 +273,8 @@ class SceneMixin:
         lines = self.voice_scene_lines(beats, kind)
         if lines:
             tick["talk"].append({"room": room, "lines": lines, "scene": {"kind": kind, "title": TITLES[kind]}})
+            if self.__dict__.get("_vp_last"):
+                tick["talk"][-1]["vp"] = self._vp_last
             self.tape_record(room, lines)
             self.last_talk[room] = [(f"*{self.nm(l['speaker'])} {l['text']}*" if l["kind"] == "act" else f"{self.nm(l['speaker'])}: {l['text']}") for l in lines]
             for cid in ids:

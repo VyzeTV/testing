@@ -385,6 +385,9 @@ class ConvoMixin:
             futs[c["id"]] = None
             return
         ctx = {"beats": len(beats)}
+        vp = self.vkeep(sysm, user, ctx)                                # revoice.py
+        if vp:
+            self.__dict__.setdefault("_vprompts", {})[c["id"]] = vp
         futs[c["id"]] = self.voice_pool().submit(self.llm.voice, sysm, user, ctx)
 
     def voice_convos(self, tick, hour):
@@ -456,6 +459,9 @@ class ConvoMixin:
                 entry["noticed"] = c["noticed"]
             if fixed:
                 entry["templated"] = fixed
+            vp = (self.__dict__.get("_vprompts") or {}).pop(c["id"], None)
+            if vp:
+                entry["vp"], entry["vb"] = vp, beats
             tick["talk"].append(entry)
             self.last_talk[c["room"]] = [(f"*{self.nm(l['speaker'])} {l['text']}*" if l["kind"] == "act" else f"{self.nm(l['speaker'])}: {l['text']}") for l in lines]
             self.day_notable.append(f"In the {w.room_name(c['room'])}: {self.nm(lines[0]['speaker'])} said \"{lines[0]['text'][:90]}\"")

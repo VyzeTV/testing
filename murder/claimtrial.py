@@ -258,6 +258,7 @@ class ClaimTrialMixin:
         user = (f"{TITLES.get(seg['kind'], 'TRIAL')}. Rewrite each numbered line in the speaker's voice: same facts, same accusation or answer, max 25 words, no new facts, "
                 f"no camera footage unless the line already cites a recording of their own.\nSPEAKERS:\n{cards}\nLINES:\n{listing}\n"
                 'Reply as JSON: {"lines": [{"i": <number>, "text": "..."}]}')
+        self._vp_last = self.vkeep(sysm, user, {"beats": len(beats), "trial": True})          # revoice.py
         try:
             res = self.llm.voice(sysm, user, {"beats": len(beats), "trial": True}) or {}
         except Exception as e:
@@ -289,6 +290,8 @@ class ClaimTrialMixin:
         lines = self.voice_trial_lines(tick, beats, seg)
         if lines:
             tick["talk"].append({"room": "voting_grounds", "lines": lines, "segment": seg})
+            if self.__dict__.get("_vp_last"):
+                tick["talk"][-1]["vp"] = self._vp_last
             for cid in w.agents:
                 for ln in lines[:8]:
                     who = "You" if cid == ln["speaker"] else self.nm(ln["speaker"])

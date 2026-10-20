@@ -68,6 +68,7 @@ from .outside import OutsideMixin
 from .kumiko import KumikoMixin
 from .neovi_life import NeoViLifeMixin
 from .torments import TormentMixin
+from .revoice import VoiceKeepMixin
 from .innervoice import InnerVoiceMixin
 from .intimacy import IntimacyMixin
 from .twists import TwistMixin
@@ -171,7 +172,7 @@ class Stop(Exception):
     pass
 
 
-class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, ScheduleMixin, BeliefMixin, NightLifeMixin, MurderPlanMixin, FightMixin, CarryMixin, EvidenceMixin, GearMixin, MarksMixin, LooksMixin, SceneMixin, EscapeWorkMixin, FinaleMixin, OutsideMixin, KumikoMixin, NeoViLifeMixin, TormentMixin, InnerVoiceMixin, IntimacyMixin, TwistMixin, EndingsMixin, DeparturesMixin, SiftingMixin, GoalsMixin, PauseMixin, ReflectionMixin, ProposerMixin, PastimeMixin, IntrusionMixin, NeoViDayMixin, HabitMixin, InquiryMixin, ElectricMixin, AheadMixin, ClaimTrialMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
+class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, DirectorMixin, StealthMixin, SecretsMixin, RefereeMixin, PaceMixin, PlotMixin, ReactMixin, NightMixin, AftermathMixin, DoorMixin, CraftMixin, HookMixin, TiesMixin, TelemetryMixin, ForensicsMixin, AllianceMixin, NeoViActiveMixin, TuningMixin, ClothingMixin, ToneMixin, ItemUseMixin, ConditionMixin, NonlethalMixin, ChronicleMixin, ClockMixin, SimMixin, FallMixin, SocialMixin, ConvoMixin, BoothMixin, ScheduleMixin, BeliefMixin, NightLifeMixin, MurderPlanMixin, FightMixin, CarryMixin, EvidenceMixin, GearMixin, MarksMixin, LooksMixin, SceneMixin, EscapeWorkMixin, FinaleMixin, OutsideMixin, KumikoMixin, NeoViLifeMixin, TormentMixin, VoiceKeepMixin, InnerVoiceMixin, IntimacyMixin, TwistMixin, EndingsMixin, DeparturesMixin, SiftingMixin, GoalsMixin, PauseMixin, ReflectionMixin, ProposerMixin, PastimeMixin, IntrusionMixin, NeoViDayMixin, HabitMixin, InquiryMixin, ElectricMixin, AheadMixin, ClaimTrialMixin, PerceptionMixin, EnvironmentMixin, MindMixin, CrimeMixin, FreeTimeMixin, BrainMixin, ScenarioEventsMixin, StoryMixin, DramaMixin, ChaosMixin):
     def __init__(self, world, llm, on_tick, gate=None, should_stop=None, step=2, workers=6, seed=None,
                  murders=True, motive="", rule_mode="roulette", rule_text="", confessionals=True, mischief="occasional", chaos="normal",
                  variation=0, gm_pull=None, lean=False, call_cap=0, autodir=False, autodir_get=None, tuning_get=None, ask_gm=None):
@@ -246,6 +247,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
     def emit(self, tick):
         tick["idx"] = self.idx
         self.idx += 1
+        self.vkeep_flush(tick)                              # kept voicing prompts (revoice.py)
         if not self.s.get("case") and self.days_left() <= 0 and isinstance(tick.get("hour"), (int, float)):
             self.deadline_hours(tick, tick["hour"])         # special scenes (vigil, last call...) count against the deadline too
         for cid_, a_ in self.world.agents.items():
@@ -2031,7 +2033,9 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         else:
             user = "Say something theatrical to the cast, max 40 words."
         try:
-            return self.llm.broadcast(sysm, user, {"kind": kind, **extra})
+            text = self.llm.broadcast(sysm, user, {"kind": kind, **extra})
+            self.vkeep_broadcast(sysm, user, {"kind": kind, **extra}, text)      # revoice.py
+            return text
         except LLMError as e:
             if e.fatal:
                 raise
