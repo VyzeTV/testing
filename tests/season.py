@@ -118,6 +118,8 @@ def one_season(job):
             "rafts": [{"ids": c["ids"], "stage": c["stage"], "day": c["day"]} for c in (w.state.get("outside") or {}).get("crews", []) if c.get("kind") != "killer"],
             "killers_out": [{"id": c["ids"][0], "stage": c["stage"]} for c in (w.state.get("outside") or {}).get("crews", []) if c.get("kind") == "killer"],
             "nv_joined": nv.get("joined_for"), "capped": bool(w.state.get("_capped")), "rescue": w.state.get("rescue"),
+            "truths": [e["text"] for e in w.state.get("chronicle", []) if str(e.get("text", "")).startswith("TRUTH")],
+            "nights": len([n for n in w.state.get("nights") or []]), "nv_lover": bool(nv.get("lovers")),
             "events": dict(evc), "margins": margins, "segments": dict(segs), "cases": [dict(g) for g in w.state.get("graveyard", [])],
             "record": rec, "final": json.loads(json.dumps(w.dump())) if rec is not None else None,
             "escape": {rid: int(round(sum(r["plan"].values()) / len(r["plan"]))) for rid, r in (w.state.get("escape") or {}).get("routes", {}).items()}}

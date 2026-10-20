@@ -80,6 +80,58 @@ def score(r):
     return round(pts / (days ** 0.35), 1), why
 
 
+METHODS = (("poison", ("poison",)), ("electrocution", ("shock", "electr", "live wire")), ("trap", ("trap", "rigged")), ("drowning", ("drown", "water")),
+           ("staged", ("Staged",)), ("fall", ("fall", "push", "shove", "height")), ("fire", ("fire", "burn")), ("strangling", ("hands",)),
+           ("blade", ("sharp",)), ("blunt", ("blunt",)))
+
+
+def methods_of(r):
+    found = []
+    for tx in r.get("truths") or []:
+        for name, keys in METHODS:
+            if any(k in tx for k in keys):
+                found.append(name)
+                break
+    return found
+
+
+def focus_score(r, focus):
+    """Scores for a theme: horny (nights, affairs, jealousy, romances), violent (killings, attacks, fights), creative (unusual and varied methods)."""
+    it = r.get("intimacy") or {}
+    ev = r.get("events") or {}
+    if focus == "horny":
+        pts = it.get("nights", 0) + 3 * it.get("affairs", 0) + 4 * it.get("affairs_found", 0) + 2 * it.get("jealousy", 0) + 2 * r.get("romances", 0) + (4 if r.get("nv_lover") else 0)
+        why = [f"{it.get('nights', 0)} nights together", f"{it.get('affairs', 0)} affairs ({it.get('affairs_found', 0)} found out)", f"{it.get('jealousy', 0)} jealousy",
+               f"{r.get('romances', 0)} romances at the end"] + (["NeoVi took a lover"] if r.get("nv_lover") else [])
+    elif focus == "violent":
+        kills = len(r.get("truths") or [])
+        pts = 4 * kills + ev.get("attack", 0) + ev.get("fight", 0) + ev.get("assault", 0) + 2 * ev.get("madness", 0)
+        why = [f"{kills} killings", f"{ev.get('attack', 0)} attack events", f"{ev.get('fight', 0)} fights", f"{ev.get('assault', 0)} assaults"]
+    else:
+        ms = methods_of(r)
+        odd = [m for m in ms if m not in ("blade", "blunt", "strangling")]
+        pts = 5 * len(set(ms)) + 6 * len(odd) + 4 * sum(1 for tx in r.get("truths") or [] if "Staged" in tx)
+        why = ["methods: " + (", ".join(ms) or "none")]
+    days = max(1, r.get("day") or 1)
+    return round(pts / (days ** 0.35), 1), why
+
+
+def find_focus(n, focuses=("horny", "violent", "creative"), top=5):
+    jobs = [(v, s) for v in (False, True) for s in range(1, n + 1)]
+    with Pool(min(8, os.cpu_count() or 2), maxtasksperchild=1) as pool:
+        res = pool.map(season.one_season, jobs, chunksize=1)
+    out = {}
+    for f in focuses:
+        ranked = sorted(((focus_score(r, f), r) for r in res), key=lambda x: -x[0][0])[:top]
+        print(f"\n== {f.upper()} ==")
+        out[f] = []
+        for (sc, why), r in ranked:
+            print(f"{sc:6.1f}  seed {r['seed']:3d} {'violent' if r['violent'] else 'default'}  {r['day']:2d} days  {r['tier']:11s} {r['title']}")
+            print("          - " + "; ".join(why))
+            out[f].append({"seed": r["seed"], "violent": r["violent"], "score": sc, "why": why, "truths": r.get("truths")})
+    return out
+
+
 def find(n):
     jobs = [(v, s) for v in (False, True) for s in range(1, n + 1)]
     with Pool(min(8, os.cpu_count() or 2), maxtasksperchild=1) as pool:       # a fresh process per season: nothing carries over from the last one
@@ -168,7 +220,7 @@ if __name__ == "__main__":
         sys.exit(1)
     opt = lambda k, d=None: a[a.index(k) + 1] if k in a else d
     if a[0] == "find":
-        res = find(int(opt("--seeds", 20)))
+        res = find_focus(int(opt("--seeds", 20))) if "--focus" in a else find(int(opt("--seeds", 20)))
         if opt("--json"):
             with open(opt("--json"), "w", encoding="utf-8") as f:
                 json.dump(res, f, indent=1)
