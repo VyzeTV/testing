@@ -1,0 +1,59 @@
+{
+  "season": "invented kills with the female cast, third set: at the pool and on the beach, in one-piece swimsuits",
+  "model": "nano",
+  "body": {
+    "aspect_ratio": "3:2",
+    "resolution": "1k"
+  },
+  "body_seed": {
+    "size": "2496*1664"
+  },
+  "body_qwen": {
+    "size": "1536*1024"
+  },
+  "style": "A single full-bleed illustration, no panels, no borders, no lettering. Anime visual-novel style of Danganronpa, matching the art style, faces, hair and body proportions of the full-body reference images exactly (same slim, modest proportions as the references); the characters are adults. Each character wears only the modest sporty one-piece swimsuit the prompt names instead of the clothes in her reference, except where the prompt says otherwise. Framed as a violent horror-action scene, not a pin-up: the camera is on the action and the faces, no posed or lingering shots of bodies. Clean bold lineart, cel shading, dramatic lighting with saturated pink and magenta accents and deep black shadows. Blood is bright neon pink, Danganronpa style, never realistic red. The kill itself is the focal point.",
+  "strips": [
+    {
+      "id": "inv",
+      "title": "Invented kills, set 3: swimsuits",
+      "panels": [
+        {
+          "id": "sw9",
+          "refs": [
+            "cail",
+            "seul"
+          ],
+          "caption": "Cail swings a pool-cleaning pole into Seul's head at the edge of the pool.",
+          "prompt": "An indoor pool hall with a glass roof, turquoise water and white tiles. The woman from the first reference (Cail: long orange side ponytail with a green ribbon, teal eyes), wearing a green and white sporty one-piece swimsuit, swings the heavy metal end of a long pool-cleaning pole two-handed into the side of the head of the woman from the second reference (Seul: long lavender hair, violet eyes), who wears a navy sporty one-piece swimsuit and is knocked off her feet at the pool's edge, about to fall in. Bright neon pink blood bursts from the impact and sprays across the wet tiles and into the water; Seul's goggles fly off. Cail grins."
+        },
+        {
+          "id": "sw10",
+          "refs": [
+            "vixen",
+            "chloe"
+          ],
+          "caption": "Vixen stabs Chloe with a diving knife on the beach.",
+          "prompt": "A sunny beach at the edge of the island, a beach towel and an overturned parasol on the sand, waves behind. The woman from the first reference (Vixen: short spiky blue hair, cyan eyes), wearing a black sporty one-piece swimsuit and her blue scarf, has caught the woman from the second reference (Chloe: short ash-brown hair, glasses), who wears a floral sporty one-piece swimsuit, from the front and drives a black diving knife into her stomach, her other hand gripping Chloe's shoulder. Vixen's face is cold. Chloe gasps, glasses slipping, hands clutching Vixen's wrist; bright neon pink blood sprays across the sand and the towel. The knife in the wound is the focal point."
+        },
+        {
+          "id": "sw11",
+          "refs": [
+            "seul",
+            "cail"
+          ],
+          "caption": "Seul holds Cail under in the hot tub.",
+          "prompt": "A spa room with a round bubbling hot tub, steam, pink mood lighting. The woman from the first reference (Seul: long lavender hair, violet eyes with tired shadows), wearing a navy sporty one-piece swimsuit, kneels on the rim and pushes the head of the woman from the second reference (Cail: long orange side ponytail with a green ribbon), who wears a green and white sporty one-piece swimsuit, down UNDER the water with both hands. Cail's whole head is submerged below the frothing surface, only her orange hair floating and her flailing hands visible; big bubbles and bright neon pink froth burst up around Seul's arms. Seul's face is empty and tired. Cail's phone lies on the rim, still recording. Cail's head held under the water is the focal point."
+        },
+        {
+          "id": "sw12",
+          "refs": [
+            "neovi",
+            "vixen"
+          ],
+          "caption": "NeoVi drives a parasol's spike into Vixen at the poolside.",
+          "prompt": "An outdoor pool terrace at noon, sun loungers, blue water. The maid from the first reference (NeoVi: long black twin tails, red eyes), fully dressed in her black and white maid uniform exactly as in her reference, stands over a sun lounger holding a pulled-up beach parasol like a spear and drives its steel spike straight down into the chest of the woman from the second reference (Vixen: short spiky blue hair, cyan eyes), who wears a black sporty one-piece swimsuit and lies on the lounger. The spike's tip is buried in Vixen's chest, the shaft vertical in NeoVi's hands, bright neon pink blood bursting from the wound. NeoVi's face is perfectly polite, a serene closed-eye smile. Vixen screams, both hands clutching the shaft. A tray of drinks crashes to the ground. The spike in Vixen's chest is the focal point."
+        }
+      ]
+    }
+  ]
+}
