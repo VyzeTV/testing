@@ -105,6 +105,11 @@ def focus_score(r, focus):
         pts = it.get("nights", 0) + 3 * it.get("affairs", 0) + 4 * it.get("affairs_found", 0) + 2 * it.get("jealousy", 0) + 2 * r.get("romances", 0) + (4 if r.get("nv_lover") else 0)
         why = [f"{it.get('nights', 0)} nights together", f"{it.get('affairs', 0)} affairs ({it.get('affairs_found', 0)} found out)", f"{it.get('jealousy', 0)} jealousy",
                f"{r.get('romances', 0)} romances at the end"] + (["NeoVi took a lover"] if r.get("nv_lover") else [])
+    elif focus == "funny":
+        keys = (("embarrassed", 3), ("intrude", 1), ("fall", 2), ("wreck", 2), ("fire", 1), ("flood", 2), ("island", 1), ("outburst", 2), ("snoop_caught", 3),
+                ("occasion", 1), ("tease", 1), ("faint", 1), ("raft", 1), ("mishap", 2), ("hook", 1))
+        pts = sum(min(ev.get(k, 0), 40) * w for k, w in keys)
+        why = [", ".join(f"{k} {ev.get(k, 0)}" for k, _ in keys if ev.get(k))]
     elif focus == "violent":
         kills = len(r.get("truths") or [])
         pts = 4 * kills + ev.get("attack", 0) + ev.get("fight", 0) + ev.get("assault", 0) + 2 * ev.get("madness", 0)
@@ -222,7 +227,8 @@ if __name__ == "__main__":
         sys.exit(1)
     opt = lambda k, d=None: a[a.index(k) + 1] if k in a else d
     if a[0] == "find":
-        res = find_focus(int(opt("--seeds", 20))) if "--focus" in a else find(int(opt("--seeds", 20)))
+        fo = opt("--focus")
+        res = find_focus(int(opt("--seeds", 20)), tuple(fo.split(",")) if fo and not fo.startswith("-") else ("horny", "violent", "creative")) if "--focus" in a else find(int(opt("--seeds", 20)))
         if opt("--json"):
             with open(opt("--json"), "w", encoding="utf-8") as f:
                 json.dump(res, f, indent=1)
