@@ -88,6 +88,8 @@ METHODS = (("poison", ("poison",)), ("electrocution", ("shock", "electr", "live 
 def methods_of(r):
     found = []
     for tx in r.get("truths") or []:
+        if "no culprit" in tx:
+            continue                                        # a raft breaking up or a fall is not anyone's method
         for name, keys in METHODS:
             if any(k in tx for k in keys):
                 found.append(name)
