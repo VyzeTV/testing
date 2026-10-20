@@ -1,0 +1,59 @@
+{
+  "season": "invented kills with the female cast, second set (full-body references)",
+  "model": "nano",
+  "body": {
+    "aspect_ratio": "3:2",
+    "resolution": "1k"
+  },
+  "body_seed": {
+    "size": "2496*1664"
+  },
+  "body_qwen": {
+    "size": "1536*1024"
+  },
+  "style": "A single full-bleed illustration, no panels, no borders, no lettering except what the prompt names on screens. Anime visual-novel style of Danganronpa, matching the art style and character designs of the reference images exactly; each character wears exactly the outfit from her full-body reference image, every detail of the clothing, socks and shoes kept. Clean bold lineart, cel shading, dramatic lighting with saturated pink and magenta accents and deep black shadows. Blood is bright neon pink, Danganronpa style, never realistic red. The kill itself is the focal point.",
+  "strips": [
+    {
+      "id": "inv",
+      "title": "Invented kills, set 2",
+      "panels": [
+        {
+          "id": "inv5",
+          "refs": [
+            "chloe",
+            "vixen"
+          ],
+          "caption": "Chloe, the Artist, drives a palette knife into Vixen's throat in the art studio.",
+          "prompt": "An art studio cluttered with easels, canvases and jars of brushes, afternoon light through tall windows. The girl from the first reference (Chloe: short ash-brown hair, glasses) has pinned the girl from the second reference (Vixen: short spiky blue hair, cyan eyes) against a large half-finished canvas and drives a steel palette knife into the side of Vixen's throat. Chloe's face is calm and gentle behind her glasses, as if finishing a brushstroke. Vixen chokes, eyes wide, clutching Chloe's wrist; bright neon pink blood sprays across the canvas and runs into the wet paint. Tubes of paint and a jar of brushes fly from a stool."
+        },
+        {
+          "id": "inv6",
+          "refs": [
+            "neovi",
+            "cail"
+          ],
+          "caption": "NeoVi, the maid, strangles Cail with her own green neckerchief in the laundry.",
+          "prompt": "A steamy laundry room with rows of white sheets hanging on lines and big washing machines. Strangling from behind: the maid from the first reference (NeoVi: long black twin tails, red eyes) stands right behind the girl from the second reference (Cail: long orange side ponytail with a green ribbon, teal eyes). Cail's green neckerchief has been pulled off her collar and looped all the way around her neck, and NeoVi wrenches both ends back over Cail's shoulder with both fists, the cloth cutting deep into Cail's throat, NeoVi's face blank and composed. Cail is dragged back off balance onto her toes, both hands clawing at the cloth around her throat, face red, eyes bulging, tongue out, gasping; her phone falls from her hand. The cloth tight around Cail's neck is the focal point."
+        },
+        {
+          "id": "inv7",
+          "refs": [
+            "cail",
+            "seul"
+          ],
+          "caption": "Cail, the Internet Celebrity, clubs Seul with her ring-light stand on stream.",
+          "prompt": "A bedroom set up as a streaming corner, a phone on a tripod with a 'LIVE' badge and scrolling pink hearts on its screen. The girl from the first reference (Cail: long orange side ponytail with a green ribbon, teal eyes) swings a heavy ring-light stand two-handed and brings it down on the head of the girl from the second reference (Seul: long lavender hair, violet eyes), who is thrown sideways off a gaming chair. The ring light bursts on impact in a ring of white light, glass shards and bright neon pink blood; Seul's controller flies from her hands. Cail is smiling for the camera."
+        },
+        {
+          "id": "inv8",
+          "refs": [
+            "vixen",
+            "chloe"
+          ],
+          "caption": "Vixen, the Hacker, electrocutes Chloe with live wires torn from a server rack.",
+          "prompt": "A dark server room, rows of racks with blinking lights. The girl from the first reference (Vixen: short spiky blue hair, cyan eyes, blue scarf) holds two stripped live cables in her rubber-gloved hands and presses their sparking ends into the sides of the girl from the second reference (Chloe: short ash-brown hair, glasses). Chloe convulses rigid, back arched, hair standing on end, glasses cracking, mouth open in a silent scream, her body outlined in white-blue and pink lightning. Sparks rain down; a screen behind reads 'ACCESS GRANTED'."
+        }
+      ]
+    }
+  ]
+}
