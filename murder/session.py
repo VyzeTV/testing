@@ -1,10 +1,12 @@
 """Game session manager: persistence, live generation with gating, replay, fast-forward."""
 import copy
 import glob
+from functools import wraps
 import json
 import os
 import shutil
 import threading
+import tempfile
 import time
 
 from .engine import DayRunner, Stop
@@ -37,9 +39,20 @@ def resume_hour(cp):
         return 21
     return cp["hour"]
 
+def session_control(fn):
+    """Serialize operations that replace a session or change its saved world."""
+    @wraps(fn)
+    def controlled(self, *args, **kwargs):
+        with self.control_lock:
+            return fn(self, *args, **kwargs)
+    return controlled
+
+
 class Game:
     def __init__(self):
         self.cv = threading.Condition()
+        self.control_lock = threading.RLock()
+        self.save_lock = threading.RLock()
         self.session = None
         self.tuning = {}
         os.makedirs(STATE_DIR, exist_ok=True)
@@ -53,12 +66,44 @@ class Game:
         return os.path.join(STATE_DIR, "current.json")
 
     def save_current(self, state):
-        with open(self.current_path(), "w", encoding="utf-8") as f:
-            json.dump(state, f, ensure_ascii=False, indent=1)
+        with self.save_lock:
+            fd, tmp = tempfile.mkstemp(prefix="current-", suffix=".tmp", dir=STATE_DIR)
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    json.dump(state, f, ensure_ascii=False, indent=1)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(tmp, self.current_path())
+            finally:
+                if os.path.exists(tmp):
+                    os.remove(tmp)
 
     def load_current(self):
-        with open(self.current_path(), "r", encoding="utf-8") as f:
-            return upgrade_state(json.load(f))
+        with self.save_lock:
+            with open(self.current_path(), "r", encoding="utf-8") as f:
+                return upgrade_state(json.load(f))
+
+    def _restore_current(self, path):
+        with open(path, "r", encoding="utf-8") as f:
+            state = json.load(f)
+        self.save_current(state)
+        self._clear_checkpoint()
+
+    def _clear_checkpoint(self):
+        for path in (CHECKPOINT, CHECKPOINT + ".tmp"):
+            try:
+                os.remove(path)
+            except FileNotFoundError:
+                pass
+
+    def _stop_and_wait(self):
+        with self.cv:
+            self._stop_locked()
+            thread = self.session.get("thread") if self.session else None
+        if thread:
+            thread.join(timeout=5)
+            if thread.is_alive():
+                raise ValueError("The previous day is still stopping. Wait a moment and try again.")
 
     def recorded_days(self):
         out = []
@@ -108,6 +153,7 @@ class Game:
         }
 
     # ---------- newcomers ----------
+    @session_control
     def add_newcomer(self, spec):
         with self.cv:
             s = self.session
@@ -177,6 +223,7 @@ class Game:
     # ---------- the director (game master) ----------
     GM_TYPES = ("rumor", "item", "whisper", "announce", "twist", "event", "schedule", "goal", "propose", "torment")
 
+    @session_control
     def gm_action(self, act):
         if act.get("type") not in self.GM_TYPES:
             raise ValueError("Unknown director action.")
@@ -195,15 +242,31 @@ class Game:
     @staticmethod
     def _slot_name(name):
         import re
-        n = re.sub(r"[^A-Za-z0-9 _.-]", "", str(name or "")).strip()[:40]
+        n = str(name or "").strip()
         if not n:
             raise ValueError("Give the save a name.")
+        if len(n) > 40 or not re.fullmatch(r"[A-Za-z0-9 _.-]+", n) or n.endswith("."):
+            raise ValueError("Use a save name of up to 40 letters, numbers, spaces, underscores, hyphens or dots; do not end it with a dot.")
+        if re.fullmatch(r"CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9]", n.split(".")[0].rstrip().upper()):
+            raise ValueError("That save name is reserved by Windows. Choose another name.")
         return n
+
+    def _slot_path(self, name):
+        """Only ordinary direct children of the saves directory may be changed."""
+        n = self._slot_name(name)
+        base = os.path.normcase(os.path.join(os.path.realpath(STATE_DIR), "slots"))
+        path = os.path.normcase(os.path.join(base, n))
+        resolved = os.path.normcase(os.path.realpath(path))
+        if (os.path.normcase(os.path.realpath(base)) != base or resolved != path or
+                os.path.dirname(resolved) != base):
+            raise ValueError("The save must be a folder inside the slots directory, without links or redirects.")
+        return path
 
     def _busy(self):
         with self.cv:
             s = self.session
-            return bool(s and s["mode"] == "live" and not s["done"] and not s["aborted"] and not s["error"])
+            return bool(s and s["mode"] == "live" and ((s.get("thread") and s["thread"].is_alive()) or
+                        (not s["done"] and not s["aborted"] and not s["error"])))
 
     def list_slots(self):
         out = []
@@ -216,11 +279,12 @@ class Game:
                 pass
         return out
 
+    @session_control
     def save_slot(self, name):
         n = self._slot_name(name)
         if self._busy():
             raise ValueError("Stop or finish the live day first.")
-        dst = os.path.join(STATE_DIR, "slots", n)
+        dst = self._slot_path(n)
         shutil.rmtree(dst, ignore_errors=True)
         os.makedirs(dst, exist_ok=True)
         shutil.copyfile(self.current_path(), os.path.join(dst, "current.json"))
@@ -236,9 +300,10 @@ class Game:
             json.dump(meta, f)
         return meta
 
+    @session_control
     def load_slot(self, name):
         n = self._slot_name(name)
-        src = os.path.join(STATE_DIR, "slots", n)
+        src = self._slot_path(n)
         if not os.path.exists(os.path.join(src, "current.json")):
             raise ValueError("No such save.")
         if self._busy():
@@ -254,13 +319,15 @@ class Game:
             os.remove(p)
         for p in glob.glob(os.path.join(src, "starts", "*.json")):
             shutil.copyfile(p, os.path.join(STATE_DIR, os.path.basename(p)))
-        shutil.copyfile(os.path.join(src, "current.json"), self.current_path())
+        self._restore_current(os.path.join(src, "current.json"))
         return n
 
+    @session_control
     def delete_slot(self, name):
         n = self._slot_name(name)
-        shutil.rmtree(os.path.join(STATE_DIR, "slots", n), ignore_errors=True)
+        shutil.rmtree(self._slot_path(n), ignore_errors=True)
 
+    @session_control
     def goto_day_start(self, day):
         """Go back to the start of any earlier day (not only the last): later recordings are set aside."""
         if self._busy():
@@ -275,7 +342,7 @@ class Game:
         for m in self.recorded_days():
             if m["day"] >= day:
                 shutil.move(day_dir(m["day"]), os.path.join(aside, f"day_{m['day']:02d}_{stamp}"))
-        shutil.copyfile(src, self.current_path())
+        self._restore_current(src)
         with self.cv:
             self.session = None
         return day
@@ -296,6 +363,7 @@ class Game:
         out["scenario"]["_meta"] = out["meta"]
         return out
 
+    @session_control
     def set_scenario(self, raw):
         if self._busy():
             raise ValueError("Stop or finish the live day first.")
@@ -319,6 +387,7 @@ class Game:
         last = days[-1]["day"]
         return os.path.exists(os.path.join(STATE_DIR, f"day_{last:02d}_start.json"))
 
+    @session_control
     def rewind(self):
         """Undo the last recorded day: restore the state from before it and set the recording aside."""
         with self.cv:
@@ -336,7 +405,7 @@ class Game:
         aside = os.path.join(RUNS_DIR, "_rewound")
         os.makedirs(aside, exist_ok=True)
         shutil.move(day_dir(last), os.path.join(aside, f"day_{last:02d}_{stamp}"))
-        shutil.copyfile(src, self.current_path())
+        self._restore_current(src)
         with self.cv:
             self.session = None
         return last
@@ -346,10 +415,9 @@ class Game:
         return exportlib.story_markdown(RUNS_DIR, names, day)
 
     # ---------- control ----------
+    @session_control
     def start(self, day, mode, backend="cli", step=2, murders=True, motive="", rule="roulette", rule_text="", mischief="occasional", confessionals=True, chaos="normal", variation=0, lean=False, call_cap=0, autodir=False, week_len=None, resume=False):
-        with self.cv:
-            if self.session and not self.session["done"] and not self.session["aborted"] and not self.session["error"]:
-                self._stop_locked()
+        self._stop_and_wait()
         if mode == "replay":
             path = os.path.join(day_dir(day), "ticks.jsonl")
             if not os.path.exists(path):
@@ -384,6 +452,8 @@ class Game:
                 self.save_current(cur)
         llm = LLM(backend=backend)
         llm.cap = int(call_cap) if call_cap and int(call_cap) > 0 else None
+        if not resume:
+            self._clear_checkpoint()
         sess = {"day": day, "mode": "live", "backend": backend, "step": step, "ticks": [], "done": False,
                 "error": None, "aborted": False, "ff": False, "stop": False, "pos": -1, "thread": None,
                 "usage": dict(llm.usage), "llm": llm, "murders": murders, "motive": motive, "rule": rule, "rule_text": rule_text, "mischief": mischief, "confessionals": confessionals, "chaos": chaos,
@@ -422,65 +492,66 @@ class Game:
             return None
 
     def _run_live(self, sess):
-        day = sess["day"]
-        os.makedirs(day_dir(day), exist_ok=True)
-        tmp = os.path.join(day_dir(day), "ticks.partial.jsonl")
-        resume_after, start_idx = None, 0
-        if sess.get("resume"):
-            with open(CHECKPOINT, "r", encoding="utf-8") as f:
-                cp = json.load(f)
-            start_state = cp["state"]
-            resume_after, start_idx = resume_hour(cp), cp["idx"] + 1
-            with open(tmp, "r", encoding="utf-8") as f:
-                sess["ticks"] = [json.loads(line) for line in f if line.strip()][:start_idx]
-            fh = open(tmp, "w", encoding="utf-8")
-            for t_ in sess["ticks"]:
-                fh.write(json.dumps(t_, ensure_ascii=False) + "\n")
-            fh.flush()
-        else:
-            start_state = self.load_current()
-            with open(os.path.join(STATE_DIR, f"day_{day:02d}_start.json"), "w", encoding="utf-8") as f:
-                json.dump(start_state, f, ensure_ascii=False)
-            fh = open(tmp, "w", encoding="utf-8")
-        world = World(copy.deepcopy(start_state))
-        llm = sess["llm"]
-
-        def on_tick(tick):
-            fh.write(json.dumps(tick, ensure_ascii=False) + "\n")
-            fh.flush()
-            try:
-                with open(CHECKPOINT + ".tmp", "w", encoding="utf-8") as cf:
-                    json.dump({"day": day, "hour": tick["hour"], "idx": tick["idx"], "v": CHECKPOINT_V, "state": world.dump()}, cf, ensure_ascii=False)
-                os.replace(CHECKPOINT + ".tmp", CHECKPOINT)
-            except OSError:
-                pass
-            with self.cv:
-                sess["ticks"].append(tick)
-                sess["partial"] = None
-                sess["usage"] = dict(llm.usage)
-                self.cv.notify_all()
-
-        def on_part(part):
-            with self.cv:                                               # a piece of the block being made, for the viewer to start on (phase F5)
-                sess["partial_v"] = sess.get("partial_v", 0) + 1
-                part["pv"] = sess["partial_v"]
-                sess["partial"] = part
-                sess["usage"] = dict(llm.usage)
-                self.cv.notify_all()
-
-        def gate(idx):
-            with self.cv:
-                while not (sess["ff"] or sess["stop"] or idx <= sess["pos"] + BUFFER):
-                    self.cv.wait(timeout=1.0)
-
-        runner = DayRunner(world, llm, on_tick, gate=gate, should_stop=lambda: sess["stop"], step=sess["step"],
-                           murders=sess["murders"], motive=sess["motive"], rule_mode=sess["rule"], rule_text=sess["rule_text"],
-                           mischief=sess["mischief"], confessionals=sess["confessionals"],
-                           chaos=sess["chaos"], variation=sess["variation"], gm_pull=lambda: self._pull_gm(sess), lean=sess["lean"], call_cap=0, autodir=sess["autodir"], autodir_get=lambda: sess["autodir"], tuning_get=lambda: self.tuning,
-                           ask_gm=lambda q: self._ask_gm(sess, q))
-        runner.on_part = on_part
-        runner.viewer_pos = lambda: sess["pos"]                           # how far the viewer has played (ahead.py asks early only when it is close behind)
+        fh = None
         try:
+            day = sess["day"]
+            os.makedirs(day_dir(day), exist_ok=True)
+            tmp = os.path.join(day_dir(day), "ticks.partial.jsonl")
+            resume_after, start_idx = None, 0
+            if sess.get("resume"):
+                with open(CHECKPOINT, "r", encoding="utf-8") as f:
+                    cp = json.load(f)
+                start_state = cp["state"]
+                resume_after, start_idx = resume_hour(cp), cp["idx"] + 1
+                with open(tmp, "r", encoding="utf-8") as f:
+                    sess["ticks"] = [json.loads(line) for line in f if line.strip()][:start_idx]
+                fh = open(tmp, "w", encoding="utf-8")
+                for t_ in sess["ticks"]:
+                    fh.write(json.dumps(t_, ensure_ascii=False) + "\n")
+                fh.flush()
+            else:
+                start_state = self.load_current()
+                with open(os.path.join(STATE_DIR, f"day_{day:02d}_start.json"), "w", encoding="utf-8") as f:
+                    json.dump(start_state, f, ensure_ascii=False)
+                fh = open(tmp, "w", encoding="utf-8")
+            world = World(copy.deepcopy(start_state))
+            llm = sess["llm"]
+
+            def on_tick(tick):
+                fh.write(json.dumps(tick, ensure_ascii=False) + "\n")
+                fh.flush()
+                try:
+                    with open(CHECKPOINT + ".tmp", "w", encoding="utf-8") as cf:
+                        json.dump({"day": day, "hour": tick["hour"], "idx": tick["idx"], "v": CHECKPOINT_V, "state": world.dump()}, cf, ensure_ascii=False)
+                    os.replace(CHECKPOINT + ".tmp", CHECKPOINT)
+                except OSError:
+                    pass
+                with self.cv:
+                    sess["ticks"].append(tick)
+                    sess["partial"] = None
+                    sess["usage"] = dict(llm.usage)
+                    self.cv.notify_all()
+
+            def on_part(part):
+                with self.cv:                                               # a piece of the block being made, for the viewer to start on (phase F5)
+                    sess["partial_v"] = sess.get("partial_v", 0) + 1
+                    part["pv"] = sess["partial_v"]
+                    sess["partial"] = part
+                    sess["usage"] = dict(llm.usage)
+                    self.cv.notify_all()
+
+            def gate(idx):
+                with self.cv:
+                    while not (sess["ff"] or sess["stop"] or idx <= sess["pos"] + BUFFER):
+                        self.cv.wait(timeout=1.0)
+
+            runner = DayRunner(world, llm, on_tick, gate=gate, should_stop=lambda: sess["stop"], step=sess["step"],
+                               murders=sess["murders"], motive=sess["motive"], rule_mode=sess["rule"], rule_text=sess["rule_text"],
+                               mischief=sess["mischief"], confessionals=sess["confessionals"],
+                               chaos=sess["chaos"], variation=sess["variation"], gm_pull=lambda: self._pull_gm(sess), lean=sess["lean"], call_cap=0, autodir=sess["autodir"], autodir_get=lambda: sess["autodir"], tuning_get=lambda: self.tuning,
+                               ask_gm=lambda q: self._ask_gm(sess, q))
+            runner.on_part = on_part
+            runner.viewer_pos = lambda: sess["pos"]                           # how far the viewer has played (ahead.py asks early only when it is close behind)
             n = runner.run(resume_after=resume_after, start_idx=start_idx)
             fh.close()
             final = os.path.join(day_dir(day), "ticks.jsonl")
@@ -505,22 +576,22 @@ class Game:
                 sess["done"] = True
                 self.cv.notify_all()
         except Stop:
-            fh.close()
             with self.cv:
                 sess["aborted"] = True
                 self.cv.notify_all()
         except LLMError as e:
-            fh.close()
             with self.cv:
                 sess["error"] = f"{e}" + ("  (usage limit or login problem: wait and try again)" if e.fatal else "")
                 self.cv.notify_all()
         except Exception as e:  # engine bug: surface it instead of dying silently
-            fh.close()
             import traceback
             traceback.print_exc()
             with self.cv:
                 sess["error"] = f"Engine error: {type(e).__name__}: {e}"
                 self.cv.notify_all()
+        finally:
+            if fh is not None:
+                fh.close()
 
     # ---------- GM pause hooks (pauses.py) ----------
     def set_roll_prefs(self, kinds, timeout=None):
@@ -648,17 +719,15 @@ class Game:
         with self.cv:
             self._stop_locked()
 
+    @session_control
     def new_game(self, start_day=3, keep_scenario=True):
+        self._stop_and_wait()
         old_sc = None
         if keep_scenario:
             try:
                 old_sc = self.load_current().get("scenario")
             except Exception:
                 old_sc = None
-        self.stop()
-        t = self.session["thread"] if self.session else None
-        if t:
-            t.join(timeout=5)
         with self.cv:
             self.session = None
         shutil.rmtree(RUNS_DIR, ignore_errors=True)
@@ -673,3 +742,4 @@ class Game:
             st["scenario"] = old_sc
             scn.apply_seeds(st)
         self.save_current(st)
+        self._clear_checkpoint()

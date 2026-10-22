@@ -261,6 +261,7 @@ class DramaMixin:
         attendees = [host] + guests
         self.occasion_now = dict(oc, attendees=attendees)
         self.log_event(tick, {"type": "occasion", "who": host, "room": where, "vis": "public",
+                              "stage": "begin", "attendees": list(attendees),
                               "text": f"{self.nm(host)}'s {oc['kind']} begins in the {w.room_name(where)} with {len(attendees)} people: {oc['text']}"},
                        witnesses=attendees, actor=host)
         for g in guests:

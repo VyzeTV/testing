@@ -143,7 +143,10 @@ class ChaosMixin:
         if not a:
             return
         lo, hi = madness_level(before), madness_level(a["sanity"])
-        if hi > lo and hi >= 2:
+        notices = a.setdefault("madness_notices", {})
+        now = self.day * 24 + tick["hour"] + (self.minute() or 0) / 60
+        if hi > lo and hi >= 2 and now - notices.get(str(hi), -1000) >= 72:
+            notices[str(hi)] = now
             text = {2: f"{self.nm(cid)} is unraveling; something in their eyes has changed.",
                     3: f"{self.nm(cid)} is breaking down.", 4: f"{self.nm(cid)} has snapped."}[hi]
             self.log_event(tick, {"type": "madness", "who": cid, "room": a["room"], "vis": "public", "text": text},
@@ -513,7 +516,7 @@ class ChaosMixin:
                     if cid in w.agents and self.rng.random() < 0.35:
                         self.add_cond(tick, cid, "chilled", 1, "the storm")
                     self.stat(tick, cid, "sanity", -2, "storm")
-                    self.log_event(tick, {"type": "island", "who": cid, "room": a["room"], "vis": "gm", "text": f"{self.nm(cid)} is battered by the storm outside."}, actor=cid)
+                    self.log_event(tick, {"type": "island", "who": cid, "room": a["room"], "vis": "gm", "text": f"{self.nm(cid)} is battered by the storm outside."}, actor=cid if cid in w.agents else None)
         elif eid == "fog":
             for cid in list(w.agents):
                 self.stat(tick, cid, "sanity", -1, "whispers in the fog")

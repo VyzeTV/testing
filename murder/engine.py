@@ -322,6 +322,10 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                 evt["m"] = round(max(m, t_), 1)
         if m is not None and "m" not in evt:
             evt["m"] = round(m, 1)                                    # when in the turn this happened
+        if actor:
+            evt["actor"] = actor
+            if actor in self.s["agents"]:
+                evt["actor_status"] = self.s["agents"][actor].get("status", "alive")
         tick["events"].append(evt)
         self.booth_note_event(evt)
         if witnesses and actor and evt.get("vis") == "public":

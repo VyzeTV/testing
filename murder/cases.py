@@ -801,7 +801,7 @@ class CaseMixin:
             if w.agents[cid]["room"] == case["room"]:
                 case["discovered_by"].append(cid)
                 others = [o for o in w.occupants(case["room"]) if o != cid]
-                self.log_event(tick, {"type": "body", "who": cid, "room": case["room"], "vis": "public", **({"m": round(when[cid], 1)} if when[cid] is not None and self.minute() is not None else {}),
+                self.log_event(tick, {"type": "body", "who": cid, "victim": case["victim"], "room": case["room"], "vis": "public", **({"m": round(when[cid], 1)} if when[cid] is not None and self.minute() is not None else {}),
                                       "text": f"{self.nm(cid)} finds {self.nm(case['victim'])} in the {w.room_name(case['room'])}: {self.nm(case['victim'])} {self.body_desc(case)}."},
                                witnesses=others, actor=cid)
                 tick["scene_body"] = {"victim": case["victim"], "by": cid, "room": case["room"], "desc": f"{self.nm(case['victim'])} {self.body_desc(case)}."}
@@ -886,14 +886,16 @@ class CaseMixin:
 
     def announce_body(self, tick, hour, forced=False):
         w, s = self.world, self.s
-        case = s["case"]
+        case = s.get("case")
+        if not case or case.get("announced"):
+            return
         if case.get("hidden"):
             case["hidden"]["found"] = True
         if case["killer"] is None:
             # nobody is responsible (an accident or a suicide): no investigation, no trial; TereVi simply informs everyone
             text = self.make_broadcast("death_notice", {"victim": case["victim"], "case_kind": case["kind"], "cause": case["cause"],
                                                         "forced_room": w.room_name(case["room"]) if forced else None})
-            tick["broadcasts"].append({"speaker": "terevi", "kind": "verdict", "text": text})
+            tick["broadcasts"].append({"speaker": "terevi", "kind": "verdict", "story_kind": "death_notice", "victim": case["victim"], "text": text})
             for cid in w.agents:
                 w.remember(cid, f"{_hh(hour)} TereVi announced that {self.nm(case['victim'])} is dead ({case['cause']}). No one is to blame, so there will be no trial. The deadline is lifted.")
                 w.agents[cid]["sanity"] = clamp(w.agents[cid]["sanity"] - 4)
@@ -919,7 +921,7 @@ class CaseMixin:
         case["vote_day"], case["vote_hour"] = self.day + 1, min(max(hour, 8), 21)
         text = self.make_broadcast("body", {"victim": case["victim"], "vote": self.vote_label(case),
                                             "forced_room": w.room_name(case["room"]) if forced else None})
-        tick["broadcasts"].append({"speaker": "terevi", "kind": "body", "text": text})
+        tick["broadcasts"].append({"speaker": "terevi", "kind": "body", "victim": case["victim"], "text": text})
         for cid in w.agents:
             if forced:
                 w.remember(cid, f"{_hh(hour)} TereVi revealed that a body lies in the {w.room_name(case['room'])}.")

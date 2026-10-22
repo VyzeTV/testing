@@ -23,7 +23,7 @@ function img(id) {
 function rc(rid) { const r = S.W.rooms[rid]; return [r.x + r.w / 2, r.y + r.h / 2]; }
 function itemName(id) { return (S.W.items[id] || { name: id }).name; }
 function isWeapon(id) { return ((S.W.items[id] || {}).tags || []).includes("weapon"); }
-function esc(s) { return String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 function bcList(t) { return t.broadcasts || (t.broadcast ? [t.broadcast] : []); }
 function orderIdx(id) {
   const k = ORDER.indexOf(id);

@@ -97,8 +97,8 @@ class MarksMixin:
     def mark_facts(self, case, ids):
         """Trial facts from what the body and the weapon show, compared by eye against everyone present. `by` is whoever examined the body."""
         clues = case.get("clues", [])
-        by = next((f for c in clues if c.get("kind") == "scene" for f in c.get("found_by") or [] if f in ids), None)
-        wby = next((f for c in clues if c.get("kind") == "weapon" for f in c.get("found_by") or [] if f in ids), None)
+        by = next((f for c in clues if c.get("kind") == "scene" and self.clue_on_table(c) for f in c.get("found_by") or [] if f in ids), None)
+        wby = next((f for c in clues if c.get("kind") == "weapon" and self.clue_on_table(c) for f in c.get("found_by") or [] if f in ids), None)
         inf = dict(case.get("marks") or {})
         if case.get("handmark") and wby:
             inf.setdefault("hand", case["handmark"])
@@ -115,7 +115,7 @@ class MarksMixin:
                 elif key == "taller":
                     fits, w_, txt = self.taller(p, victim) == inf["taller"], (0.5, -0.8), f"{self.nm(p)} is {'taller' if self.taller(p, victim) else 'not taller'} than {self.nm(victim)}."
                 elif key == "hand":
-                    fits, w_, txt = b["hand"] == inf["hand"], (1.0, -1.2), f"{self.nm(p)} has a {b['hand']} hand."
+                    fits, w_, txt = b["hand"] == inf["hand"], (3.0 / max(1, sum(self.build_of(o)["hand"] == inf["hand"] for o in people)), -1.5), f"{self.nm(p)} has a {b['hand']} hand."
                 else:
                     if not self.has_cond(p, "scratched"):
                         continue

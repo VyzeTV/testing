@@ -49,17 +49,20 @@ def one_season(job):
     """job: (violent, seed) or (violent, seed, opts); opts {"record": True} also keeps every day's ticks and starting state, with the voicing prompts (revoice.py)."""
     violent, seed = job[0], job[1]
     opts = job[2] if len(job) > 2 else {}
+    from murder.storylint import StoryLinter
     from murder.engine import DayRunner
     from murder.llm import LLM
     from murder.world import World, new_state
     LLM.mock_plot_prob = 0.04 if violent else 0.0
     LLM.mock_murder_prob = 0.02 if violent else 0.0
     w = World(new_state(1))
+    lint = StoryLinter(w.dump())
     trials, finales = [], []
     evc, margins, segs = Counter(), [], Counter()
     rec = {"days": [], "starts": []} if opts.get("record") else None
 
     def keep(t):
+        lint.feed(t)
         if rec is not None:
             rec["days"][-1].append(t)
         for e in t.get("events") or []:
@@ -89,6 +92,7 @@ def one_season(job):
                     first = next((f for f in FIRST[v["gender"]] if f not in used), None) or f"{FIRST[v['gender']][len(arrivals) % 12]}-{len(arrivals) + 1}"
                     spec = dict(base, name=f"{first} {base['name'].split()[-1]}")
                 arrivals.append({"id": w.add_newcomer(spec), "day": day})
+        lint.begin_day(w.dump())
         dr = DayRunner(w, LLM(backend="mock"), keep, step=2, murders=True, rule_mode="roulette", seed=seed * 1000 + day)
         if rec is not None:
             dr.keep_voice = True
@@ -97,6 +101,7 @@ def one_season(job):
         dr.run()
         day = w.state.get("day", day) + (1 if w.state.get("day", day) == day else 0)
     if not w.state.get("over") and not w.agents:                         # the island emptied at the end of a day: the endgame decides
+        lint.begin_day(w.dump())
         dr = DayRunner(w, LLM(backend="mock"), keep, step=2, murders=True, rule_mode="roulette", seed=seed * 1000 + day)
         dr.keep_voice = rec is not None
         if rec is not None and not rec["days"]:
@@ -106,7 +111,7 @@ def one_season(job):
     over = w.state.get("over") or {"kind": "unfinished", "title": f"still going after {MAX_DAYS} days", "day": day}
     names = {c: v["short"] for c, v in w.state["cast"].items()}
     nv = (w.state.get("npcs") or {}).get("neovi") or {}
-    return {"violent": violent, "seed": seed, "ending": over["kind"], "title": over.get("title"), "day": over.get("day", day), "tier": over.get("tier", "unfinished"), "costs": over.get("costs") or [], "epilogues": over.get("epilogues") or [],
+    return {"story_issues": lint.issues, "story_checks": dict(lint.checks), "violent": violent, "seed": seed, "ending": over["kind"], "title": over.get("title"), "day": over.get("day", day), "tier": over.get("tier", "unfinished"), "costs": over.get("costs") or [], "epilogues": over.get("epilogues") or [],
             "neovi": ((nv.get("arc") or {}).get("fate") or "none"), "romances": sum(1 for b in w.state.get("bonds", []) if b.get("kind") == "romance"),
             "minds": dict(w.state.get("mind_stats") or {}), "stories": [e["kind"] for e in (w.state.get("stories") or {}).values()], "twists": dict(w.state.get("twists") or {}), "intimacy": dict(w.state.get("intimacy") or {}),
             "nv": {"helped": nv.get("helped", 0), "punished": [p["kind"] for p in nv.get("punished", [])], "named": sum(1 for v in (nv.get("told") or {}).values() if "name" in v),
@@ -136,6 +141,8 @@ def markdown(seasons):
            f"{len(seasons)} seasons played from Day 1 until the show ended, with every empty place filled by a newcomer at the start of each week ({len(seasons) // 2} per configuration: the default mock cast and a violent one, as in "
            "`tests/balance.py`). Regenerate with `python tests/season.py --write` (a few minutes). For curiosity, not a gate.\n"]
     nm = lambda s, c: s["names"].get(c, c)
+    out.append("Story checks: " + str(sum(sum(s.get("story_checks", {}).values()) for s in seasons)) +
+               "; violations: " + str(sum(len(s.get("story_issues", [])) for s in seasons)) + ". Run `python tests/story_lint.py` for locations and details.\n")
     tiers = Counter(s["tier"] for s in seasons)
     out.append("**Ending tiers, all seasons:** " + ", ".join(f"{t} {tiers.get(t, 0)} ({round(100 * tiers.get(t, 0) / len(seasons))}%)" for t in ("good", "bittersweet", "bad"))
                + (f", unfinished {tiers['unfinished']}" if tiers.get("unfinished") else "") + ". Target: good 40%, bittersweet 30%, bad 30% (plan doc, phase 7b).\n")

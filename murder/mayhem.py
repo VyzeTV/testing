@@ -202,9 +202,10 @@ class MayhemMixin:
 
     def start_spree(self, tick, hour, by, text_):
         w, s = self.world, self.s
+        s["spree_seq"] = s.get("spree_seq", 0) + 1
         s["spree"] = {"by": by, "since_day": self.day, "kills": 0, "known": {}, "quiet": 0}
         self.log_event(tick, {"type": "madness", "who": by, "room": w.agents[by]["room"], "vis": "viewer",
-                              "text": text_}, actor=by)
+                              "text": text_, "episode": s["spree_seq"]}, actor=by)
         text = self.make_broadcast("spree", {"by": by})
         tick["broadcasts"].append({"speaker": "terevi", "kind": "deadline", "text": text})
         for cid in w.agents:
@@ -249,7 +250,7 @@ class MayhemMixin:
         killer = case["killer"]
         case["announced"] = True
         text = self.make_broadcast("spree_death", {"victim": victim, "forced_room": None})
-        tick["broadcasts"].append({"speaker": "terevi", "kind": "verdict", "text": text})
+        tick["broadcasts"].append({"speaker": "terevi", "kind": "verdict", "story_kind": "spree_death", "victim": victim, "text": text})
         bodies = s.setdefault("bodies", [])
         bodies.append({"victim": victim, "room": case["room"], "day": self.day, "by": [], "desc": f"{self.nm(victim)} {self.body_desc(case)}."})
         for cid in w.agents:
@@ -275,9 +276,9 @@ class MayhemMixin:
             for cid in w.occupants(b["room"]):
                 if cid in w.agents and cid not in b["by"]:
                     b["by"].append(cid)
-                    self.log_event(tick, {"type": "body", "who": cid, "room": b["room"], "vis": "public", "text": f"{self.nm(cid)} finds {b['desc']}"}, actor=cid)
+                    self.log_event(tick, {"type": "body_seen", "who": cid, "victim": b["victim"], "room": b["room"], "vis": "public",
+                                          "text": f"{self.nm(cid)} sees the remains of {self.nm(b['victim'])}, whose death has already been announced."}, actor=cid)
                     self.stat(tick, cid, "sanity", -5, "a body")
-                    tick["scene_body"] = {"victim": b["victim"], "by": cid, "room": b["room"], "desc": b["desc"]}
         if not sp:
             return
         if sp["by"] not in w.agents:
@@ -717,7 +718,7 @@ class MayhemMixin:
         for x in case.get("accomplices") or []:
             if x["role"] == "alibi" and x["helper"] in w.agents and case.get("killer"):
                 claim = f"{self.nm(case['killer'])} was with me the whole time around then."
-                case.setdefault("testimonies", []).append({"by": x["helper"], "claim": claim, "day": self.day, "hour": hour, "false": True})
+                case.setdefault("testimonies", []).append({"by": x["helper"], "claim": claim, "day": self.day, "hour": hour, "false": True, "alibi_for": case["killer"]})
                 for o in w.agents:
                     if o != x["helper"]:
                         self.note_evidence(o, "testimony", f"{self.nm(x['helper'])} says: {claim}", x["helper"])

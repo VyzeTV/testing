@@ -128,7 +128,7 @@ class TwistMixin:
         crew["alive"] = []
         names = ", ".join(self.nm(c) for c in back)
         text = f"The tide brings the raft back. {names} crawl{'s' if len(back) == 1 else ''} up the beach, half drowned, back where they started."
-        self.log_event(tick, {"type": "system_notable", "who": back[0], "room": "beach", "vis": "public", "text": text}, witnesses=list(w.agents))
+        self.log_event(tick, {"type": "system_notable", "who": back[0], "room": "beach", "vis": "public", "text": text, "story_kind": "raft_return", "returned": list(back)}, witnesses=list(w.agents))
         self.terevi_says(tick, f"Welcome BACK, {names}! Did you miss us? We missed you. The ratings missed you. Hehe.")
         self.saga(text)
         self.twist("raft_returned")

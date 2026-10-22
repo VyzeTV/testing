@@ -99,10 +99,16 @@ class SocialMixin:
         day, hour = case.get("day", self.day), case.get("hour", 12)
         hh = f"{int(hour) % 24:02d}:00"
         t = round(day * 24 + hour + case.get("m", 0.0) / 60, 2)
+        cached = case.setdefault("alibis", {}).get(cid)
+        if cached and cached.get("t") == t:
+            return dict(cached, **{"with": list(cached.get("with", []))})
         if cid == case.get("killer"):
             pool = sorted({r for (d, h, r) in self.s.get("where_log", {}).get(cid, []) if d == day and r != case.get("room")}) or [w.cast[cid].get("home") or "garden"]
             room = self.rng.choice(pool)
-            return {"claim": f"I was in the {w.room_name(room)} around {hh}, nowhere near the {w.room_name(case.get('room'))}.", "lie": True, "room": room, "t": t}
+            claim = {"claim": f"I was in the {w.room_name(room)} around {hh}, nowhere near the {w.room_name(case.get('room'))}.",
+                     "lie": True, "room": room, "t": t, "with": []}
+            case["alibis"][cid] = claim
+            return dict(claim)
         mine = self.believed_at(cid, cid, t, slack=0.13)             # where they know they were (their own sighting)
         truth = mine["r"] if mine else None
         sm = self.__dict__.get("_sim")
@@ -111,9 +117,11 @@ class SocialMixin:
             truth = sm.nav.room_at(*p) if p else None
         if not truth:
             return {"claim": f"I honestly don't remember where I was around {hh}.", "lie": False}
-        with_ = self.seen_with(cid, t, truth)[:2]                     # the people they actually saw there
+        with_ = self.seen_with(cid, t, truth, slack=0.13)[:2]                     # the people they actually saw there
         claim = f"I was in the {w.room_name(truth)} around {hh}" + (f", with {' and '.join(self.nm(o) for o in with_)}." if with_ else ", on my own.")
-        return {"claim": claim, "lie": False, "room": truth, "t": t}
+        result = {"claim": claim, "lie": False, "room": truth, "t": t, "with": list(with_)}
+        case["alibis"][cid] = result
+        return dict(result, **{"with": list(with_)})
 
     def suspects(self, cid):
         """Whom `cid` suspects, strongest first: hooks they hold a suspect for, the case evidence they have noted, people they hate during a case."""
@@ -168,7 +176,7 @@ class SocialMixin:
         if inv_case or f("curiosity") >= 65:
             opts.append(((2.5 if inv_case else 0.6) * f("curiosity") / 50, "probe", None))
         present = set(conv.get("members") or []) | {a, t}
-        against_ok = lambda x: x not in present and (self._aff(a, x) <= 1 or self.grounds_against(a, x))      # nobody runs down a friend without cause, or someone standing there
+        against_ok = lambda x: x in w.agents and x not in present and (self._aff(a, x) <= 1 or self.grounds_against(a, x))      # nobody runs down a friend without cause, or someone standing there
         heard = [r for r in s.get("rumors", [])[-8:] if a in r.get("heard", []) and r["about"] not in (a, t) and against_ok(r["about"])]
         hated = [o for o in sorted(w.agents) if o not in present and self._aff(a, o) <= -3]
         if (heard or hated) and aff >= 0 and back >= 0:

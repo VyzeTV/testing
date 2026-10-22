@@ -194,11 +194,11 @@ class LooksMixin:
         victim = case.get("victim")
         people = [p for p in ids if p != victim]
 
-        def spread(by, fits, total, kind, text_fit, text_not, base=3.0, clear=-0.4):
+        def spread(by, fits, total, kind, text_fit, text_not, base=4.0, clear=-0.6):
             n = max(1, len(fits))
             for p in people:
                 if p in fits:
-                    out.append({"by": by, "about": p, "kind": "look", "look": kind, "fits": True, "w": min(2.5, base / n), "text": text_fit(p), "true": True})
+                    out.append({"by": by, "about": p, "kind": "look", "look": kind, "fits": True, "w": min(3.5, base / n), "text": text_fit(p), "true": True})
                 elif clear:
                     out.append({"by": by, "about": p, "kind": "look", "look": kind, "fits": False, "w": clear, "text": text_not(p), "true": True})
 

@@ -7321,6 +7321,26 @@ check("gore is graphic by default: a killing in the feed says how it went, and t
 r.tuning_get = lambda: {"gore": 2}
 check("below gore 3 the killing line stays as it was", r.kill_detail("sharp") == "")
 
+# Story facts are checked in playback order across day boundaries.
+from murder.storylint import StoryLinter  # noqa: E402
+
+old_story_probs_ = (LLM.mock_plot_prob, LLM.mock_murder_prob)
+LLM.mock_plot_prob, LLM.mock_murder_prob = 0.04, 0.02
+for story_seed_ in (11, 28):
+    sw_ = World(new_state(3))
+    sl_ = StoryLinter(sw_.dump())
+    for _ in range(3):
+        if sw_.state.get("over"):
+            break
+        sl_.begin_day(sw_.dump())
+        DayRunner(sw_, LLM(backend="mock"), sl_.feed, step=2, murders=True, rule_mode="roulette",
+                  seed=story_seed_ * 1000 + sw_.state["day"]).run()
+    check(f"story facts stay consistent across seeded days ({story_seed_})",
+          not sl_.issues, str(sl_.issues[:2]))
+    check(f"story checker observes actual actors and status transitions ({story_seed_})",
+          sl_.checks["active_actor"] > 0 and sl_.checks["status_transition"] > 0)
+LLM.mock_plot_prob, LLM.mock_murder_prob = old_story_probs_
+
 bad = [n for n, ok, known in RESULTS if not ok and not known]
 known_ = [n for n, ok, known in RESULTS if not ok and known]
 print(f"\n{len(RESULTS) - len(bad) - len(known_)}/{len(RESULTS)} passed" + (f"; {len(known_)} known failures" if known_ else "") + (f"; FAILED: {bad}" if bad else ""))

@@ -188,7 +188,7 @@ class AllianceMixin:
                 continue
             if self.rng.random() < 0.35 + 0.05 * al["strength"]:
                 claim = f"{self.nm(culprit)} was with me the whole time, nowhere near the {w.room_name(case['room'])}."
-                case.setdefault("testimonies", []).append({"by": m, "claim": claim, "day": self.day, "hour": hour, "false": True, "ally": True})
+                case.setdefault("testimonies", []).append({"by": m, "claim": claim, "day": self.day, "hour": hour, "false": True, "ally": True, "alibi_for": culprit})
                 for o in w.agents:
                     if o != m:
                         self.note_evidence(o, "testimony", f"{self.nm(m)} says: {claim}", m)

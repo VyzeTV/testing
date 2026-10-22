@@ -433,6 +433,9 @@ class ConvoMixin:
             lines, fixed = check_lines(self, beats, got.get(c["id"]), self.rng)
             for bi, (ln, b) in enumerate(zip(lines, beats)):
                 ln["text"] = self.clean_line(ln["speaker"], ln["kind"], ln["text"]) or ln["text"]
+                ln["to"] = b.get("to")
+                if b.get("claim_at"):
+                    ln["claim_at"] = dict(b["claim_at"])
                 ln["m"], ln["room"], ln["move"], ln["b"], ln["ex"] = b["m"], b.get("room") or c["room"], b["move"], bi, b.get("ex", 0)
                 if b.get("cont"):
                     ln["cont"] = True

@@ -20,7 +20,10 @@ from collections import Counter
 
 TITLES = {"debate": "OPEN DEBATE", "hotseat": "THE HOT SEAT", "duel": "THE CLASH", "brainstorm": "BRAINSTORM", "closing": "CLOSING ARGUMENTS",
           "crossexam": "CROSS-EXAMINATION", "split": "SPLIT COURT", "climax": "THE CLIMAX", "farewell": "LAST WORDS"}
-CLUE_WEIGHT = {"weapon": 2.5, "stained": 2.5, "clothes": 2.0, "planted": 2.0, "framed_unconscious": 3.0, "decoy": 1.0, "ledger": 0.6, "drag_marks": 1.0, "staging": 1.0}
+CLUE_WEIGHT = {"weapon": 3.2, "stained": 3.5, "clothes": 3.0, "planted": 2.5, "framed_unconscious": 2.5,
+               "frame_flaw": 3.0, "decoy": 0.6, "ledger": 1.2, "drag_marks": 0.7, "staging": 0.7,
+               "herring": 0.35, "keyholders": 0.25}
+FACT_CAP = {"motive": 0.9, "opportunity": 0.9, "character": 1.5}
 CRIES = ["Objection!", "Hold it!", "That's wrong!", "No, that's not it!", "Wait a second!", "Liar!", "Contradiction!", "I'll cut through that!"]
 CORNERED = {"indignant": "How dare you. I have answered every question and you still want blood.", "tearful": "Please, I'm telling you, I didn't, I couldn't...",
             "silent": "...", "lashing": "Why is nobody looking at {other}? They had every reason!"}
@@ -40,7 +43,15 @@ class ClaimTrialMixin:
         t = self.case_time(case)
         for cid in ids:
             tm = self.testimony_for(cid) or {}
-            out[cid] = {"r": tm.get("room"), "t": tm.get("t", t), "text": tm.get("claim") or "I don't remember.", "lie": bool(tm.get("lie"))}
+            out[cid] = {"r": tm.get("room"), "t": tm.get("t", t), "text": tm.get("claim") or "I don't remember.",
+                        "lie": bool(tm.get("lie")), "with": list(tm.get("with", []))}
+        for testimony in case.get("testimonies", []):
+            holder, partner = testimony.get("by"), testimony.get("alibi_for")
+            if holder in out and partner in out and partner not in out[holder]["with"]:
+                claim = out[holder]
+                claim["with"].append(partner)
+                claim["lie"] = bool(testimony.get("false"))
+                claim["text"] = testimony["claim"] + (f" I was in the {self.world.room_name(claim['r'])}." if claim["r"] else "")
         return out
 
     def trial_facts(self, case, ids):
@@ -49,15 +60,17 @@ class ClaimTrialMixin:
         t = self.case_time(case)
         room = case.get("room")
         facts = []
-        for c in case.get("clues", []):
+        for clue_index, c in enumerate(case.get("clues", [])):
             if not c.get("found_by") or not self.clue_on_table(c):
                 continue
-            by = next((f for f in c["found_by"] if f in ids), None)
+            by = next((f for f in c["found_by"] if f in ids and f not in c.get("held", [])), None)
             if not by:
                 continue
             named = [p for p in ids if self.nm(p) in c.get("text", "")]
+            by = next((f for f in c["found_by"] if f in ids and f not in named and f not in c.get("held", [])), by)
             kind = c.get("kind") or "clue"
-            wt = CLUE_WEIGHT.get(kind, 1.2)
+            wt = CLUE_WEIGHT.get(kind, 0.6)
+            family = "motive" if kind == "herring" else "opportunity" if kind in ("keyholders", "ledger_door") else "physical"
             text = c.get("text", "")
             for p in named:
                 sign = 1.0
@@ -65,11 +78,15 @@ class ClaimTrialMixin:
                     sign = -1.0                                     # a sign they were put out of action clears them
                 elif kind == "ledger":
                     cleared = text.split("Not placed")[0]
-                    sign = -1.5 if self.nm(p) in cleared else 1.0       # placed elsewhere by the cameras, or not placed at all
-                facts.append({"by": by, "about": p, "kind": "clue", "w": sign * wt, "text": text[:200], "true": kind not in ("planted", "decoy")})
+                    sign = -1.5 if self.nm(p) in cleared else 0.0       # an unrecorded person is not evidence of guilt
+                if sign:
+                    facts.append({"by": by, "about": p, "kind": "clue", "clue_kind": kind, "family": family,
+                                  "source": f"clue:{clue_index}", "known_by": [f for f in c["found_by"] if f in ids],
+                                  "w": sign * wt, "text": text[:200], "true": kind not in ("planted", "decoy")})
         for h in ids:
             for b in self.beliefs(h):
-                if b["k"] == "at" and b["s"] in ids and b["s"] != h and b.get("r") == room and b["t0"] - 0.75 <= t <= b.get("t1", b["t0"]) + 0.75:
+                if (b["k"] == "at" and b["src"] == "seen" and b["s"] in ids and b["s"] != h and b.get("r") == room
+                        and self.believed_at(h, b["s"], t, slack=0.13) is b):
                     facts.append({"by": h, "about": b["s"], "kind": "near_scene", "w": 2.0 * b["c"], "text": f"I saw {self.nm(b['s'])} in the {w.room_name(room)} around {int(t % 24):02d}:00.",
                                   "true": b.get("true", True), **({"mind": True} if b.get("hal") or b.get("warp") else {})})
                 elif b["k"] == "has" and b["s"] in ids:
@@ -79,7 +96,7 @@ class ClaimTrialMixin:
                                       **({"mind": True} if b.get("hal") or b.get("warp") else {})})
                 elif b["k"] == "lied" and b["s"] in ids:
                     what = b.get("n", "")[:120].replace("you saw", "I saw")
-                    facts.append({"by": h, "about": b["s"], "kind": "lied_before", "w": 1.5, "text": f"{self.nm(b['s'])} has lied to me before: they {what}.", "true": b.get("true", True)})
+                    facts.append({"by": h, "about": b["s"], "kind": "lied_before", "family": "character", "w": 1.0, "text": f"{self.nm(b['s'])} has lied to me before: they {what}.", "true": b.get("true", True)})
         seen_it = 0
         for wit in case.get("witnesses") or []:
             if wit in ids and case.get("killer") in ids and wit != case["killer"]:
@@ -102,7 +119,7 @@ class ClaimTrialMixin:
                 continue
             by = group[0]["by"]
             for f in group:
-                raise_fact(f, beats, quiet=True)
+                raise_fact(f, beats, quiet=True, shown=True)
             fit = [f["about"] for f in group if f["fits"]]
             if key == "hand":
                 size = inf.get("hand") or case.get("handmark")
@@ -114,7 +131,7 @@ class ClaimTrialMixin:
                 self.trial_beat(beats, by, f"The blows came from {'above' if inf['taller'] else 'level'}. That fits {names(fit, by)}.", "compare")
         for f in [f for f in marks if f["mark"] == "scratched"]:
             p = f["about"]
-            if not raise_fact(f, beats, quiet=True):
+            if not raise_fact(f, beats, quiet=True, shown=True):
                 continue
             self.trial_beat(beats, f["by"], f"Look at {self.nm(p)}'s hands. Fresh scratches. The victim had skin under their nails.", "compare")
             thorns, seen = self.thorn_alibi(p, ids)
@@ -137,8 +154,10 @@ class ClaimTrialMixin:
         for key in ("hair", "fibres", "glimpse"):
             for by in sorted({f["by"] for f in looks if f["look"] == key}):
                 group = [f for f in looks if f["look"] == key and f["by"] == by]
+                if key == "glimpse" and group and self.rng.random() > self.willingness(by, group[0]["about"]):
+                    continue
                 for f in group:
-                    raise_fact(f, beats, quiet=True)
+                    raise_fact(f, beats, quiet=True, shown=True)
                 fit = [f["about"] for f in group if f["fits"]]
                 if key == "hair":
                     self.trial_beat(beats, by, f"{clue['hair']['text']} Whose hair is that? {names(fit, by)}.", "compare")
@@ -148,7 +167,7 @@ class ClaimTrialMixin:
                     feat = next((g["feature"] for g in case.get("glimpses") or [] if g["by"] == by), "a shape")
                     self.trial_beat(beats, by, f"It was dark, but I saw a figure: {feat}. That fits {names(fit, by)}.", "compare")
         for f in [f for f in looks if f["look"] == "accessory"]:
-            if raise_fact(f, beats, quiet=True):
+            if raise_fact(f, beats, quiet=True, shown=True):
                 self.trial_beat(beats, f["by"], f"This was lying near the body. {f['text']}", "compare")
 
     def weapon_match(self, item, weapon):
@@ -187,6 +206,60 @@ class ClaimTrialMixin:
                         out.append((s, h))
                         break
         return out
+
+    def alibi_conflicts(self, claims, ids):
+        """Compare public accounts without deciding which participant is truthful."""
+        conflicts, seen = [], set()
+        for a in ids:
+            claim = claims.get(a, {})
+            if not claim.get("r"):
+                continue
+            for b in claim.get("with", []):
+                other = claims.get(b, {})
+                pair = tuple(sorted((a, b)))
+                if (b == a or b not in ids or pair in seen or not other.get("r") or
+                        abs(claim["t"] - other["t"]) > 0.15 or claim["r"] == other["r"]):
+                    continue
+                seen.add(pair)
+                conflicts.append({"claimant": a, "witness": b, "claimed_room": claim["r"],
+                                  "other_room": other["r"], "t": claim["t"]})
+        return conflicts
+
+    @staticmethod
+    def trial_fact_key(fact):
+        return (fact.get("source", fact.get("kind")), fact.get("about"), fact.get("text"))
+
+    def trial_private_facts(self, voter, facts):
+        """Known facts not already counted in the public case; no access to others' secrets."""
+        public = {self.trial_fact_key(f) for f in getattr(self, "_trial_public", [])}
+        seen, private = set(), []
+        used = dict(getattr(self, "_trial_family_push", {}))
+        for f in facts:
+            key = self.trial_fact_key(f)
+            if (f.get("by") != voter and voter not in f.get("known_by", [])) or key in public or key in seen:
+                continue
+            seen.add(key)
+            weight = f["w"]
+            family = f.get("family")
+            if family in FACT_CAP and weight > 0:
+                cap_key = (f["about"], family)
+                available = max(0.0, FACT_CAP[family] - used.get(cap_key, 0.0))
+                weight = min(weight, available)
+                used[cap_key] = used.get(cap_key, 0.0) + weight
+            if weight:
+                private.append(dict(f, w=weight))
+        return private
+
+    def trial_vote_support(self, voter, target, facts):
+        public = [dict(a, source="public") for a in getattr(self, "_trial_arguments", {}).get(target, [])]
+        for argument in public:
+            if argument.get("by") and argument["by"] != voter and argument["text"].startswith(("I ", "I've ", "My ")):
+                argument["text"] = f"{self.nm(argument['by'])} said: {argument['text']}"
+        private = [{"text": f["text"], "kind": f.get("family", f.get("kind")), "weight": f["w"],
+                    "by": f.get("by"), "source": "private"}
+                   for f in self.trial_private_facts(voter, facts) if f["about"] == target]
+        return public + private
+
 
     # ------------------------------------------------------------------ who dares, and the liar's way out
     def willingness(self, holder, about, conf=0.9):
@@ -275,11 +348,12 @@ class ClaimTrialMixin:
                 out.append({"speaker": b["speaker"], "kind": "say", "text": b["text"], "move": "cry"})      # a cry is never reworded
                 continue
             text = self.clean_line(b["speaker"], b.get("kind", "say"), got.get(i, b["text"]))
-            out.append({"speaker": b["speaker"], "kind": b.get("kind", "say"), "text": text or b["text"], "move": b.get("move")})
+            out.append({"speaker": b["speaker"], "kind": b.get("kind", "say"), "text": text or b["text"], "move": b.get("move"),
+                        **({"evidence": b["evidence"]} if b.get("evidence") else {})})
         return out
 
-    def trial_beat(self, beats, speaker, text, move, kind="say"):
-        beats.append({"speaker": speaker, "text": text, "move": move, "kind": kind})
+    def trial_beat(self, beats, speaker, text, move, kind="say", **facts):
+        beats.append({"speaker": speaker, "text": text, "move": move, "kind": kind, **facts})
 
     def publish_segment(self, tick, hour, kind, n, beats, meter, extra=None):
         w = self.world
@@ -314,18 +388,28 @@ class ClaimTrialMixin:
         meter = {p: 0.0 for p in ids}
         raised, exposed, burnt, lies, spoken = set(), set(), {}, Counter(), set()
         tr = {"claims": claims, "raised": [], "lies": lies, "cred": cred}
+        self._trial_public = tr["raised"]
+        self._trial_arguments = {p: [] for p in ids}
+        self._trial_family_push = {}
+        alibi_conflicts = self.alibi_conflicts(claims, ids)
         self.suspicion, self.theory = {}, None
         n = 0
 
         def push(about, amount, why=None):
             if about in meter:
-                meter[about] = max(0.0, meter[about] + amount)
+                meter[about] += amount
+                if why is None:
+                    why = {"text": (f"The debate raised doubts about {self.nm(about)}." if amount > 0 else
+                                    f"The debate supported {self.nm(about)}'s defence."), "kind": "argument"}
+                if why and amount:
+                    self._trial_arguments[about].append({"text": why["text"], "kind": why.get("family", why.get("kind", "argument")),
+                                                         "weight": round(amount, 3), "by": why.get("by")})
 
-        def raise_fact(f, beats, quiet=False):
+        def raise_fact(f, beats, quiet=False, shown=False):
             key = (f["by"], f["about"], f["text"])
             if key in raised or f["about"] not in ids or f["by"] not in ids:
                 return False
-            if f["w"] > 0:
+            if f["w"] > 0 and not shown:
                 p_ = self.willingness(f["by"], f["about"])
                 if f["w"] >= 2 and p_ < 0.9:
                     p_ = self.gm_roll("witness", p_, f["by"], f["about"], f"{self.nm(f['by'])} speaking up against {self.nm(f['about'])}")
@@ -335,8 +419,20 @@ class ClaimTrialMixin:
             tr["raised"].append(f)
             if not quiet and f["text"] not in spoken:              # one clue naming several people is shown once
                 spoken.add(f["text"])
-                self.trial_beat(beats, f["by"], f["text"] if f["kind"] != "clue" else f"Look at this: {f['text']}", "evidence")
-            push(f["about"], f["w"] * cred[f["by"]])
+                named = [p for p in ids if self.nm(p) in f["text"]]
+                defence = f["w"] > 0 and f["by"] in named
+                wording = (f"I need to answer this evidence: {f['text']}" if defence else
+                           f["text"] if f["kind"] != "clue" else f"Look at this: {f['text']}")
+                self.trial_beat(beats, f["by"], wording, "defence" if defence else "evidence",
+                                evidence={"named": named, "weight": f["w"]})
+            amount = f["w"] * cred[f["by"]]
+            family = f.get("family")
+            if family in FACT_CAP and amount > 0:
+                cap_key = (f["about"], family)
+                used = self._trial_family_push.get(cap_key, 0.0)
+                amount = min(amount, max(0.0, FACT_CAP[family] - used))
+                self._trial_family_push[cap_key] = used + amount
+            push(f["about"], amount, f)
             return True
 
         def raise_sightings(pool, beats):
@@ -357,12 +453,12 @@ class ClaimTrialMixin:
             cl = claims[s]
             self.trial_beat(beats, h, self.objection_cry(h), "cry")
             self.trial_beat(beats, h, f"That's not true. I saw {self.nm(s)} in the {w.room_name(b['r'])} at that time, not the {w.room_name(cl['r'])}.", "objection")
-            push(s, 2.0 * cred[h] * b["c"])
+            push(s, 2.0 * cred[h] * b["c"], {"text": f"{self.nm(h)} contradicted {self.nm(s)}'s alibi with a sighting.", "kind": "contradiction", "by": h})
             raised.add((h, s, "contradiction"))
             if cl["lie"]:
                 lies[s] += 1
                 cred[s] *= 0.5
-                push(s, 1.5)
+                push(s, 1.5, {"text": f"{self.nm(s)} changed their story after being challenged.", "kind": "changed_story", "by": h})
                 burnt.setdefault(s, set()).add(cl["r"])
                 new = self.lie_planner(s, case, ids, burnt[s]) if s == killer else None
                 if new and lies[s] < 3:
@@ -386,10 +482,19 @@ class ClaimTrialMixin:
         beats = []
         for p in ids:
             self.trial_beat(beats, p, claims[p]["text"], "alibi")
+        for conflict in alibi_conflicts:
+            a, b = conflict["claimant"], conflict["witness"]
+            self.trial_beat(beats, b, self.objection_cry(b), "cry")
+            text = (f"{self.nm(a)}, you say I was with you in the {w.room_name(conflict['claimed_room'])}. "
+                    f"I said I was in the {w.room_name(conflict['other_room'])}. Those accounts cannot both be right.")
+            self.trial_beat(beats, b, text, "alibi_conflict", alibi_conflict=conflict)
+            # A disputed account is not proof of which participant lied.
+            for person in (a, b):
+                push(person, 0.5, {"text": text, "kind": "disputed_alibi", "by": b})
         for s, h in self.corroborations(claims, ids):
             if self.rng.random() < 0.7:
                 self.trial_beat(beats, h, f"I can vouch for {self.nm(s)}: I saw them there.", "corroborate")
-                push(s, -1.5 * cred[h])
+                push(s, -1.5 * cred[h], {"text": f"{self.nm(h)} corroborated {self.nm(s)}'s location.", "kind": "alibi", "by": h})
         for f in sorted([f for f in facts if f["kind"] == "clue"], key=lambda f: -abs(f["w"])):
             raise_fact(f, beats)
         for s, h, b in self.weak_points(claims, ids, exposed):
@@ -511,7 +616,7 @@ class ClaimTrialMixin:
         votes = self.compute_votes(ids, meter, facts, killer, case)
         self._trial_state = {"facts": facts, "raised": tr["raised"], "lies": lies, "meter": meter}
         tick["claim_trial"] = {"meter": {k: round(v, 2) for k, v in meter.items()}, "lies_proven": dict(lies), "cred": {k: round(v, 2) for k, v in cred.items()},
-                               "raised": len(tr["raised"]), "exposed": sorted(exposed)}
+                               "raised": len(tr["raised"]), "exposed": sorted(exposed), "alibi_conflicts": alibi_conflicts}
         return votes
 
     # ------------------------------------------------------------------ the trial as a live practice on the map
@@ -648,7 +753,7 @@ class ClaimTrialMixin:
             held = [f for f in st.get("facts", []) if f["by"] == p and f["about"] == killer and f["w"] > 0]
             silent = [f for f in held if (f["by"], f["about"], f["text"]) not in raised]
             rows.append({"id": p, "voted": v["target"], "right": v["target"] == killer, "believed": self.suspicion.get(p), "held": len(held), "silent": len(silent),
-                         "lied": int((st.get("lies") or {}).get(p, 0))})
+                         "lied": int((st.get("lies") or {}).get(p, 0)), "reason": v.get("reason", ""), "reasoning": v.get("reasoning", {})})
             if silent and accused != killer and p in w.agents and p != killer:
                 w.remember(p, f"You knew something against {self.nm(killer)} and never said it. The vote went wrong.")
                 self.stat(tick, p, "sanity", -3, "kept quiet at the trial")
@@ -751,61 +856,76 @@ class ClaimTrialMixin:
         return out
 
     def personal_suspicion(self, voter, ids, meter, facts, killer, case):
-        """How suspicious each candidate looks to `voter`: the public meter, what only they know, affinity and fear."""
-        w = self.world
-        a = w.agents[voter]
-        sc = {}
-        for c in ids:
-            if c == voter:
-                continue
-            v = meter[c]
-            v += sum(f["w"] for f in facts if f["by"] == voter and f["about"] == c)        # what they know themselves counts fully for them
-            v -= 0.12 * a["aff"].get(c, 0)
-            sc[c] = v
-        return sc
+        """Public arguments plus unrevealed personal knowledge, adjusted for relationships."""
+        a = self.world.agents[voter]
+        private = self.trial_private_facts(voter, facts)
+        return {c: meter[c] + sum(f["w"] for f in private if f["about"] == c) - 0.12 * a["aff"].get(c, 0)
+                for c in ids if c != voter}
 
     def update_trial_suspicion(self, ids, meter, facts, killer, case):
-        """Who each person currently suspects (the room's picture; the clash and the vote read it)."""
+        """Who each person currently suspects; the clash and the vote read it."""
         self.suspicion = {}
-        for v in ids:
-            sc = self.personal_suspicion(v, ids, meter, facts, killer, case)
-            if v == killer and case.get("culprit_aware", True):
-                sc = {c: x for c, x in sc.items()}                     # the culprit points wherever suspicion already leans
-            best = max(sc, key=lambda c: (sc[c], c)) if sc else None
-            if best and sc[best] > 0.4:
-                self.suspicion[v] = best
+        for voter in ids:
+            scores = self.personal_suspicion(voter, ids, meter, facts, killer, case)
+            best = max(scores, key=lambda c: (scores[c], c)) if scores else None
+            if best and scores[best] > 0.4:
+                self.suspicion[voter] = best
 
     def compute_votes(self, ids, meter, facts, killer, case):
-        """Each person votes for the one they find most suspicious, swayed by the lead of the people they trust."""
+        """Votes retain the evidence and biases actually available to each voter."""
         w = self.world
-        votes = []
-        first = {}
-        for v in ids:
-            sc = self.personal_suspicion(v, ids, meter, facts, killer, case)
-            if v == killer and case.get("culprit_aware", True):
-                sc.pop(v, None)
+        votes, first = [], {}
+        for voter in ids:
+            scores = self.personal_suspicion(voter, ids, meter, facts, killer, case)
+            if voter == killer and case.get("culprit_aware", True):
                 framed = case.get("framed")
-                if framed in sc:
-                    sc[framed] += 3.0
-            first[v] = (sc, max(sc, key=lambda c: (sc[c], c)) if sc else None)
-        for v in ids:
-            sc, pick = first[v]
-            if not sc:
+                if framed in scores:
+                    scores[framed] += 3.0
+            first[voter] = (scores, max(scores, key=lambda c: (scores[c], c)) if scores else None)
+        for voter in ids:
+            scores, pick = first[voter]
+            if not scores:
                 continue
-            sway = Counter() if self.has_trait(v, "self_reliant") else \
-                Counter(first[o][1] for o in ids if o != v and w.agents[v]["aff"].get(o, 0) >= 4 and first[o][1] and first[o][1] != v)
-            final = {c: x + 0.8 * sway.get(c, 0) for c, x in sc.items()}
-            if any(x.get("helper") == v for x in (self.s.get("accomplices") or {}).get(killer, [])):
-                final.pop(killer, None)                                # an accomplice never votes for the one they helped
-            if self.rng.random() < self.slip_chance(v) * 0.3:
-                target = self.rng.choice(sorted(final))
-                reason = "(muddled, went with a gut feeling)"
+            leaders = {} if self.has_trait(voter, "self_reliant") else {
+                c: [o for o in ids if o != voter and w.agents[voter]["aff"].get(o, 0) >= 4 and first[o][1] == c]
+                for c in scores}
+            sway = {c: min(1.2, 0.45 * len(leaders.get(c, []))) for c in scores}
+            final = {c: score + sway[c] for c, score in scores.items()}
+            if any(x.get("helper") == voter for x in (self.s.get("accomplices") or {}).get(killer, [])):
+                final.pop(killer, None)
+            if not final:
+                continue
+            muddled = self.rng.random() < self.slip_chance(voter) * 0.3
+            target = self.rng.choice(sorted(final)) if muddled else max(final, key=lambda c: (final[c], c))
+            support = self.trial_vote_support(voter, target, facts)
+            for_ = sorted((f for f in support if f["weight"] > 0), key=lambda f: -f["weight"])
+            against = sorted((f for f in support if f["weight"] < 0), key=lambda f: f["weight"])
+            trusted = leaders.get(target, [])
+            if muddled:
+                reason = "I'm overwhelmed; this is a gut feeling rather than a firm conclusion."
+            elif target != pick and trusted:
+                reason = "I'm following " + ", ".join(self.nm(p) for p in trusted[:2]) + " because I trust their judgement."
+                if for_:
+                    reason += " " + for_[0]["text"][:150]
+            elif for_:
+                reason = for_[0]["text"][:180]
+                if against:
+                    reason = "I considered this in their favour: " + against[0]["text"][:90] + " But I'm still suspicious because: " + reason
+            elif voter == killer and case.get("culprit_aware", True):
+                reason = f"The accusation against {self.nm(target)} is the one I'm backing."
+            elif w.agents[voter]["aff"].get(target, 0) < 0:
+                reason = f"The evidence is thin, but I don't trust {self.nm(target)}."
             else:
-                target = max(final, key=lambda c: (final[c], c))
-                why = max([f for f in facts if f["about"] == target and f["w"] > 0], key=lambda f: f["w"], default=None)
-                reason = (why["text"][:160] if why else f"{self.nm(target)} never accounted for where they were.")
-                top2 = sorted(final.values(), reverse=True)[:2]
-                if self.has_trait(v, "undecided") and len(top2) == 2 and top2[0] - top2[1] < 0.5:
-                    reason = "(could not decide until the very last second) " + reason
-            votes.append({"voter": v, "target": target, "reason": reason})
+                reason = f"The debate leaves me most suspicious of {self.nm(target)}, though I have no decisive proof."
+            top2 = sorted(final.values(), reverse=True)[:2]
+            if self.has_trait(voter, "undecided") and len(top2) == 2 and top2[0] - top2[1] < 0.5:
+                reason = "(could not decide until the very last second) " + reason
+            private_score = sum(f["w"] for f in self.trial_private_facts(voter, facts) if f["about"] == target)
+            reasoning = {"public_score": round(meter[target], 3), "private_score": round(private_score, 3),
+                         "relationship_bias": round(-0.12 * w.agents[voter]["aff"].get(target, 0), 3),
+                         "trusted_sway": round(sway[target], 3), "trusted": trusted,
+                         "framing_bias": 3.0 if voter == killer and case.get("culprit_aware", True) and target == case.get("framed") else 0.0,
+                         "final_score": round(final[target], 3), "muddled": muddled,
+                         "support": for_, "against": against}
+            votes.append({"voter": voter, "target": target, "reason": reason, "reasoning": reasoning})
         return votes
