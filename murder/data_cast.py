@@ -147,6 +147,15 @@ CHARACTERS = {
     },
 }
 
+# Preserve the original eight for historical saves and deterministic report fixtures.
+LEGACY_CAST_IDS = tuple(CHARACTERS)
+from .data_female_cast import FEMALE_ADDITIONS  # noqa: E402
+CHARACTERS.update(FEMALE_ADDITIONS)
+from .data_guest_cast import GUEST_ADDITIONS  # noqa: E402
+CHARACTERS.update(GUEST_ADDITIONS)
+from .data_male_cast import MALE_ADDITIONS  # noqa: E402
+CHARACTERS.update(MALE_ADDITIONS)
+
 # TereVi and NeoVi (hosts, not participants)
 HOSTS = {
     "terevi": {
@@ -167,7 +176,7 @@ HOSTS = {
 
 STORY_BIBLE = (
     "Setting: 'Murder Channel', a reality show on a sealed private island hosted by the AI TereVi. "
-    "8 celebrity participants (4 female, 4 male) live in a four-floor house with a pool, garden, beach and a ruined lighthouse. "
+    "8 celebrity participants live in a four-floor house with a pool, garden, beach and a ruined lighthouse. "
     "The show is REAL and nobody can leave, but the viewing audience believes it is a staged, scripted thriller, so nobody outside will help unless they are convinced. "
     "THE DEADLINE: at the end of each week, if NOBODY has died during it, EVERYONE still alive is executed. Any death lifts the deadline (a murder, an accident or a suicide all count) "
     "and the next deadline is the end of the following week. "
@@ -178,22 +187,27 @@ STORY_BIBLE = (
 
 STORY_BIBLE_INTRO = (
     "Setting: 'Murder Channel', a glossy reality show on a private island hosted by the AI TereVi (a cheerful, theatrical virtual host with a mean sense of humour) "
-    "and served by a housemaid called NeoVi. 8 celebrity participants (4 female, 4 male) have just arrived and live in a four-floor house with a pool, garden, beach and a ruined lighthouse. "
+    "and served by a housemaid called NeoVi. 8 celebrity participants have just arrived and live in a four-floor house with a pool, garden, beach and a ruined lighthouse. "
     "It is DAY 1 of Week 1: the participants believe this is an elaborate thriller-themed social game show and nothing worse. They know nothing about any deadline, murders or executions yet; "
-    "they only know there will be introductions today and a special announcement from TereVi this evening. Everyone is meeting for the first time (some may have heard of each other)."
+    "they only know there will be introductions today and a special announcement from TereVi this evening. Participants without a shared personal backstory are meeting for the first time (some may have heard of each other). "
+    "Akira and Vincent, if both are present, recognize each other as childhood friends; this does not establish a current romance."
 )
 
 
 
 # Each participant starts with a secret drive (the others never see it). It can change every night.
 DEFAULT_DRIVES = {
+    "accio": "protector", "jackal": "seeker", "vincent": "seeker", "nathan": "seeker", "katsuo": "survivor",
     "szymon": "thrill", "seul": "schemer", "vixen": "seeker", "noah": "protector",
     "ayden": "survivor", "shintaro": "saboteur", "chloe": "romantic", "cail": "survivor",
+    "itsumi": "protector", "tsutsumi": "seeker", "soura": "survivor", "akira": "protector", "nao": "thrill", "ivette": "protector", "reiko": "thrill",
 }
 
 
 # The way out each character secretly favours (they push the group toward it).
 DEFAULT_ROUTES = {
+    "accio": "raft", "jackal": "shutdown", "vincent": "transmit", "nathan": "transmit", "katsuo": "transmit",
     "szymon": "raft", "seul": "shutdown", "vixen": "transmit", "noah": "raft",
     "ayden": "transmit", "shintaro": "ultimatum", "chloe": "transmit", "cail": "transmit",
+    "itsumi": "raft", "tsutsumi": "transmit", "soura": "transmit", "akira": "raft", "nao": "raft", "ivette": "transmit", "reiko": "transmit",
 }

@@ -53,10 +53,13 @@ class InnerVoiceMixin:
         hal = [b for b in self.beliefs(cid) if b.get("hal") and b.get("fresh")]
         if hal:
             return "hal", hal[-1]
+        feelings = self.emotions.view(cid)
+        if feelings and feelings[0]['intensity'] >= 2:
+            return "emotion", feelings[0]
         p = (s.get("plots") or {}).get(cid)
         if p and p.get("target") in w.agents and self.inner_rng.random() < 0.6:
             return "plot", p["target"]
-        dead = [g for g in s.get("graveyard", []) if g.get("day", 0) >= self.day - 1 and a["aff"].get(g["id"], 0) >= 4]
+        dead = [g for g in a["memory"].get("lost", []) if g.get("day", 0) >= self.day - 1 and a["aff"].get(g["id"], 0) >= 4]
         if dead and self.inner_rng.random() < 0.7:
             return "grief", dead[-1]["id"]
         soft = []
@@ -87,6 +90,13 @@ class InnerVoiceMixin:
         return self.inner_rng.choice(soft) if soft else ("calm", None)
 
     def inner_text(self, cid, topic, about):
+        if topic == "emotion":
+            target = self.nm(about['target']) if about.get('target') else 'what happened'
+            lines = {'grief': f"I still miss {target}. It hasn't gone away.", 'guilt': "I can't shake the guilt over what I did.",
+                     'fear': f"Thinking about {target} still scares me.", 'anger': f"I'm still angry about {target}.",
+                     'shame': "I still want to hide when I remember it.", 'relief': "I'm still relieved someone was there for me.",
+                     'attraction': f"I keep wanting to be near {target}.", 'loneliness': "I have felt lonely for too long. I need company."}
+            return lines[about['kind']]
         if topic == "hal":
             what = about.get("what") or about["n"]
             return self.inner_rng.choice(["Did I just see {t}? I did. I did.", "{t}. Nobody else saw it. Why did nobody else see it?"]).format(t=what)
@@ -122,6 +132,8 @@ class InnerVoiceMixin:
             aloud = self.inner_rng.random() < (0.3 + max(0, 40 - a["sanity"]) / 80 if alone else max(0, 40 - a["sanity"]) / 60)
             ent = {"id": cid, "m": round(self.inner_rng.uniform(4, max(5, dur - 8)), 1), "kind": "mutter" if aloud else "think", "text": text, "topic": topic,
                    "hour": int(hour)}
+            if topic == "emotion":
+                ent.update(emotion=about['id'], emotion_kind=about['kind'])
             if topic == "plot":
                 ent["about"] = about
             out.append(ent)

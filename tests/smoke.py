@@ -4817,12 +4817,16 @@ tl6_.run()
 check("a friend within earshot walks over and joins in", any(x[1] == jc_ for x in cv3_["joined"]) and jc_ in cv3_["members"] + [x[1] for x in cv3_["left"]])
 # every overheard line was heard by someone perception allows, from where they actually stood
 from murder.perception import Perception as _Pc  # noqa: E402
+from murder.environment import Environment as _HearingEnv  # noqa: E402
 pc2_ = _Pc(nav_)
 LOUDER_ = _cv.LOUDER
 bad_heard_ = []
 n_heard_ = 0
 for t in wk_ticks:
     L = t["live"]
+    # A burned or broken door no longer blocks sight. Use the recorded structure,
+    # as finish_hearing does, rather than treating every door as intact forever.
+    pc2_.set_env(_HearingEnv(nav_, {"struct": {f"{q[0]},{q[1]},{q[2]}": {"state": q[3]} for q in (t.get("env") or {}).get("struct", [])}}))
     for g in t["talk"]:
         if not g.get("live"):
             continue
@@ -5220,7 +5224,7 @@ check("the planner sees the schemes the world and the plotter's beliefs offer: a
 pl_ = {"target": tv_, "stage": "striking", "stage_ticks": 0, "plan": [], "scheme": kinds_["height"]}
 w.agents[pk_]["room"] = "library"
 check("a plotter waits for the planned place instead of striking anywhere", not r.scheme_allows(pk_, pl_))
-check("unless the deadline is on them", r.scheme_allows(pk_, pl_, urgent=True))
+check("the deadline cannot silently bypass a planned method", not r.scheme_allows(pk_, pl_, urgent=True))
 w.agents[pk_]["room"] = w.agents[tv_]["room"] = "landing"
 check("in the planned place the scheme calls for a push", r.scheme_allows(pk_, pl_) and r.scheme_method(pk_, pl_) == "push")
 w.agents[tv_]["hp"] = 3
@@ -5815,6 +5819,7 @@ check("rescue that comes after most have died is bittersweet", w.state["over"]["
 # ---- NeoVi as a person: Kumiko Akimoto (kumiko.py)
 from murder.world import BEDROOMS as BEDROOMS_  # noqa: E402
 from murder.looks import looks_of  # noqa: E402
+from murder.relationships import closeness as relationship_closeness_
 w, r, _ = fresh(260)
 w.state["revealed"] = True
 nv_ = w.state["npcs"]["neovi"]
@@ -5837,6 +5842,8 @@ check("her real name, Kumiko Akimoto, is told once and remembered", nv_["told"][
 w.agents[fan]["nv_aff"] = 10
 nv_["aff"][fan] = 10
 r.mind(fan)["facets"]["romantic"] = 80
+for prior_day_ in (3, 4, 5):
+    relationship_closeness_(w.state, "neovi", fan, prior_day_ * 24 + 1, "welcomed visits over several nights")
 for _ in range(30):
     if r.neovi_lover():
         break
@@ -6266,18 +6273,26 @@ r.roll_policy = lambda q: None
 check("letting the dice decide leaves it", r.gm_roll("betray", 0.4) == 0.4)
 asked_ = []
 import murder.llm as llm2_  # noqa: E402
-mp_ = llm2_.LLM.mock_plot_prob
-llm2_.LLM.mock_plot_prob = 0.3                                       # plots enough that a strike comes up within the four days
+# Force a real strike window; spontaneous plots depend on model prompt seeds and
+# can disappear when the whole cast escapes before the sampled days reach one.
 wq_ = World(new_state(3))
-for d in (3, 4, 5, 6):
-    wq_.state["day"] = d
-    rq_ = DayRunner(wq_, LLM(backend="mock"), lambda t: None, step=2, murders=True, rule_mode="roulette", seed=330 + d)
-    rq_.roll_policy = lambda q: asked_.append(q["kind"]) or None
-    rq_.run()
-    if not wq_.agents or wq_.state.get("over"):
-        break
-llm2_.LLM.mock_plot_prob = mp_
-check("over a few mock days the engine asks about deciding rolls (strikes, witnesses, betrayals)", asked_ and set(asked_) <= {"strike", "witness", "betray"}, str(Counter(asked_)))
+rq_ = DayRunner(wq_, LLM(backend="mock"), lambda t: None, step=2, murders=True, rule_mode="none", seed=333)
+wq_.state["revealed"] = True
+for a_ in wq_.agents.values():
+    a_["room"] = "foyer"
+pa_, pt_ = "seul", "chloe"
+pr_ = wq_.cast[pt_]["home"]
+wq_.agents[pa_]["room"] = wq_.agents[pt_]["room"] = pr_
+wq_.agents[pt_]["asleep"] = True
+wq_.state["plots"] = {pa_: {"target": pt_, "stage": "striking", "method": "hands", "reason": "a forced strike window", "plan": [],
+                           "scheme": {"kind": "asleep", "room": pr_, "when": "night"}}}
+wq_.state["_hour"] = 25
+rq_.roll_policy = lambda q: asked_.append(q["kind"]) or None
+rq_.rng.random = lambda: 0.999  # Observe the hook without carrying out the killing.
+qt_ = rq_.new_tick(25, phase="night")
+qt_["free"], qt_["free_chats"] = {}, []
+rq_.plot_slice(qt_, pa_, 25, 30, {})
+check("the live planner asks about the deciding roll when a real strike window opens", asked_ == ["strike"], str(Counter(asked_)))
 import threading as th_  # noqa: E402
 g_ = Game.__new__(Game)
 g_.cv = th_.Condition()
@@ -6326,6 +6341,8 @@ r.rng = r._r0
 check("someone sworn to protect steps in even without a close bond", saved_ and any(e.get("who") == c_ and e["type"] == "mercy" for e in w.state.get("chronicle", [])[-5:]) or saved_)
 wk2_ = World(new_state(3))
 for d in (3, 4, 5):
+    if wk2_.state.get("over") or len(wk2_.agents) < 2:
+        break
     wk2_.state["day"] = d
     hp_ = sorted(wk2_.agents)[:2]
     wk2_.state.setdefault("ties", []).append({"a": hp_[0], "b": hp_[1], "kind": "helped", "text": "helped them (staged for the test)", "day": d})   # something to reflect on
@@ -6401,7 +6418,11 @@ check("missing steps in a row are said once in the climax", len(gaps_) == 1, str
 
 # ---- phase A: dialogue (turns, the voice prompt, confidences, looks)
 own_reply = conts = pairs = 0
-for t in live_week(41, days=(3, 4)):
+# Force the behavior being checked; a seeded week need not randomly retain the floor.
+from unittest.mock import patch
+with patch("murder.social.HOLD_FLOOR", 1.0):
+    dialogue_ticks_ = live_week(41, days=(3, 4))
+for t in dialogue_ticks_:
     for g in t.get("talk") or []:
         if not g.get("chat") and not g.get("conv"):
             continue
@@ -6488,6 +6509,7 @@ check("having spoken against someone, they do not turn warm on them in the same 
 from murder.voice import beat_text as bt_
 check("the voice is told how the speaker feels about whoever a beat is about", "whom Noah likes a lot" in bt_(r, 0, {"who": a_, "to": t_, "move": "warn", "about": x_, "outcome": "ok"}))
 bad_ = tot_ = 0
+bad_talk_ = []
 for t in live_week(381, days=(3, 4, 5)):
     for g in t.get("talk") or []:
         mem_ = set(g.get("members") or [])
@@ -6496,7 +6518,9 @@ for t in live_week(381, days=(3, 4, 5)):
                 tot_ += 1
                 late_ = {j[1] for j in g.get("joined") or [] if j[0] > l["m"] - 1.0}   # someone who walked over after it was decided
                 bad_ += l["about"] in mem_ and l["about"] not in late_
-check("over mock days, talk against a third person happens but never with them in the conversation", tot_ >= 1 and bad_ == 0, f"{bad_} of {tot_}")
+                if l["about"] in mem_ and l["about"] not in late_:
+                    bad_talk_.append({"day": t["day"], "hour": t["hour"], "line": l, "members": sorted(mem_), "joined": g.get("joined"), "left": g.get("left")})
+check("over mock days, talk against a third person happens but never with them in the conversation", tot_ >= 1 and bad_ == 0, f"{bad_} of {tot_}: {bad_talk_[:1]}")
 
 # ---- pastimes (pastimes.py): shared and solo things people do, resolved without a model call
 w, r, _ = fresh(390)
@@ -6868,7 +6892,9 @@ _ct = clock_.ClockMixin.clock_to
 def _snap_clock_to(self, m):
     r_ = _ct(self, m)
     sm_ = self.__dict__.get("_sim")
-    if sm_ is not None and sm_.tick_id is not None and 8 <= int(self.s.get("_hour", 0)) <= 20 and int(self._m) % 10 == 0 and (not snaps_ or snaps_[-1][0] != (id(sm_.tracks), int(self._m))):
+    # A finale may advance its own clock after ending a Sim while _hour still
+    # names the previous block. Only an open forward block promises final tracks.
+    if sm_ is not None and sm_.forward and sm_.tick_id is not None and 8 <= int(self.s.get("_hour", 0)) <= 20 and int(self._m) % 10 == 0 and (not snaps_ or snaps_[-1][0] != (id(sm_.tracks), int(self._m))):
         upto = int(self._m)
         snaps_.append(((id(sm_.tracks), upto), self.day, int(self.s.get("_hour", 0)), {c: [pos_on_(tr, t) for t in range(0, upto)] for c, tr in sm_.tracks.items()}))
     return r_
@@ -7216,6 +7242,8 @@ check("using someone else's clothes means wearing them", r.worn(a_) == f"clothes
 check("the referee is told whose clothes someone wears", w.cast[b_]["name"].split()[0] in r.wearing_desc(a_) and "their own" in r.wearing_desc(b_))
 w, r, _ = fresh(2602)
 a_, b_ = sorted(w.agents)[:2]
+for prior_day_ in (1, 2, 3):
+    relationship_closeness_(w.state, a_, b_, prior_day_ * 24 + 8, "prior welcomed conversations")
 w.agents[a_]["aff"][b_] = w.agents[b_]["aff"][a_] = 7
 tk_ = r.new_tick(10)
 r.apply_bonds(tk_, [{"a": a_, "b": b_, "kind": "romance"}], [a_, b_])

@@ -86,7 +86,7 @@ class OutsideMixin:
         names = ", ".join(self.nm(c) for c in crew)
         for c in crew:
             w.end_agent(c, "escaped", "escaped on a raft")
-            s["vacancies"].append({"gender": w.cast[c]["gender"], "reason": f"{w.cast[c]['name']} sailed away"})
+            s["vacancies"].append({"gender": w.casting_slot(c), "reason": f"{w.cast[c]['name']} sailed away"})
         provisions = 1 + s["escape"]["routes"]["raft"]["parts"].get("provisions", 0) if s["escape"]["routes"]["raft"].get("parts") else 1
         self.outside()["crews"].append({"ids": list(crew), "alive": list(crew), "stage": "sea", "days": 0, "food": provisions,
                                         "proof": bool(proof), "tries": 0, "day": self.day, "log": []})

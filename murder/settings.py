@@ -50,7 +50,7 @@ SETTINGS = [
     ("modesty", "Embarrassment", "Tone", 0, 2, 0.1, 1.0, "How hard being seen in their underwear hits the modest. 0 = nobody minds."),
     ("gore", "Gore", "Tone", 0, 3, 1, 3, "How graphic deaths, wounds, bodies and executions are. 0 = cut away, 1 = restrained, 2 = vivid and brutal, 3 = graphic and unflinching (the default)."),
     ("flirt_level", "Flirtation", "Tone", 0, 3, 1, 3, "0 off, 1 occasional, 2 frequent, 3 steamy (the default). Adult flirtation and sexual tension between people who are into each other; nights together fade to black, never explicit."),
-    ("banter_level", "Banter and crude jokes", "Tone", 0, 3, 1, 2, "0 civil, 1 light teasing, 2 friendly trash talk and the odd nasty joke, 3 relentless."),
+    ("banter_level", "Banter and crude jokes", "Tone", 0, 3, 1, 2, "0 civil, 1 light teasing, 2 affectionate roasting and crude jokes, 3 sharper sustained banter when welcome. Natural uncensored swearing follows each character's voice."),
 ]
 DEFAULTS = {k: d for k, _, _, _, _, _, d, _ in SETTINGS}
 RANGES = {k: (lo, hi) for k, _, _, lo, hi, _, _, _ in SETTINGS}

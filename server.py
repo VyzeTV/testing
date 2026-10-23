@@ -28,7 +28,9 @@ def world_payload():
     edges = [{"id": e["id"], "a": e["a"], "b": e["b"], "hidden": e["hidden"], "locked": e["locked"], "kind": e["kind"]}
              for e in build_edges()]
     chars = {cid: {"name": c["name"], "short": c["short"], "role": c["role"], "color": c["color"], "card": c.get("card", ""),
-                   "home": c["home"], "gender": c["gender"], "origin": c["origin"], "age": c["age"],
+                   "home": c["home"], "gender": c["gender"], "pron": c.get("pron"),
+                   "casting_slot": c.get("casting_slot", c["gender"]),
+                   "birthday": c.get("birthday"), "height_cm": c.get("height_cm"), "weight_kg": c.get("weight_kg"), "origin": c["origin"], "age": c["age"],
                    "status": cur["agents"].get(cid, {}).get("status", "alive"), "looks": describe_looks(cid, c)}
              for cid, c in cur.get("cast", {}).items()}
     hosts = {hid: {"name": h["name"], "role": h["role"], "color": h["color"], "card": h["card"]} for hid, h in HOSTS.items()}
@@ -183,6 +185,8 @@ class Handler(BaseHTTPRequestHandler):
         path = u.path
         if path == "/api/world":
             return self._json(world_payload())
+        if path == "/api/diagnostics":
+            return self._json(game.diagnostic_report())
         if path == "/api/status":
             return self._json(game.status())
         if path == "/api/ticks":
@@ -243,6 +247,11 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/":
             path = "/index.html"
         fp = os.path.normpath(os.path.join(STATIC, path.lstrip("/")))
+        # Initials stand in for reference art until an original PNG is installed.
+        if fp.startswith(os.path.join(STATIC, "portraits") + os.sep) and fp.endswith(".png") and not os.path.isfile(fp):
+            fallback = fp[:-4] + ".svg"
+            if os.path.isfile(fallback):
+                fp = fallback
         if not fp.startswith(STATIC) or not os.path.isfile(fp):
             self.send_response(404)
             self.end_headers()

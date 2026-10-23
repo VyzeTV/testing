@@ -35,6 +35,8 @@ class BeliefMixin:
         a = self.world.agents.get(cid)
         if not a or b.get("s") == cid and b["k"] == "at" and b["src"] != "seen":
             return None
+        if self.blind(cid) and b.get("src") == "seen" and b.get("s") != cid:
+            return None
         bs = a.setdefault("beliefs", [])
         b = {k: v for k, v in b.items() if v is not None}
         b["c"] = round(max(0.05, min(1.0, float(b.get("c", 0.5)))), 2)
@@ -143,6 +145,8 @@ class BeliefMixin:
                 light = self.light_of(room[o]) if room[o] in ROOMS else "lit"
                 t = round(base + m / 60, 2)
                 self.self_at(o, room[o], t)
+                if self.blind(o):
+                    continue
                 for c in obs:
                     if c == o or not pos[c] or not room[c] or w.agents[c].get("hiding"):
                         continue

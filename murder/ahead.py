@@ -31,10 +31,12 @@ class AheadMixin:
 
     def ahead_sig(self, cid):
         """What would make an early decision stale (see the module's docstring for what does not)."""
+        from .relationships import signature as relationship_signature
         s, a = self.s, self.world.agents.get(cid) or {}
         case = s.get("case") or {}
         return (bool(a.get("out")), bool(a.get("asleep")), a.get("hp", 0) < 50, case.get("victim"), bool(case.get("announced")), bool(case.get("resolved")),
-                (s.get("rule") or {}).get("id"), len(s.get("graveyard") or []), len(self.world.agents))
+                (s.get("rule") or {}).get("id"), len(s.get("graveyard") or []), len(self.world.agents),
+                self.commitments.signature(cid), relationship_signature(s, cid), self.emotions.signature(cid))
 
     def decide_prepare_dry(self, cid, hour):
         """decide_prepare without leaving a trace: the dice, the hints shown and the counters it touches are put back."""

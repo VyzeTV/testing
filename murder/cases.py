@@ -113,6 +113,10 @@ class CaseMixin:
         vname = self.nm(victim)
         self.death_today = True
         self.note_loss(victim)
+        known_room = s['case'].get('room') if (s.get('case') or {}).get('victim') == victim else (w.all_agents.get(victim) or {}).get('room')
+        self.emotions.loss(tick, victim, known_room, list(w.agents))
+        if (s.get("case") or {}).get("victim") == victim:
+            self.emotions.guilt(tick, s["case"])
         for cid, a in list(w.agents.items()):
             if cid == victim:
                 continue
@@ -164,13 +168,18 @@ class CaseMixin:
                                       "text": f"{name} wanted to attack but a case is already open (TereVi will not allow a second killer)."}, actor=cid)
                 continue
             t = d["target"]
+            plot = s.get("plots", {}).get(cid)
+            if plot and t != plot["target"]:
+                self.log_event(tick, {"type": "plot", "who": cid, "room": a["room"], "vis": "gm",
+                                      "text": f"{name} keeps the existing target; changing targets requires a reason."}, actor=cid)
+                continue
             if t == "neovi":
                 self.nv_attacked(tick, cid, d.get("method"), hour)       # neovi_life.py
                 continue
             if t in w.agents and t != cid and w.agents[t]["room"] != a["room"] and self.pursue_target(tick, cid, t):
                 pass                                    # the attacker caught up with a target who had slipped away
             if t not in w.agents or t == cid or w.agents[t]["room"] != a["room"] or w.agents[t].get("hiding"):
-                alt = self.retarget(cid, a)
+                alt = None if plot else self.retarget(cid, a)
                 if not alt:
                     self.log_event(tick, {"type": "system", "who": cid, "room": a["room"], "vis": "gm",
                                           "text": f"{name} planned an attack but the target was not there."}, actor=cid)
@@ -186,19 +195,28 @@ class CaseMixin:
                 self.log_event(tick, {"type": "system", "who": cid, "room": room, "vis": "gm",
                                       "text": f"{name} is not thinking straight and strikes the WRONG person: {self.nm(t)} instead of {self.nm(intended)}."}, actor=cid)
             method = d["method"] or "hands"
+            if plot:
+                method = self.planned_attack(tick, cid, plot, self.days_left() <= 0)
+                if not method:
+                    self.log_event(tick, {"type": "plot", "who": cid, "room": room, "vis": "gm",
+                                          "text": f"{name} waits: the planned method cannot be used here yet."}, actor=cid)
+                    continue
+                d = dict(d, staged=self.scheme_staging(plot))
             here = [o for o in w.occupants(room) if o not in (cid, t)]
             if method == "push":
                 if self.push_kill(tick, cid, t) is not None:
                     continue
-                method = "hands"
+                continue  # a failed push does not turn into a different attack
             if method == "shock":
                 if self.electric_item(cid) and self.bathing(t) and self.power_on():       # electric.py
                     if not self.interrupted(tick, cid, t, [o for o in w.occupants(room) if o not in (cid, t)], hour):
                         self.shock_kill(tick, cid, t, hour, intended)
                     continue
-                method = "hands"
+                continue  # wait for a powered bath and an electrical item
             drown = method == "drown" and room in ("pool", "bathroom", "beach", "water_tower")
             if method == "drown":
+                if not drown:
+                    continue
                 method = "hands"
             tname = self.nm(t)
             if self.interrupted(tick, cid, t, here, hour):
@@ -210,7 +228,7 @@ class CaseMixin:
                 if a["inv"].get(item, 0) > 0 and "poison" in w.item_spec(item).get("tags", []):
                     self.poison(tick, cid, t, item, here, hour, intended)
                     continue
-                method = "hands"
+                continue  # unavailable poison never becomes an unrelated assault
             weapon = None
             if method != "hands":
                 if a["inv"].get(method, 0) > 0:
@@ -231,7 +249,7 @@ class CaseMixin:
             tick.setdefault("fights", []).append({"by": cid, "on": t, "room": room, "outcome": res["outcome"], "blows": res["blows"]})
             instig = self.find_instigator(cid, t)
             dark = self.blackout_until >= self.idx          # in the dark nobody without a light sees who did it
-            seen = here if not dark else [o for o in here if w.agents.get(o, {}).get("lit")]
+            seen = [o for o in here if not self.blind(o) and (not dark or w.agents.get(o, {}).get("lit"))]
             if good or vhp - 35 <= 0:
                 brutal = {"sharp": f"{name} drives the {wname} into {tname} again and again until {tname} stops moving",
                           "blunt": f"{name} brings the {wname} down on {tname} until the sound changes and {tname} goes limp",
@@ -247,12 +265,12 @@ class CaseMixin:
                     brutal = f"{name} slips {tname}, drugged and limp, under the bathwater and leaves the tap running"
                 if not rope and not (staged == "accident" and kind == "water"):
                     brutal += self.kill_detail(kind)
-                self.log_event(tick, {"type": "attack", "who": cid, "room": room, "vis": "public",
+                self.log_event(tick, {"type": "attack", "who": cid, "target": t, "room": room, "vis": "public",
                                       "text": f"{brutal}, in the {w.room_name(room)}."}, witnesses=seen, actor=cid)
                 self.log_event(tick, {"type": "fight", "who": cid, "room": room, "vis": "gm", "text": self.fight_text(cid, t, res, wname, kind)})
-                if dark:
+                if dark or any(self.blind(x) for x in here):
                     for o in [x for x in here if x not in seen]:
-                        w.remember(o, f"{_hh(hour)} (in the dark) You heard a struggle, a gasp and a thud somewhere near you; you could not see who.")
+                        w.remember(o, f"{_hh(hour)} (without sight) You heard a struggle, a gasp and a thud somewhere near you; you could not see who.")
                 self.betrayal(tick, cid, t, "murdered")
                 self.open_case(tick, "murder", t, culprit=cid, wkind=kind, weapon=weapon, room=room, hour=hour, witnesses=seen,
                                staged=staged, instigator=instig, intended=intended, framed=framed)
@@ -292,7 +310,7 @@ class CaseMixin:
                 if res["outcome"] == "rescued":
                     self.s.setdefault("_night_noise", {})[room] = 3            # a scream wakes the house
                 wounded = ", ".join(sorted({wd["part"] for wd in res["wounds"]}))
-                self.log_event(tick, {"type": "attack", "who": cid, "room": room, "vis": "public",
+                self.log_event(tick, {"type": "attack", "who": cid, "target": t, "room": room, "vis": "public",
                                       "text": f"{name} attacks {tname} with {wname}, but {how}" + (f" (hurt: {wounded})" if wounded else "") + "!"}, witnesses=here + [t], actor=cid)
                 self.log_event(tick, {"type": "fight", "who": cid, "room": room, "vis": "gm", "text": self.fight_text(cid, t, res, wname, kind)})
                 w.adjust_aff(t, cid, -5)
@@ -301,7 +319,7 @@ class CaseMixin:
                 w.remember(t, f"{_hh(hour)} (private) {name} tried to kill you with {wname}.")
                 self.moment(t, f"{name} tried to kill you")
                 self.betrayal(tick, cid, t, "tried to kill")
-                s["plots"].pop(cid, None)
+                self.abandon_plot(tick, cid, "the attack failed and the target now knows about it")
 
     def lethal_blow(self, tick, cid, t, weapon, hour):
         """An assault that goes too far: the one who lands the final blow is the culprit, intended or not."""
@@ -316,7 +334,7 @@ class CaseMixin:
         name, tname = self.nm(cid), self.nm(t)
         wname = w.item_name(weapon) if weapon else "bare hands"
         dark0 = self.blackout_until >= self.idx
-        self.log_event(tick, {"type": "attack", "who": cid, "room": room, "vis": "public",
+        self.log_event(tick, {"type": "attack", "who": cid, "target": t, "room": room, "vis": "public",
                               "text": f"{name}'s blow lands badly: {tname} goes down and does not get up. It was only meant to hurt."},
                        witnesses=[] if dark0 else here, actor=cid)
         dark = self.blackout_until >= self.idx
@@ -516,7 +534,7 @@ class CaseMixin:
         w, s = self.world, self.s
         hour = self.s.get("_hour", 12) if hour is None else hour
         room = room or w.agents[victim]["room"]
-        witnesses = [x for x in (witnesses or []) if x in w.agents and x not in (victim, culprit)]
+        witnesses = [x for x in (witnesses or []) if x in w.agents and x not in (victim, culprit) and not self.blind(x)]
         witnesses = self.lookout_filter(culprit, victim, witnesses)
         vname = self.nm(victim)
         true_cause = cause or CAUSES.get(wkind or "hands", CAUSES["hands"])
@@ -533,6 +551,7 @@ class CaseMixin:
                              staged=staged, instigator=instigator, intended=intended, note=note, detail=detail, culprit_aware=aware,
                              trap=trap, mistaken=mistaken, self_defense=self_defense, aggressor=aggressor, body_key={"trap_fall": "blunt", "trap_drink": "poison", "trap_blade": "sharp", "trap_shock": "shock", "shock": "shock"}.get(wkind))
         case["m"] = round(self.minute() or 0.0, 1)                     # the minute of the turn it happened (testimony asks about that moment)
+        self.emotions.guilt(tick, case)
         self.build_clues(case, tick)
         if culprit and culprit in w.agents:
             case["clues"].extend(self.clothes_clue(case))
@@ -626,7 +645,7 @@ class CaseMixin:
                                   "text": f"An empty {w.item_name(item)} was left in the {w.room_name(room)}." + self.provenance_text(item, cid)})
         s["case"] = case
         self.add_cond(tick, target, "poisoned", 2, "something in their food or drink", turns=12)
-        self.log_event(tick, {"type": "attack", "who": cid, "room": room, "vis": "gm",
+        self.log_event(tick, {"type": "attack", "who": cid, "target": target, "room": room, "vis": "gm",
                               "text": f"{name} secretly poisons {tname} with the {w.item_name(item)}. {tname} will collapse tonight."}, actor=cid)
         w.remember(cid, f"{_hh(hour)} (private) You poisoned {tname} with the {w.item_name(item)}; they will die tonight.")
         for o in here:
@@ -740,7 +759,7 @@ class CaseMixin:
             savers = [o for o in here if a["aff"].get(o, 0) >= 0 and w.agents[o]["aff"].get(cid, 0) >= 2 and self.rng.random() < 0.65]
             if savers:
                 sv = savers[0]
-                self.log_event(tick, {"type": "mercy", "who": sv, "room": a["room"], "vis": "public",
+                self.log_event(tick, {"type": "mercy", "who": sv, "saved": cid, "room": a["room"], "vis": "public",
                                       "text": f"{self.nm(sv)} talks {name} down at the last second."}, witnesses=here, actor=sv)
                 self.special_boost(tick, cid, 4, "talked down by a friend", "comfort")
                 self.adjust_any_aff(cid, sv, 3)
@@ -759,6 +778,8 @@ class CaseMixin:
 
     # ------------------------------------------------------------------ discovery and announcement
     def reveal_clues(self, tick, cid):
+        if self.blind(cid):
+            return  # Visual forensic clues must be described by someone else.
         w, s = self.world, self.s
         case = s.get("case")
         if not case:
@@ -802,7 +823,7 @@ class CaseMixin:
                 case["discovered_by"].append(cid)
                 others = [o for o in w.occupants(case["room"]) if o != cid]
                 self.log_event(tick, {"type": "body", "who": cid, "victim": case["victim"], "room": case["room"], "vis": "public", **({"m": round(when[cid], 1)} if when[cid] is not None and self.minute() is not None else {}),
-                                      "text": f"{self.nm(cid)} finds {self.nm(case['victim'])} in the {w.room_name(case['room'])}: {self.nm(case['victim'])} {self.body_desc(case)}."},
+                                      "text": f"{self.nm(cid)} finds {self.nm(case['victim'])} in the {w.room_name(case['room'])}: {self.nm(case['victim'])} is unresponsive." if self.blind(cid) else f"{self.nm(cid)} finds {self.nm(case['victim'])} in the {w.room_name(case['room'])}: {self.nm(case['victim'])} {self.body_desc(case)}."},
                                witnesses=others, actor=cid)
                 tick["scene_body"] = {"victim": case["victim"], "by": cid, "room": case["room"], "desc": f"{self.nm(case['victim'])} {self.body_desc(case)}."}
                 self.fx(tick, "shake", case["room"], cid)
@@ -810,7 +831,7 @@ class CaseMixin:
                 w.agents[cid]["sanity"] = clamp(w.agents[cid]["sanity"] - 6)
                 self.maybe_panic(tick, cid, "finding the body", 0.45)
                 for c in case["clues"]:
-                    if c["room"] == case["room"] and c["scene"] and cid not in c["found_by"]:
+                    if not self.blind(cid) and c["room"] == case["room"] and c["scene"] and cid not in c["found_by"]:
                         c["found_by"].append(cid)
                         w.remember(cid, f"{_hh(hour)} CLUE ({w.room_name(case['room'])}): {c['text']}")
                         self.note_evidence(cid, "clue", f"({w.room_name(case['room'])}) {c['text']}")
@@ -900,10 +921,10 @@ class CaseMixin:
                 w.remember(cid, f"{_hh(hour)} TereVi announced that {self.nm(case['victim'])} is dead ({case['cause']}). No one is to blame, so there will be no trial. The deadline is lifted.")
                 w.agents[cid]["sanity"] = clamp(w.agents[cid]["sanity"] - 4)
             self.mourn(tick, case["victim"], {"suicide": "took their own life", "accident": "died in an accident"}.get(case["kind"], "died"), hour)
-            s["vacancies"].append({"gender": w.cast[case["victim"]]["gender"], "reason": f"{w.cast[case['victim']]['name']} left the show"})
+            s["vacancies"].append({"gender": w.casting_slot(case["victim"]), "reason": f"{w.cast[case['victim']]['name']} left the show"})
             for ev in case.get("extra_victims", []):                  # a pact or a murder-suicide (twists.py)
                 self.mourn(tick, ev, "died", hour)
-                s["vacancies"].append({"gender": w.cast[ev]["gender"], "reason": f"{w.cast[ev]['name']} left the show"})
+                s["vacancies"].append({"gender": w.casting_slot(ev), "reason": f"{w.cast[ev]['name']} left the show"})
             res = f"{self.nm(case['victim'])}'s death{self.more_dead({})} was announced: no trial, the deadline is lifted."
             tick["events"].append({"type": "system_notable", "who": case["victim"], "room": case["room"], "vis": "public", "text": res,
                                    **({"m": round(self.minute(), 1)} if self.minute() is not None else {})})

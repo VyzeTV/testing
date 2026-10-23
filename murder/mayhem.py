@@ -256,7 +256,7 @@ class MayhemMixin:
         for cid in w.agents:
             w.remember(cid, f"{_hh(hour)} {self.nm(victim)} is dead, killed in the frenzy. There will be no trial.")
         self.mourn(tick, victim, "killed in the frenzy", hour)
-        s["vacancies"].append({"gender": w.cast[victim]["gender"], "reason": f"{w.cast[victim]['name']} left the show"})
+        s["vacancies"].append({"gender": w.casting_slot(victim), "reason": f"{w.cast[victim]['name']} left the show"})
         if killer == sp["by"]:
             sp["kills"] += 1
             sp["quiet"] = 0
@@ -556,7 +556,7 @@ class MayhemMixin:
         self.moment(t, f"{oname} saved you from {name}")
         self.moment(o, f"stopped {name} from killing {tname}")
         self.tally(o, "saves")
-        self.s["plots"].pop(cid, None)
+        self.abandon_plot(tick, cid, "someone intervened and exposed the attack")
         return True
 
     def counter_kill(self, tick, cid, t, weapon, hour, here):

@@ -5,8 +5,13 @@ per beat, in the speaker's own voice, and changes nothing: outcomes were settled
 checked: every beat gets a line from its own speaker, or the template line stands in), and the template voice below, which is the zero-model mode and the test backend.
 """
 
+from .tone import BANTER_LINES, FLIRT_LINES
+
 # move or reply -> outcome ("ok", "fail", "backfire", or "*") -> lines. {t} the other person, {x} who it is about, {item}, {claim}. "*" lines are actions.
 T = {
+    "apologise": {"*": ["I owe you an apology, {t}. I handled that badly.", "I am sorry. You do not have to forgive me."]},
+    "thank": {"*": ["I meant to say this properly: thank you, {t}.", "You helped me. I have not forgotten that."]},
+    "ask": {"*": ["Can we talk about what is really going on, {t}?", "I wanted to ask how things are for you."]},
     "chat": {"*": ["So. How are you actually doing, {t}?", "Did you sleep at all last night?", "I keep thinking about home.", "This place is too quiet when nobody's talking.",
                    "Have you eaten? You should eat something.", "Weird day. Even for this place."]},
     "joke": {"*": ["You know what this island needs? A gift shop.", "If I die here, tell TereVi her lighting is terrible.", "I've been on worse holidays. Not many, but some.",
@@ -87,6 +92,14 @@ def template_line(eng, beat, rng):
     mv = beat["move"]
     pool = T.get(mv) or T["chat"]
     lines = pool.get(beat.get("outcome")) or pool.get("*") or T["chat"]["*"]
+    who, target = beat["who"], beat.get("to")
+    if who in eng.world.agents and target in eng.world.agents and beat.get("outcome") == "ok":
+        mutual = min(eng.world.agents[who]["aff"].get(target, 0), eng.world.agents[target]["aff"].get(who, 0))
+        if mv == "joke" and mutual >= 2 and int(eng.tune("banter_level")) >= 2:
+            lines = BANTER_LINES
+        elif mv == "flirt" and int(eng.tune("flirt_level")) >= 2 and (who, target) in eng.flirty_pairs([who, target]):
+            if all(eng.world.cast[p].get("age", 0) >= 18 for p in (who, target)):
+                lines = FLIRT_LINES
     t = eng.nm(beat.get("to")) if beat.get("to") else "you"
     x = eng.nm(beat["about"]) if beat.get("about") else "them"
     item = eng.world.item_name(beat["item"]) if beat.get("item") else "this"
@@ -116,7 +129,7 @@ def spoken_line(eng, beat, rng):
     return {"speaker": beat["who"], "kind": "say", "text": "Mm."}
 
 
-MOVE_WORDS = {"chat": "makes small talk with", "joke": "jokes with", "comfort": "comforts", "confide": "confides in", "flirt": "flirts with", "gift": "gives a gift to",
+MOVE_WORDS = {"apologise": "apologises to", "thank": "thanks", "ask": "asks for a conversation with", "chat": "makes small talk with", "joke": "jokes with", "comfort": "comforts", "confide": "confides in", "flirt": "flirts with", "gift": "gives a gift to",
               "boast": "boasts to", "mock": "mocks", "putdown": "insults", "probe": "questions", "gossip": "gossips with", "warn": "warns", "reveal": "lets a secret slip to",
               "accuse": "accuses", "threaten": "threatens", "confront": "confronts", "pact": "proposes a pact to", "recruit": "quietly asks for help from",
               "teamwork": "works on the way out with", "incite": "tries to turn against someone:", "feign": "fakes friendliness toward", "side": "sides with",
@@ -179,6 +192,7 @@ def beats_block(eng, beats):
 def voice_prompt(eng, conv, beats):
     """(system, user) for one model call that voices a whole conversation."""
     w = eng.world
+    from .relationships import context as relationship_context
     cards = []
     for p in conv["members"]:
         if p not in w.agents:
@@ -187,8 +201,11 @@ def voice_prompt(eng, conv, beats):
         rel = "; ".join(f"{eng.nm(o)} {a['aff'].get(o, 0):+d}" for o in conv["members"] if o != p and o in w.agents)
         pron = PRONOUNS.get(c.get("pron"), "they/them")
         lk = eng.looks_notable(p)
-        cards.append(f"- {p} = {c['name']} ({c.get('gender', 'person')}, {pron}), {c['role']}." + (f" Notable right now: {lk}." if lk else "")
-                     + f" Speech: {c['speech']} Mood: {eng.mood_text(a)}. Feelings: {rel or 'n/a'}.")
+        cards.append(f"- {p} = {c['name']} ({c.get('gender', 'person')}, {pron}, age {c.get('age', 'unknown')}), {c['role']}." + (f" Notable right now: {lk}." if lk else "")
+                     + f" Speech: {c['speech']} Reactions and boundaries: {c.get('candor', '')} Mood: {eng.mood_text(a)}. Feelings: {rel or 'n/a'}."
+                     + eng.card_tone(p, conv["members"]) + " " + eng.commitments.context(p, conv["members"], beats)
+                     + " " + relationship_context(eng.s, p, eng.commitments.now(), eng.nm, conv["members"])
+                     + " " + eng.emotions.context(p, conv["members"]) + " " + eng.decisions.context(p, conv["members"]))
     if conv.get("nv") or any(b["who"] == "neovi" for b in beats):
         cards.append(eng.nv_card(conv))
     named = sorted({x for b in beats for x in (b.get("about"), b.get("to"), b.get("against")) if x in w.cast and x not in conv["members"]}

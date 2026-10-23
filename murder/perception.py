@@ -148,11 +148,11 @@ class Perception:
         return bool(power_on and room in self.cam_rooms)
 
     # ------------------------------------------------------------------ witnesses and chances
-    def witnesses(self, origin, others, loud="normal", light="lit", visual=True):
+    def witnesses(self, origin, others, loud="normal", light="lit", visual=True, blind=()):
         """Who among `others` ({id: tile}) could see or hear something happening at `origin`. Returns {id: "saw"|"heard"}."""
         out = {}
         for cid, t in others.items():
-            if visual and self.sees(origin, t, light):
+            if visual and cid not in blind and self.sees(origin, t, light):
                 out[cid] = "saw"
             elif self.hears(origin, t, loud):
                 out[cid] = "heard"
@@ -203,7 +203,7 @@ class PerceptionMixin:
         light = self.light_of(room)
         others = {c: self.tile_of(c) for c in candidates if c != actor}
         others = {c: t for c, t in others.items() if t}
-        got = self.perc().witnesses(o, others, loud, light)
+        got = self.perc().witnesses(o, others, loud, light, blind=[c for c in others if self.blind(c)])
         keep = [c for c in candidates if c == actor or c in got or c not in others]
         return keep
 
@@ -217,7 +217,7 @@ class PerceptionMixin:
         if not o:
             return people
         light = self.light_of(room)
-        got = self.perc().witnesses(o, {p: self.tile_of(p) for p in people if self.tile_of(p)}, loud, light)
+        got = self.perc().witnesses(o, {p: self.tile_of(p) for p in people if self.tile_of(p)}, loud, light, blind=[p for p in people if self.blind(p)])
         return [p for p in people if p in got]
 
     def hearing_cluster(self, room, members, wanting=()):

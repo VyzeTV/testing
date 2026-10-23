@@ -29,6 +29,21 @@ LOOKS = {
     "kumiko": {"hair": ("long", "dark purple"), "eyes": "red eyes", "hand": "small", "handed": "right", "height": "short",
                "accessory": ("purple stuffed rabbit with button eyes", "purple plush fluff"), "shape": ["long hair", "ahoge"]},
 }
+# Appearance records follow the supplied reference art; portrait files can be added later.
+LOOKS.update({
+    "accio": {"hair": ("short", "turquoise"), "eyes": "blue eyes", "hand": "medium", "handed": "right", "height": "medium", "accessory": ("lime wrist ribbon", "lime satin"), "shape": []},
+    "jackal": {"hair": ("short", "dark green"), "eyes": "yellow eyes", "hand": "medium", "handed": "right", "height": "medium", "accessory": ("spade pendant", None), "shape": ["asymmetric hair"]},
+    "vincent": {"hair": ("short", "dark blue"), "eyes": "teal eyes", "hand": "medium", "handed": "right", "height": "medium", "accessory": None, "shape": []},
+    "nathan": {"hair": ("short", "brown"), "eyes": "green eyes", "hand": "medium", "handed": "right", "height": "medium", "accessory": None, "shape": []},
+    "katsuo": {"hair": ("short", "brown"), "eyes": "green eyes", "hand": "medium", "handed": "right", "height": "medium", "accessory": ("red-framed glasses", None), "shape": ["glasses"]},
+    "ivette": {"hair": ("short", "burgundy"), "eyes": "grey eyes", "hand": "medium", "handed": "right", "height": "tall", "accessory": None, "shape": ["top bun"]},
+    "reiko": {"hair": ("short", "silver-white"), "eyes": "teal eyes", "hand": "small", "handed": "right", "height": "medium", "accessory": ("white mobility cane", None), "shape": ["asymmetric hair"]},
+    "itsumi": {"hair": ("long", "red"), "eyes": "green eyes", "hand": "small", "handed": "right", "height": "medium", "accessory": None, "shape": ["long hair"]},
+    "tsutsumi": {"hair": ("short", "sandy blond"), "eyes": "teal eyes", "hand": "medium", "handed": "right", "height": "tall", "accessory": ("turquoise stud earrings", None), "shape": []},
+    "soura": {"hair": ("long", "silver"), "eyes": "green eyes", "hand": "small", "handed": "right", "height": "medium", "accessory": ("blue hair ribbon", "blue satin"), "shape": ["twin tails", "long hair"]},
+    "akira": {"hair": ("long", "black"), "eyes": "red eyes", "hand": "medium", "handed": "right", "height": "medium", "accessory": None, "shape": ["long hair"]},
+    "nao": {"hair": ("short", "green"), "eyes": "golden eyes and freckles", "hand": "small", "handed": "right", "height": "medium", "accessory": None, "shape": ["paired hair buns"]},
+})
 # each character's own outfit and swimsuit (clothing.py), the fabrics the outfit sheds, and what it adds to a silhouette
 OUTFITS = {
     "szymon": ("dark green hooded parka covered in patches", "board shorts", ["dark green nylon"], ["hood"]),
@@ -42,6 +57,20 @@ OUTFITS = {
     "kumiko": ("black blazer with white trim, white shirt, red tie, black pleated skirt and dark purple thigh-high socks", "plain black swimsuit",
                ["black wool", "dark purple knit"], ["pleated skirt"]),
 }
+OUTFITS.update({
+    "accio": ("white rolled-sleeve shirt, silver geometric-pattern waistcoat with lime trim, dark trousers and brown shoes", "lime swim shorts", ["white cotton", "silver waistcoat fabric", "lime trim"], ["waistcoat"]),
+    "jackal": ("blue long coat over a dark hood and white shirt, fingerless gloves, dark trousers and brown strapped boots", "dark swim shorts", ["blue coat fabric", "dark hood fabric", "white cotton"], ["hood", "long coat"]),
+    "vincent": ("navy coat with a grey fur collar, white shirt, loose grey tie, dark trousers and grey-and-blue shoes", "navy swim shorts", ["navy coat fabric", "grey fur", "white cotton"], ["fur collar", "long coat"]),
+    "nathan": ("blue coat with yellow stars over a green alien-print shirt, brown trousers, white socks and brown sandals", "star-patterned swim shorts", ["blue coat fabric", "green cotton", "brown trouser fabric"], ["long coat"]),
+    "katsuo": ("grey coat with red piping, blue checked shirt, red tie, green waistcoat, tan trousers and brown shoes", "green swim shorts", ["grey coat fabric", "red piping", "green waistcoat fabric"], ["long coat", "waistcoat"]),
+    "ivette": ("white rolled-sleeve shirt, red bow tie, dark waistcoat, dark trousers and boots", "burgundy swimsuit", ["white cotton", "dark waistcoat fabric", "red bow tie fabric"], ["waistcoat", "bow tie"]),
+    "reiko": ("white jacket, green cropped trousers and white-and-green high-top sneakers", "green swimsuit", ["white jacket fabric", "green trouser fabric"], ["jacket"]),
+    "itsumi": ("grey jacket over a white shirt and red tie, blue shorts, dark thigh-high socks and burgundy boots", "red swimsuit", ["grey jacket fabric", "red tie fabric", "blue denim"], ["long socks"]),
+    "tsutsumi": ("light blue long jacket over a white blouse and dark skirt, grey heels", "blue swimsuit", ["light blue jacket fabric", "white blouse fabric"], ["long jacket"]),
+    "soura": ("pale blue blouse and pleated skirt with light blue thigh-high socks and blue heels", "pale blue swimsuit", ["pale blue fabric", "light blue knit"], ["pleated skirt", "long socks"]),
+    "akira": ("dark jacket with burgundy lining, white shirt and loose grey tie, burgundy skirt, white socks and burgundy high-top sneakers", "black swimsuit", ["dark jacket fabric", "burgundy fabric", "white cotton"], ["jacket", "pleated skirt"]),
+    "nao": ("magenta sleeveless top, black shorts, torn black thigh-high socks and blue high-top sneakers", "green athletic swimsuit", ["magenta fabric", "black denim", "black knit"], ["long socks"]),
+})
 HAIRS = (("short", "black"), ("long", "black"), ("short", "brown"), ("long", "brown"), ("short", "red"), ("long", "blond"))
 COAT_SHAPE = {"raincoat": ["hood", "long coat"], "trench_coat": ["long coat"], "jacket": [], "sheet_cloak": ["cloaked"]}
 

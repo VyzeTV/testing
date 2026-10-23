@@ -6,11 +6,12 @@ import json
 import os
 import shutil
 import threading
-import tempfile
 import time
 
 from .engine import DayRunner, Stop
 from .llm import LLM, LLMError
+from .saves import SaveStore
+from .diagnostics import generation_status
 from .world import World, new_state, upgrade_state, week_of
 from . import export as exportlib
 from . import scenario as scn
@@ -58,8 +59,11 @@ class Game:
         os.makedirs(STATE_DIR, exist_ok=True)
         self.load_tuning()
         os.makedirs(RUNS_DIR, exist_ok=True)
-        if not os.path.exists(self.current_path()):
-            self.save_current(new_state(3))
+        self.saves = SaveStore(STATE_DIR)
+        if not os.path.exists(self.current_path()) and not any(os.path.exists(self.saves.backup(i)) for i in range(1, 4)):
+            self.save_current(new_state(3, shuffle_rooms=True, randomize_cast=True))
+        else:
+            self.load_current()
 
     # ---------- persistence ----------
     def current_path(self):
@@ -67,21 +71,24 @@ class Game:
 
     def save_current(self, state):
         with self.save_lock:
-            fd, tmp = tempfile.mkstemp(prefix="current-", suffix=".tmp", dir=STATE_DIR)
-            try:
-                with os.fdopen(fd, "w", encoding="utf-8") as f:
-                    json.dump(state, f, ensure_ascii=False, indent=1)
-                    f.flush()
-                    os.fsync(f.fileno())
-                os.replace(tmp, self.current_path())
-            finally:
-                if os.path.exists(tmp):
-                    os.remove(tmp)
+            self.saves.save(state)
 
     def load_current(self):
         with self.save_lock:
-            with open(self.current_path(), "r", encoding="utf-8") as f:
-                return upgrade_state(json.load(f))
+            return upgrade_state(self.saves.load())
+
+    def diagnostic_report(self):
+        import platform
+        with self.cv:
+            s = self.session
+            generation = generation_status(s)
+            session = {k: s.get(k) for k in ("day", "mode", "backend", "step", "done", "aborted", "ff")} if s else None
+            usage = dict(s["llm"].usage) if s and s.get("llm") else None
+        with self.save_lock:
+            recovery = self.saves.info()
+        return {"format": 1, "python": platform.python_version(), "platform": platform.system(),
+                "generation": generation, "session": session, "usage": usage,
+                "checkpoint": self.checkpoint_info(), "recovery": recovery}
 
     def _restore_current(self, path):
         with open(path, "r", encoding="utf-8") as f:
@@ -123,12 +130,14 @@ class Game:
             if s:
                 sess = {"day": s["day"], "mode": s["mode"], "backend": s["backend"], "step": s["step"],
                         "done": s["done"], "error": s["error"], "aborted": s["aborted"], "ff": s["ff"],
-                        "known": len(s["ticks"]), "usage": s.get("usage")}
+                        "known": len(s["ticks"]), "usage": s.get("usage"), "generation": generation_status(s)}
         from .llm import find_api_key
         import shutil as _sh
         cur = self.load_current()
         alive = [k for k, v in cur["agents"].items() if v.get("status", "alive") == "alive"]
         return {
+            "generation": generation_status(self.session),
+            "recovery": self.saves.info(),
             "next_day": cur["day"],
             "new_week": (cur["day"] - 1) % cur.get("week_len", 7) == 0,
             "week_len": cur.get("week_len", 7),
@@ -172,9 +181,10 @@ class Game:
         gender = spec.get("gender")
         if gender not in ("male", "female"):
             raise ValueError("Choose male or female.")
-        if gender not in [v["gender"] for v in w.state["vacancies"]]:
+        from .casting import slot_for
+        if slot_for(spec) not in [v["gender"] for v in w.state["vacancies"]]:
             need = ", ".join(sorted({v["gender"] for v in w.state["vacancies"]}))
-            raise ValueError(f"The show needs a newcomer who is: {need}.")
+            raise ValueError(f"The show needs a newcomer for a casting slot that is: {need}.")
         cid = w.add_newcomer(spec)
         portrait = spec.get("portrait")
         if portrait and "," in portrait:
@@ -457,6 +467,7 @@ class Game:
         sess = {"day": day, "mode": "live", "backend": backend, "step": step, "ticks": [], "done": False,
                 "error": None, "aborted": False, "ff": False, "stop": False, "pos": -1, "thread": None,
                 "usage": dict(llm.usage), "llm": llm, "murders": murders, "motive": motive, "rule": rule, "rule_text": rule_text, "mischief": mischief, "confessionals": confessionals, "chaos": chaos,
+                "progress_at": time.monotonic(), "waiting_on_viewer": False,
                 "variation": int(variation or 0), "gm": [], "lean": bool(lean), "autodir": bool(autodir), "resume": bool(resume)}
         with self.cv:
             self.session = sess
@@ -527,6 +538,7 @@ class Game:
                 except OSError:
                     pass
                 with self.cv:
+                    sess["progress_at"] = time.monotonic()
                     sess["ticks"].append(tick)
                     sess["partial"] = None
                     sess["usage"] = dict(llm.usage)
@@ -534,6 +546,7 @@ class Game:
 
             def on_part(part):
                 with self.cv:                                               # a piece of the block being made, for the viewer to start on (phase F5)
+                    sess["progress_at"] = time.monotonic()
                     sess["partial_v"] = sess.get("partial_v", 0) + 1
                     part["pv"] = sess["partial_v"]
                     sess["partial"] = part
@@ -543,7 +556,9 @@ class Game:
             def gate(idx):
                 with self.cv:
                     while not (sess["ff"] or sess["stop"] or idx <= sess["pos"] + BUFFER):
+                        sess["waiting_on_viewer"] = True
                         self.cv.wait(timeout=1.0)
+                    sess["waiting_on_viewer"] = False
 
             runner = DayRunner(world, llm, on_tick, gate=gate, should_stop=lambda: sess["stop"], step=sess["step"],
                                murders=sess["murders"], motive=sess["motive"], rule_mode=sess["rule"], rule_text=sess["rule_text"],
@@ -581,12 +596,14 @@ class Game:
                 self.cv.notify_all()
         except LLMError as e:
             with self.cv:
+                sess["error_type"] = type(e).__name__
                 sess["error"] = f"{e}" + ("  (usage limit or login problem: wait and try again)" if e.fatal else "")
                 self.cv.notify_all()
         except Exception as e:  # engine bug: surface it instead of dying silently
             import traceback
             traceback.print_exc()
             with self.cv:
+                sess["error_type"] = type(e).__name__
                 sess["error"] = f"Engine error: {type(e).__name__}: {e}"
                 self.cv.notify_all()
         finally:
@@ -701,7 +718,7 @@ class Game:
             fresh = part and part.get("idx") == len(s["ticks"]) and since >= len(s["ticks"]) and part.get("pv", 0) > pv
             return {"ticks": s["ticks"][since:], "partial": part if fresh else None,
                     "done": s["done"], "error": s["error"], "aborted": s["aborted"],
-                    "ff": s["ff"], "known": len(s["ticks"]), "usage": s.get("usage"), "mode": s["mode"], "day": s["day"], "roll": s.get("roll")}
+                    "ff": s["ff"], "known": len(s["ticks"]), "usage": s.get("usage"), "mode": s["mode"], "day": s["day"], "roll": s.get("roll"), "generation": generation_status(s)}
 
     def fast_forward(self):
         with self.cv:
@@ -734,12 +751,13 @@ class Game:
         os.makedirs(RUNS_DIR, exist_ok=True)
         for p in glob.glob(os.path.join(STATE_DIR, "day_*_start.json")):
             os.remove(p)
-        st = new_state(start_day, shuffle_rooms=True)
+        st = new_state(start_day, shuffle_rooms=True, randomize_cast=True)
         if old_sc:
             old_sc = dict(old_sc, _placed=[])
             if old_sc.get("twist"):
                 old_sc["twist"] = dict(old_sc["twist"], done=False)
-            st["scenario"] = old_sc
+            from .data_world import ROOMS
+            st["scenario"] = scn.clean(old_sc, set(st["cast"]), set(ROOMS))
             scn.apply_seeds(st)
         self.save_current(st)
         self._clear_checkpoint()

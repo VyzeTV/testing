@@ -134,7 +134,9 @@ class SessionChecks(unittest.TestCase):
         before = Path(self.game.current_path()).read_bytes()
         with patch.object(mod.os, "replace", side_effect=OSError("disk error")):
             with self.assertRaises(OSError):
-                self.game.save_current({"day": 99})
+                state = self.game.load_current()
+                state["day"] = 99
+                self.game.save_current(state)
         self.assertEqual(Path(self.game.current_path()).read_bytes(), before)
         self.assertEqual(list(self.state.glob("current-*.tmp")), [])
 

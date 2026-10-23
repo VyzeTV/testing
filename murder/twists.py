@@ -28,7 +28,8 @@ class TwistMixin:
         w.agents[second]["hp"] = 0
         w.end_agent(second, "dead", how_second)
         case["extra_victims"] = [second]
-        self.log_event(tick, {"type": "system_notable", "who": first, "room": room, "vis": "viewer", "text": text}, actor=second)
+        self.log_event(tick, {"type": "system_notable", "who": first, "room": room, "vis": "viewer", "story_kind": "death_report",
+                              "deceased": [first, second], "text": text})
         self.saga(text)
         return case
 
@@ -75,8 +76,8 @@ class TwistMixin:
         lead = max(ids, key=lambda p: (meter[p], p))
         victim = case.get("victim")
         guilt = (w.agents[killer]["sanity"] < 30 or self.facet(killer, "altruism") >= 60 or case.get("kind") == "manslaughter"
-                 or (w.all_agents.get(killer) or {}).get("aff", {}).get(victim, 0) >= 3)
-        if case.get("culprit_aware", True) and guilt and self.rng.random() < 0.1:
+                 or (w.all_agents.get(killer) or {}).get("aff", {}).get(victim, 0) >= 3 or self.emotions.level(killer, 'guilt') >= 6)
+        if case.get("culprit_aware", True) and guilt and self.rng.random() < 0.1 + min(.06, self.emotions.level(killer, 'guilt') * .006):
             self.trial_beat(beats, killer, f"Stop. Stop it. It was me. I killed {self.nm(victim)}. I can't let anyone else die for it.", "confess")
             push(killer, 12.0)
             self.moment(killer, f"confessed to killing {self.nm(victim)} at the trial")
@@ -120,7 +121,7 @@ class TwistMixin:
             a.update(status="alive", room="beach", hp=max(30, a.get("hp", 60) - 20), sanity=max(10, a.get("sanity", 50) - 15), activity="Washed up on the beach")
             a.pop("asleep", None)
             s["graveyard"] = [g for g in s["graveyard"] if g["id"] != c]
-            vac = next((i for i, v in enumerate(s.get("vacancies", [])) if v["gender"] == w.cast[c]["gender"]), None)
+            vac = next((i for i, v in enumerate(s.get("vacancies", [])) if v["gender"] == w.casting_slot(c)), None)
             if vac is not None:
                 del s["vacancies"][vac]
             self.moment(c, "was carried back to the island by the sea")

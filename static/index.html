@@ -25,6 +25,9 @@
   <label class="toggle" title="Read the dialogue aloud with the browser's own voices, a different one for each character"><input type="checkbox" id="voices"> Voices</label>
   <label class="toggle"><input type="checkbox" id="gm"> GM view</label>
   <label class="toggle" title="When the island goes quiet, the director nudges the story: a TereVi dare, a rumour, an unsigned note or an island event"><input type="checkbox" id="autodir"> Auto-director</label>
+  <span class="chip" id="generationStatus" role="status">Generation idle</span>
+  <span class="chip" id="recoveryNotice" role="status" hidden></span>
+  <button id="btnDiagnostics">Diagnostics</button>
   <button id="btnTuning" title="Tune how quarrelsome, tense, sleepless and bawdy the show is">Tuning</button>
   <button id="btnDirector" title="Whisper to someone, spread a rumor, drop an item, force a twist">Director</button>
   <button id="btnPause" disabled>Pause</button>
@@ -42,6 +45,13 @@
   <span id="scrubLabel" class="chip">Turn 0/0</span>
   <input type="range" id="scrub" min="0" max="0" value="0" disabled>
 </div>
+<dialog id="diagnosticsDialog"><h2>Diagnostic report</h2>
+  <p id="recoveryStatus"></p>
+  <p>Includes generation state, version, usage and save health. No dialogue, prompts or credentials.</p>
+  <textarea id="diagnosticReport" aria-label="Diagnostic report" readonly rows="16" style="width:100%;box-sizing:border-box"></textarea>
+  <button id="btnCopyDiagnostics">Copy report</button> <button id="btnCloseDiagnostics">Close</button>
+  <span id="diagnosticCopyStatus" role="status"></span>
+</dialog>
 <main>
   <div id="stage">
     <canvas id="map"></canvas>
@@ -211,7 +221,8 @@
     <p class="s" id="nSub">The new participant arrives on the island at the next morning broadcast.</p>
     <div class="grid2">
       <div class="field"><label class="t">Name</label><input type="text" id="nName" placeholder="Full name"></div>
-      <div class="field"><label class="t">Gender</label><select id="nGender"></select></div>
+      <div class="field"><label class="t">Casting slot</label><select id="nSlot"></select></div>
+      <div class="field"><label class="t">Gender</label><select id="nGender"><option value="female">female</option><option value="male">male</option></select></div>
       <div class="field"><label class="t">Role / title</label><input type="text" id="nRole" placeholder="e.g. Street Chef"></div>
       <div class="field"><label class="t">Age</label><input type="number" id="nAge" value="26" min="16" max="90"></div>
       <div class="field"><label class="t">Country</label><input type="text" id="nOrigin" placeholder="e.g. Brazil"></div>

@@ -15,6 +15,11 @@ def _i(name, *tags, use=None):
 
 
 NEW_ITEMS = {
+    "tape_measure": _i("Tailor's tape measure", "gear"),
+    "playing_cards": _i("Deck of playing cards", "gear", "comfort"),
+    "white_cane": _i("White mobility cane", "gear", "mobility"),
+    "marker": _i("Paint marker", "art"),
+    "coffee": _i("Canned coffee", "drink", use={"sanity": 1}),
     # ---- common supplies (unlimited in the rooms listed in COMMON_ITEMS)
     "matches": _i("Box of matches", "common", "fire"),
     "string": _i("Ball of string", "common"),

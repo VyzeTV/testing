@@ -91,6 +91,10 @@ class PlotMixin:
         pr = self.pressure()
         drive = a["drive"]["id"]
         cands = []
+        if self.facet(cid, 'vengefulness') >= 65 and self.facet(cid, 'courage') >= 60:
+            for feeling in self.emotions.view(cid):
+                if feeling['kind'] == 'fear' and feeling.get('target') in others and feeling['intensity'] >= 6:
+                    cands.append((.3 + feeling['intensity'] * .025, feeling['target'], 'fear of a known threat: ' + feeling['cause'], 'fear'))
         hated = min(others, key=lambda o: a["aff"].get(o, 0))
         low = a["aff"].get(hated, 0)
         base = 0.0
@@ -407,12 +411,13 @@ class PlotMixin:
             d.update(action="knockout", target=t, method=self.plot_method(p) if not p["weapon"] or "blunt" in self.tags(p["weapon"]) else "hands", target_room="", activity="Moves on them from behind", step="knocks them out")
             self.plan_note(p, f"put {self.nm(t)} out of action ({p['window']})")
             return
-        if not self.scheme_allows(cid, p, urgent):
+        method = self.planned_attack(tick, cid, p, urgent)
+        if not method:
             d.update(action="stay", target_room="", activity=f"Keeps an eye on {self.nm(t)} and bides their time", step="waits for the planned moment")
             return
         if (window or urgent) and not s.get("case") and self.rng.random() < (0.8 if window else 0.5):
             p["window"] = "alone" if alone else "blind spot" if a["room"] in CAMERA_BLIND else "dark" if self.blackout_until >= self.idx else "deadline"
-            d.update(action="attack", target=t, method=self.scheme_method(cid, p) or self.plot_method(p), target_room="", activity="Something finally snaps into place", step="strikes")
+            d.update(action="attack", target=t, method=method, target_room="", activity="Something finally snaps into place", step="strikes")
             self.plan_note(p, f"struck at {self.nm(t)} ({p['window']})")
         else:
             d.update(action="stay", target_room="", activity=f"Waits beside {self.nm(t)} for the right moment", step="waits for a window")
@@ -431,7 +436,7 @@ class PlotMixin:
                 self.log_event(tick, {"type": "plot", "who": cid, "room": a["room"], "vis": "viewer",
                                       "text": f"{self.nm(cid)} lies awake and decides they cannot do it. The plan against {self.nm(p['target'])} is over."}, actor=cid)
                 w.remember(cid, f"(private) You could not do it. You let {self.nm(p['target'])} live.")
-                del s["plots"][cid]
+                self.abandon_plot(tick, cid, "regained calm and no longer hates the target")
                 continue
             if self.days_left() <= 1 and p["stage"] in ("brooding", "preparing"):
                 p["stage"], p["stage_ticks"] = "stalking", 0
@@ -452,11 +457,12 @@ class PlotMixin:
         """The target lies helpless in front of the plotter: take what they have, put them somewhere, or finish it."""
         w, s = self.world, self.s
         a, t = w.agents[cid], p["target"]
+        method = self.planned_attack(tick, cid, p, self.days_left() <= 0)
         r = self.rng.random()
         if r < 0.45 and w.agents[t]["inv"]:
             d.update(action="rob", target=t, item="", target_room="", activity=f"Goes through {self.nm(t)}'s pockets", step="searches them")
-        elif r < 0.7 and not s.get("case"):
-            d.update(action="attack", target=t, method=self.plot_method(p), target_room="", activity="Takes the chance", step="strikes")
+        elif r < 0.7 and not s.get("case") and method:
+            d.update(action="attack", target=t, method=method, target_room="", activity="Takes the chance", step="strikes")
             self.plan_note(p, f"killed {self.nm(t)} while they were helpless")
         elif r < 0.85:
             go = self.step_toward(cid, "cold_store")

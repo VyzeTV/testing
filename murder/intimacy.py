@@ -9,6 +9,8 @@ drawn hard to someone else may have an affair; if the partner finds out, the rom
 `flirt_level` dial (0 = never). IntimacyMixin is mixed into DayRunner (engine.py).
 """
 
+from .relationships import bond_allowed, bond_time, record_bond, betray, partners, closeness
+
 NIGHT_P = {0: 0.0, 1: 0.15, 2: 0.3, 3: 0.45}
 NIGHT_TEXT = ["{a} slips into {b}'s room after lights out. The camera develops a sudden interest in the corridor carpet.",
               "{a} knocks softly on {b}'s door at midnight. It opens before the second knock. Cut to: a very long shot of the moon.",
@@ -25,11 +27,11 @@ class IntimacyMixin:
         return [(b["a"], b["b"]) for b in self.s.get("bonds", []) if b.get("kind") == "romance" and b["a"] in w.agents and b["b"] in w.agents]
 
     def partner_of(self, cid):
-        return next((b if a == cid else a for a, b in self.lovers() if cid in (a, b)), None)
+        return next(iter(sorted(partners(self.s, cid))), None)
 
     def free_tonight(self, cid):
         a = self.world.agents.get(cid)
-        return bool(a) and not a.get("out") and a["room"] not in ("cold_store",) and not a.get("hiding") and not (self.s.get("plots") or {}).get(cid, {}).get("stage") == "striking"
+        return bool(a) and self.world.cast[cid].get("age", 0) >= 18 and not a.get("out") and a["room"] not in ("cold_store",) and not a.get("hiding") and not (self.s.get("plots") or {}).get(cid, {}).get("stage") == "striking"
 
     def intimacy_night(self, tick):
         """After lights out: which lovers spend the night together, and whether anyone strays."""
@@ -59,9 +61,14 @@ class IntimacyMixin:
         for a, b in self.drawn_pairs():
             if a in busy or b in busy or self.partner_of(a) or self.partner_of(b) or self.rng.random() >= 0.08 * lvl:
                 continue
+            now = bond_time(self.day, tick["hour"])
+            if not bond_allowed(s, a, b, "romance", now):
+                continue
             host, guest = sorted((a, b), key=lambda c: (self.rng.random(), c))
             self.night_together(tick, guest, host)
-            s.setdefault("bonds", []).append({"a": a, "b": b, "kind": "romance", "since": self.day})
+            bond = {"a": a, "b": b, "kind": "romance", "since": self.day, "formed_at": now}
+            s.setdefault("bonds", []).append(bond)
+            record_bond(s, bond, now, "formed", "mutual affection")
             self.log_event(tick, {"type": "system_notable", "who": a, "room": w.cast[host]["home"], "vis": "viewer",
                                   "text": f"Whatever {self.nm(a)} and {self.nm(b)} were before tonight, they are something else now."}, actor=b)
             busy |= {a, b}
@@ -94,6 +101,11 @@ class IntimacyMixin:
 
     def night_together(self, tick, guest, host, affair=None):
         w, s = self.world, self.s
+        betrayals = [{"partner": p, "cheat": c, "other": o} for c, o in ((guest, host), (host, guest))
+                     for p in sorted(partners(s, c) - {o})]
+        if affair and not any(b["partner"] == affair and b["cheat"] == guest for b in betrayals):
+            betrayals.append({"partner": affair, "cheat": guest, "other": host})
+        closeness(s, guest, host, self.commitments.now(tick), "a night together")
         text = self.rng.choice(NIGHT_TEXT).format(a=self.nm(guest), b=self.nm(host))
         self.log_event(tick, {"type": "romance", "who": guest, "room": w.cast[host]["home"], "vis": "viewer", "text": text}, actor=guest)
         for c, o in ((guest, host), (host, guest)):
@@ -104,9 +116,9 @@ class IntimacyMixin:
         if first:
             self.moment(guest, f"spent a first night with {self.nm(host)}")
             self.moment(host, f"spent a first night with {self.nm(guest)}")
-        s.setdefault("nights", []).append({"a": guest, "b": host, "day": self.day, "affair": affair})
+        s.setdefault("nights", []).append({"a": guest, "b": host, "day": self.day, "affair": affair, "betrayals": betrayals})
         del s["nights"][:-40]
-        self.intimacy_stat("affairs" if affair else "nights")
+        self.intimacy_stat("affairs" if betrayals else "nights")
 
     def intimacy_dawn(self, tick):
         """The morning after: someone is seen leaving, rumours spread, jealousy bites, and an affair may come out."""
@@ -123,10 +135,11 @@ class IntimacyMixin:
                 for o in seen:
                     self.belief_rumor(o, None, a, f"{self.nm(a)} spent the night in {self.nm(b)}'s room", lie=False)
                     self.jealousy(tick, o, a, b)
-                    if n.get("affair") == o:
-                        self.affair_found(tick, o, a, b)
-                if n.get("affair") and n["affair"] in w.agents and n["affair"] not in seen and self.rng.random() < 0.25:
-                    self.affair_found(tick, n["affair"], a, b)                    # the house talks, and it gets back to them
+                betrayals = n.get("betrayals", [{"partner": n["affair"], "cheat": a, "other": b}] if n.get("affair") else [])
+                for betrayal in betrayals:
+                    partner = betrayal["partner"]
+                    if (partner in w.agents or partner == "neovi" and self.neovi_maid()) and (partner in seen or self.rng.random() < .25):
+                        self.affair_found(tick, partner, betrayal["cheat"], betrayal["other"])
             self.booth_note(a, "warm", 2, b)
             self.booth_note(b, "warm", 2, a)
 
@@ -142,15 +155,35 @@ class IntimacyMixin:
                 self.add_tie(cid, rival, "jealous", f"spent the night with {self.nm(want)}")
                 self.booth_note(cid, "hurt", 2.5, rival)
                 self.intimacy_stat("jealousy")
+                self.emotions.put(cid, 'anger', 4, f"jealous after learning about {self.nm(want)} and {self.nm(rival)}",
+                                  f"jealousy:{want}:{rival}:{self.day}", tick, rival)
                 return
 
     def affair_found(self, tick, partner, cheat, other):
         w, s = self.world, self.s
+        if partner == "neovi" and cheat in w.agents and cheat in partners(s, "neovi"):
+            self.emotions.betrayed(tick, cheat, partner, "an affair", True)
+            nv = s["npcs"]["neovi"]
+            betray(s, "neovi", cheat, self.commitments.now(tick), f"cheated with {self.nm(other)}")
+            nv["lover"] = None
+            record_bond(s, {"a": "neovi", "b": cheat, "kind": "romance"}, self.commitments.now(tick), "ended", "affair")
+            nv["aff"][cheat] = max(-10, nv["aff"].get(cheat, 0) - 6)
+            self.nv_stat(tick, "sanity", -8, "a lover's affair")
+            self.neovi_event(tick, cheat, f"NeoVi learns about {self.nm(cheat)} and {self.nm(other)} and ends their relationship.")
+            self.intimacy_stat("affairs_found")
+            return
         if partner not in w.agents or cheat not in w.agents:
             return
+        if cheat not in partners(s, partner):
+            return  # Already dealt with this disclosure; do not punish it again.
+        self.emotions.betrayed(tick, cheat, partner, "an affair", True)
+        betray(s, partner, cheat, self.commitments.now(tick), f"cheated with {self.nm(other)}")
         w.adjust_aff(partner, cheat, -6)
         w.adjust_aff(partner, other, -4)
         self.stat(tick, partner, "sanity", -8, f"finding out about {self.nm(cheat)} and {self.nm(other)}")
+        for bond in s.get("bonds", []):
+            if bond["kind"] == "romance" and {bond["a"], bond["b"]} == {partner, cheat}:
+                record_bond(s, bond, bond_time(self.day, tick["hour"]), "ended", "affair")
         s["bonds"] = [x for x in s.get("bonds", []) if not (x.get("kind") == "romance" and {x["a"], x["b"]} == {partner, cheat})]
         self.add_tie(partner, cheat, "betrayed", f"cheated on them with {self.nm(other)}")
         self.moment(partner, f"found out {self.nm(cheat)} cheated with {self.nm(other)}")

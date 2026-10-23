@@ -249,6 +249,8 @@ class ClothingMixin:
 
     def found_stained(self, tick, finder, items, where):
         """Stained clothes turn up: evidence, and the label inside names whose they were."""
+        if self.blind(finder):
+            return
         w, s = self.world, self.s
         case = s.get("case")
         for k in items:

@@ -14,6 +14,9 @@ from .llm import LLMError
 from .voice import PRONOUNS, part_of_day
 from . import rules as rulelib
 from .world import MOVE_BUDGET, clamp, deadline_for_death
+from .commitments import CommitmentManager, clean_request
+from .emotions import EmotionManager
+from .relationships import closeness, context as relationship_context
 from .data_world import COMMON_ITEMS
 from .drama import DramaMixin, OCCASION_SANITY, SPECIAL_SANITY
 from .chaos import ChaosMixin
@@ -222,6 +225,10 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         self.rule_none_reason = ""
         self.focus, self.focus_idea, self.exp_today, self.plot_started_day = None, None, 0, -1
         self.night_init()
+        self.commitments = CommitmentManager(self)
+        self.emotions = EmotionManager(self)
+        from .decisions import DecisionManager
+        self.decisions = DecisionManager(self)
 
     # ---------- small helpers ----------
     @property
@@ -247,6 +254,9 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
     def emit(self, tick):
         tick["idx"] = self.idx
         self.idx += 1
+        self.commitments.sync(tick)
+        for cid, a in self.world.all_agents.items():
+            a["commitments_view"] = self.commitments.view(cid)
         self.vkeep_flush(tick)                              # kept voicing prompts (revoice.py)
         if not self.s.get("case") and self.days_left() <= 0 and isinstance(tick.get("hour"), (int, float)):
             self.deadline_hours(tick, tick["hour"])         # special scenes (vigil, last call...) count against the deadline too
@@ -265,6 +275,10 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             self.mind_tick(tick)
         except Exception as e:  # the mind layer must never break a turn
             tick["mind_error"] = f"{type(e).__name__}: {e}"[:160]
+        self.emotions.sync(tick)
+        for cid_, a_ in self.world.all_agents.items():
+            a_["emotions_view"] = self.emotions.view(cid_)
+            a_["decisions_view"] = self.decisions.view(cid_)
         try:
             self.sift_tick(tick)                                  # stories in play (sifting.py)
             tick["stories"] = self.stories_in_play()
@@ -333,9 +347,14 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         side = self.__dict__.setdefault("_chron_w", {})
         if len(side) > 3000:
             side.clear()
-        side[id(evt)] = (list(witnesses) if witnesses else None, actor)
-        self.note_news(evt, witnesses, actor)
+        # Hearing an action does not reveal its actor, weapon or visual details.
+        from .beliefs import WITNESS_KINDS
+        visual = evt.get("type") in WITNESS_KINDS | {"frame", "rob", "carry", "conceal", "stash", "search", "craft", "treat", "use"}
+        informed = [c for c in (witnesses or []) if not visual or not self.blind(c)]
+        side[id(evt)] = (informed if witnesses else None, actor)
+        self.note_news(evt, informed, actor)
         self.belief_witness(evt, witnesses, actor)
+        self.emotions.event(tick, evt, informed, actor)
         if evt.get("type") == "punish":
             self.punish_count = getattr(self, "punish_count", 0) + 1
         text = f"{hhmm(tick['hour'])} {evt['text']}"
@@ -343,7 +362,10 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         if evt.get("vis") == "public":
             for cid in (witnesses or []):
                 if cid != actor and cid in w.agents:
-                    w.remember(cid, text)
+                    if visual and self.blind(cid):
+                        w.remember(cid, f"{hhmm(tick['hour'])} You heard activity nearby; its visual details and participants were not established by sound alone.")
+                    else:
+                        w.remember(cid, text)
         if actor in w.agents:
             w.remember(actor, text)
         if evt["type"] in ("discover", "secret", "lock", "give", "body", "attack", "arrival", "system_notable", "occasion", "experiment", "tease"):
@@ -404,7 +426,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             f"LIKES: {c['likes']}. DISLIKES: {c['dislikes']}.\nHOW YOU SPEAK: {c['speech']}\nWHEN STRESSED OR PROVOKED: {c.get('candor', '')}\nYOUR GOALS: {c['goals']}\n"
             + (quirk + "\n" if quirk else "") + "\n"
             f"ROOM IDS: {rooms}\nPEOPLE IDS: {people}, neovi=NeoVi (housemaid)\n\n"
-            "RULES: You only know what is in your memory and what you can see. Do not invent rooms or items. "
+            "RULES: You only know what is in your memory and what your senses allow you to perceive. Do not invent rooms or items. "
             "Be vivid and specific, never generic. "
             "TONE: speak like a real person, not a villain. Most exchanges are ordinary, curious, funny, awkward or warm; real meanness needs a cause "
             "(a clash of personalities, a grudge, fear, stress, a sore spot). You may swear naturally for emphasis or banter. How you talk to and about someone "
@@ -414,11 +436,13 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             "Reply with a single JSON object and nothing else." + murder
         )
 
-    def decision_prompt(self, cid, hour):
+    def decision_prompt(self, cid, hour, offers=None):
         w, s = self.world, self.s
         a = w.agents[cid]
         room = a["room"]
         others = [self.nm(o) + (self.clothing_note(o) + self.condition_note(o) if o in w.agents else "") for o in w.occupants(room, include_hidden=True) if o != cid and (o not in w.agents or not w.agents[o].get("hiding"))]
+        if self.blind(cid):
+            others = ["People must identify themselves through conversation; no visual identification or clothing observations"]
         exits = []
         for n in w.adjacent(cid, room):
             tag = "" if n["ok"] else f" [{n['note']}]"
@@ -432,7 +456,8 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         parts = [
             f"TIME: Day {self.day}, {hhmm(hour)} ({phase_of(hour)}). You are choosing what to do over the next {self.step} hour(s).",
             f"LOCATION: {w.room_name(room)} ({room}). Others here: {', '.join(others) if others else 'nobody'}.",
-            f"VISIBLE ITEMS HERE: {self.items_text(s['room_items'].get(room, {}))}",
+            ("SENSES: You are blind. Locate objects through touch or descriptions; no visual item list is available." if self.blind(cid)
+             else f"VISIBLE ITEMS HERE: {self.items_text(s['room_items'].get(room, {}))}"),
             f"DOORS FROM HERE: {'; '.join(exits)}",
             f"ROOMS YOU CAN REACH THIS TURN: {reach_txt or 'none'}",
             f"YOU: health {a['hp']}/100, sanity {a['sanity']}/100 (you feel {self.mood_text(a)}). Carrying: {self.items_text(a['inv'])}",
@@ -468,6 +493,11 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             else:
                 parts.append(f"YOU ARE THE KILLER of {self.nm(case['victim'])}. Method: {case['method']}. "
                              "Your aim is to avoid being voted out: deflect, lie convincingly, and do not contradict yourself.")
+        parts.append(self.decisions.prompt(cid, hour, offers))
+        parts.append(self.decisions.context(cid))
+        parts.append(self.commitments.context(cid))
+        parts.append(self.emotions.context(cid))
+        parts.append(relationship_context(self.s, cid, self.commitments.now(), self.nm))
         parts.extend(self.extra_decision_lines(cid, hour))
         parts.extend(self.free_lines(cid, hour))
         parts.extend(self.story_decision_lines(cid, hour))
@@ -489,35 +519,21 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             parts.append("TODAY SO FAR: " + (" | ".join(mem["recent"][-12:]) or "(nothing yet)"))
         if hour >= 21:
             parts.append("It is late. People usually head to their own bedroom around 22:00.")
-        acts = "stay|search|take|drop|give|use|rest" + ("|experiment" if self.revealed else "")
+        acts = "|".join(self.decisions.actions(cid, bool(bl)))
         extra = ""
-        if case and case["announced"]:
-            acts += "|investigate|interrogate"
-        if bl:
-            acts += "|build"
-        if self.murders and not case and self.rig_options(cid):
-            acts += "|rig"
-        acts += self.stealth_acts(cid)
-        acts += self.secret_acts(cid)
-        acts += self.door_acts(cid)
-        acts += self.craft_acts(cid)
-        acts += self.itemuse_acts(cid)
-        acts += self.condition_acts(cid)
         if self.murders:
-            acts += "|assault|sabotage"
-            if not case:
-                acts += "|attack"
-            if self.can_end_life(cid):
-                acts += "|end_life"
             extra = ('"target": "<person id for attack, assault or steal>", "method": "<attack: a weapon item id you hold or see here, '
                      "'poison:<item id>' if you hold a poison, or 'hands'; assault: a weapon item id or 'hands'; "
                      "sabotage: 'lights', 'occasion' (ruin the announced event), 'raft' (wreck the raft, in the Boathouse) or 'steal' (with target and item); end_life: how, max 6 words>\", "
                      '"frame": "<person id to frame for this killing with planted evidence, optional; attack only>", '
                      '"also": "<a second person in the room to kill as well, optional; attack only>", '
                      '"plot": null or {"target": "<person id>", "stage": "brooding|preparing|stalking|striking", "method": "<max 10 words>", '
-                     '"step": "<what you do toward it this turn, max 18 words>", "cover": "<your alibi or who you will blame, max 18 words>"}, ')
+                     '"step": "<what you do toward it this turn, max 18 words>", "cover": "<your alibi or who you will blame, max 18 words>"}, "plot_reason": "<concrete reason to abandon or change target, otherwise empty>", ')
+        parts.append("A plot persists unless you give a concrete plot_reason for abandoning it or changing its target. Omit plot to keep your current plan. A null plot without a reason does not cancel it.")
         parts.append(
-            'Reply as JSON: {"thought": "<private, max 20 words>", "action": "' + acts + '", '
+            'Reply as JSON: {"option": "<checked request id>", "reason": "<private first-person motive, max 25 words>", '
+            '"reason_refs": {"commitments": [], "emotions": []}, "say_reason": false, '
+            '"thought": "<private, max 20 words>", "action": "' + acts + '", '
             '"target_room": "<room id to walk to, or empty>", "item": "<item id or empty>", "qty": 1, '
             '"to": "<person id for give, or empty>", ' + extra +
             '"build": null or {"kind": "ladder|rope|plank|remove", "to": "<room id>"}, '
@@ -526,7 +542,10 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             '"secret_from": ["person ids, prank only"], "text": "<max 20 words>"}, '
             '"activity": "<what you do, max 15 words>", '
             '"talk_to": ["<person ids you want to talk to; terevi and neovi are allowed>"], "intent": "<what you want out of it, max 20 words>"' + (self.plan_schema() if self.brain_on() else '') + '}. ' + (self.plan_explain() if self.brain_on() else '') +
-            "Pick something that follows your goals, mood and relationships. Variety matters; do not repeat yesterday's routine.")
+            "Pick something that follows your goals, mood, relationships and existing commitments. Variety is not a reason to abandon an obligation.")
+        parts.append('Optional: "commitment": {"kind": "protect|confront|apologise|ask|thank|promise", "target": "living person id", "hours": 24, "action": "talk|give|visit (promise only)", "item": "item id for give", "room": "room id for visit", "reason": "concrete reason if replacing an existing intention"}. '+
+                     'A promise must be spoken with the recipient present and awake; other intentions are private. Omission keeps existing commitments. '+
+                     'To abandon one, use "drop_commitment": {"id": "your commitment id", "reason": "concrete new information, fear, betrayal, injury or plea"}. Casual reversals within a block are refused; breaking your word has consequences.')
         return "\n".join(parts)
 
     def clean_decision(self, d):
@@ -534,6 +553,10 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             raise ValueError("not a dict")
         return {
             "thought": str(d.get("thought", ""))[:160],
+            "reason": str(d.get("reason") or "")[:200] if isinstance(d.get("reason"), str) else "",
+            "option": str(d.get("option") or "")[:100],
+            "say_reason": d.get("say_reason") is True,
+            "decision_id": str(d.get("decision_id") or "")[:40],
             "action": d.get("action") if d.get("action") in ACTIONS else "stay",
             "target_room": d.get("target_room") if d.get("target_room") in ROOMS else "",
             "item": str(d.get("item", "") or ""),
@@ -548,6 +571,9 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             "idea": str(d.get("idea", "") or "")[:200],
             "host": self.clean_host(d.get("host")),
             "plot": self.clean_plot(d.get("plot")), "plot_given": "plot" in d,
+            "plot_reason": str(d.get("plot_reason") or "").strip()[:180],
+            "commitment": clean_request(d.get("commitment")),
+            "drop_commitment": ({"id": str(d["drop_commitment"].get("id") or ""), "reason": str(d["drop_commitment"].get("reason") or "")[:180]} if isinstance(d.get("drop_commitment"), dict) else None),
             "frame": str(d.get("frame", "") or ""),
             "also": str(d.get("also", "") or ""),
             "wear": str(d.get("wear", "") or ""), "betray": str(d.get("betray", "") or ""), "craft": str(d.get("craft", "") or ""), "door": str(d.get("door", "") or ""), "sleep_in": str(d.get("sleep_in", "") or ""),
@@ -600,13 +626,14 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
 
     def decide_many(self, cids, hour):
         """Decisions for several people: engine-made ones and prompts in order, the model calls in parallel, then each answer cleaned up in order."""
-        res, asks = {}, []
+        res, asks, contexts = {}, [], {}
         for cid in cids:
             got = self.decide_prepare(cid, hour)
             if got[0] == "done":
                 res[cid] = got[1]
             else:
                 sysm, user, ctx = got[1]
+                contexts[cid] = ctx
                 fut = self.ahead_answer(cid, hour)                      # asked for near the end of the last block, if nothing has changed (ahead.py)
                 if fut is not None:
                     asks.append((cid, lambda fut=fut: fut.result()))
@@ -615,7 +642,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         answers = self.ask_parallel(asks)
         for cid, _ in asks:
             raw, err = answers[cid]
-            res[cid] = self.decide_finish(cid, hour, raw, err)
+            res[cid] = self.decide_finish(cid, hour, raw, err, contexts[cid].get("options"))
         return {cid: res[cid] for cid in cids}
 
     def decide_prepare(self, cid, hour):
@@ -630,7 +657,9 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         weapons = [k for k in list(a["inv"]) + list(self.s["room_items"].get(a["room"], {}))
                    if "weapon" in w.item_spec(k).get("tags", [])]
         ctx = {
+            "cid": cid,
             "hour": hour, "room": a["room"], "home": w.cast[cid]["home"],
+            "now": self.day * 24 + hour,
             "reachable": list(w.reachable_rooms(cid, MOVE_BUDGET * self.step).keys()),
             "others_here": [o for o in w.occupants(a["room"]) if o != cid],
             "humans_here": [o for o in w.occupants(a["room"]) if o in w.agents and o != cid],
@@ -640,18 +669,24 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             "investigating": bool(self.s.get("case") and self.s["case"]["announced"]),
             "end_ok": self.murders and self.can_end_life(cid), "plot_ok": self.murders, "brain": self.brain_on(),
         }
+        if self.llm.mock:
+            from .mock_policy import actor_context
+            ctx["actor"] = actor_context(self, cid, hour)
         try:
-            return "ask", (self.system_prompt(cid), self.decision_prompt(cid, hour), ctx)
+            ctx["options"] = self.decisions.offers(cid, hour)
+            return "ask", (self.system_prompt(cid), self.decision_prompt(cid, hour, ctx["options"]), ctx)
         except Exception as e:
             return "done", (self.clean_decision({"activity": "Lost in thought"}), f"{self.nm(cid)} zones out (bad prompt: {str(e)[:80]})")
 
-    def decide_finish(self, cid, hour, raw, err):
+    def decide_finish(self, cid, hour, raw, err, offers=None):
         if err is not None:
             if isinstance(err, LLMError):
                 return self.clean_decision({"activity": "Lost in thought"}), f"{self.nm(cid)} zones out (AI hiccup: {str(err)[:80]})"
             return self.clean_decision({"activity": "Lost in thought"}), f"{self.nm(cid)} zones out (bad reply: {str(err)[:80]})"
         try:
-            d = self.clean_decision(raw)
+            checked, rejection = self.decisions.resolve(cid, hour, raw, offers)
+            d = self.clean_decision(checked or {"activity": "Reconsidering an unavailable request", "action": "stay"})
+            self.decisions.record(cid, hour, raw, d, rejection)
             self.seek_care(cid, d)
             if self.brain_on() and d.get("plan"):
                 self.plan_store(cid, hour, d["plan"])
@@ -681,7 +716,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                     f"When stressed or provoked: {c.get('candor', '')} Secret to protect: {c['secret']} Mood: health {a['hp']}, sanity {a['sanity']} ({self.mood_text(a)}). "
                     f"Doing: {a['activity']}. Carrying: {', '.join(w.item_name(k) + (' (hidden on them: nobody sees it)' if k in a.get('concealed', {}) else '') for k in list(a['inv'])[:10]) or 'nothing'}. "
                     f"Wants: {intents.get(pid, 'just be around people')}. "
-                    f"Toward the others here: {rel or 'n/a'}. {self.mem_card(pid, group) if self.brain_on() else 'Recent memory: ' + (' | '.join(a['memory']['recent'][-6:]) or 'none')}.{extra}" + self.card_extras(pid, group) + self.card_story(pid) + self.card_ties(pid, group) + self.card_tone(pid, group))
+                    f"Toward the others here: {rel or 'n/a'}. {self.mem_card(pid, group) if self.brain_on() else 'Recent memory: ' + (' | '.join(a['memory']['recent'][-6:]) or 'none')}.{extra}" + self.card_extras(pid, group) + self.card_story(pid) + self.card_ties(pid, group) + self.card_tone(pid, group) + " " + self.commitments.context(pid, group) + " " + relationship_context(self.s, pid, self.commitments.now(), self.nm, group) + " " + self.emotions.context(pid, group) + " " + self.decisions.context(pid, group))
             elif pid == "neovi":
                 cards.append(self.neovi_card_text(group))
             elif pid == "terevi":
@@ -800,7 +835,9 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         return (self.bible() + " You are the director of a character-driven adult drama. You write believable dialogue that is funny, tense, awkward, tender or "
                 "vicious as each character's feelings, mood and health demand, strictly in their own voices and with only what each person knows. "
                 "Your dialogue is grounded and human: plain words, short lines, concrete content, no showy cleverness. "
-                "Swearing and insults are fine when they fit the relationship; gratuitous meanness is not. Reply with a single JSON object and nothing else.")
+                "Use the dialogue register: uncensored swearing, playful comebacks and adult innuendo where the tone settings, personalities and mutual interest support them. "
+                "A shy person can get flustered or joke awkwardly; a flirt can be bold without everyone sounding seductive. "
+                "Keep intimacy non-explicit and do not invent attraction, consent, relationships or physical events. Gratuitous meanness is not banter. Reply with a single JSON object and nothing else.")
 
     # ---------- the tick ----------
     SEGMENTS = {8: ("Morning announcement", "TereVi has something to say."), 10: ("Free time", "The morning is yours."), 12: ("Midday gathering", "Everyone is called together."),
@@ -856,6 +893,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         if self.degrade_note:
             tick["events"].append({"type": "system", "who": "terevi", "room": "foyer", "vis": "viewer", "text": self.degrade_note})
             self.degrade_note = None
+        self.commitments.sync(tick)
         self.apply_gm(tick, hour)
         self.light_tick()
 
@@ -940,6 +978,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         attacks.extend(self.spree_override(tick, decisions))
         self.focus_override(decisions)
         self.plot_tick(tick, hour, decisions)
+        self.commitments.sync(tick)
         bk.update(decisions=decisions, intents=intents, attacks=attacks, rest=rest)
 
     def block_arrivals(self, bk):
@@ -1232,10 +1271,16 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         if turn_clock:
             self.clock_to(0.0)
             self._m = float(self._stagger(cid, tick))           # each sets off at their own minute
+        if d.get("drop_commitment"):
+            self.commitments.drop(tick, cid, d["drop_commitment"]["id"], d["drop_commitment"]["reason"])
+        if d.get("commitment") and d["commitment"]["kind"] != "promise":
+            self.commitments.request(tick, cid, d["commitment"])
+        self.commitments.direct(tick, cid, d)
         a["activity"] = d["activity"]
         self.note_acts(cid, d["activity"])
         self.note_decision(cid, d)
         if a.get("out"):
+            self.decisions.applied(tick, cid, d, 'blocked', 'lost consciousness before acting')
             tick["moves"][cid] = {"from": start, "path": [start], "to": start}
             a["activity"] = "Unconscious"
             if turn_clock:
@@ -1243,7 +1288,9 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             return
         if self.restrained(cid) and (d["target_room"] or d["action"] not in ("stay", "rest", "free", "search", "give", "use")):
             d["target_room"], d["action"] = "", "stay"
+            self.decisions.applied(tick, cid, d, why='restraints prevent the requested action')
             w.remember(cid, f"{hhmm(tick['hour'])} You strain against the handcuffs and get nowhere.")
+        self.decisions.applied(tick, cid, d)
         if d.get("night") and tick["hour"] >= 18:
             self.night_votes.add(cid)
         if d.get("sleep_in") in ROOMS and tick["hour"] >= 16:
@@ -1301,6 +1348,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                         self._m = 0.0
                     return
             if mv["blocked"] and not mv["arrived"]:
+                self.decisions.applied(tick, cid, d, 'blocked', 'movement was blocked: ' + mv['blocked'])
                 self.log_event(tick, {"type": "blocked", "who": cid, "room": a["room"], "vis": "public",
                                       "text": f"{name} is stopped: {mv['blocked']}."}, witnesses=w.occupants(a["room"]), actor=cid)
         else:
@@ -1330,8 +1378,10 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
     def arrive_and_act(self, tick, cid, d, intents, attacks, start):
         a = self.world.agents.get(cid)
         if a and d.get("_dest") and a["room"] != d["_dest"]:
+            self.decisions.applied(tick, cid, d, 'blocked', 'did not reach the destination')
             return                                              # they never got there (a fall on the way)
         if a and a["room"] != start and self.arrival_reaction(tick, cid, a["room"], d.get("action"), self._m):
+            self.decisions.applied(tick, cid, d, 'blocked', 'was turned away on arrival')
             return                                              # caught where they had no business, and sent away (intrusion.py)
         if a and not a.get("out"):
             self.apply_act(tick, cid, d, intents, attacks, start)
@@ -1357,6 +1407,11 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         a = w.agents[cid]
         name = self.nm(cid)
         here = [o for o in w.occupants(a["room"]) if o != cid and self.present(o, a["room"])]
+        self.decisions.say(tick, cid, d)
+        if d.get("commitment") and d["commitment"]["kind"] == "promise":
+            self.commitments.request(tick, cid, d["commitment"])
+        self.commitments.arrived(tick, cid, a["room"])
+        self.emotions.remind(tick, cid, a["room"])
         act, item = d["action"], d["item"]
         if act == "take" and item:
             self.do_take(tick, cid, d, here)
@@ -1370,6 +1425,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         elif act == "give" and item and d["to"]:
             q, err = w.give(cid, d["to"], item, d["qty"])
             if q:
+                self.commitments.gave(tick, cid, d["to"], item)
                 self.note_holder(d["to"], item, tick["hour"])
                 self.log_event(tick, {"type": "give", "who": cid, "room": a["room"], "vis": "public",
                                       "text": f"{name} gives {q} x {w.item_name(item)} to {self.nm(d['to'])}."}, witnesses=here, actor=cid)
@@ -1487,6 +1543,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
     def run_conversations(self, tick, groups, intents, hour, mode=None, modes=None):
         w, s = self.world, self.s
         results = {}
+        prompts = {}
 
         asks = []
         for gid, group in groups.items():
@@ -1494,11 +1551,17 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             ctx = {"people": [{"id": p, "name": self.nm(p), "human": p in w.agents,
                                "lines": (w.char(p) or {}).get("mock_lines", [])} for p in group],
                    "mode": (modes or {}).get(gid, mode)}
+            if self.llm.mock:
+                from .mock_policy import actor_context
+                for person in ctx["people"]:
+                    if person["human"]:
+                        person["actor"] = actor_context(self, person["id"], hour, group)
             try:
                 sysm, user = self.talk_system(), self.talk_prompt(room, group, intents, hour, (modes or {}).get(gid, mode))
             except Exception as e:
                 tick["errors"].append(f"conversation in {w.room_name(room)} failed: {str(e)[:80]}")
                 continue
+            prompts[gid] = self.vkeep(sysm, user, ctx)
             asks.append((gid, lambda sysm=sysm, user=user, ctx=ctx: self.llm.converse(sysm, user, ctx)))
         for gid, (res, err) in self.ask_parallel(asks).items():
             if err is not None:
@@ -1528,6 +1591,8 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
             if not lines:
                 continue
             entry = {"room": room, "lines": lines}
+            if prompts.get(gid):
+                entry["vp"] = prompts[gid]
             entry.update((getattr(self, "_talk_meta", None) or {}).get(gid, {}))
             tick["talk"].append(entry)
             self.last_talk[room] = [(f"*{self.nm(l['speaker'])} {l['text']}*" if l["kind"] == "act" else f"{self.nm(l['speaker'])}: {l['text']}") for l in lines]
@@ -1560,6 +1625,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         self.last_effects[room] = fx
         why = fx.get("why") or {}
         changed = set()
+        positive_pairs = set()
         for key, lim in (("sanity", 4), ("hp", 3)):
             for cid, dl in (fx.get(key) or {}).items():
                 if cid in w.agents and cid in group:
@@ -1579,6 +1645,8 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                 continue
             if a in group and b in group and a != b and dl:
                 self.adjust_any_aff(a, b, dl)
+                if dl > 0:
+                    positive_pairs.add((a, b))
                 if dl <= -2:
                     self.day_notable.append(f"{self.nm(a)}'s feelings toward {self.nm(b)} soured.")
                 # The interaction itself moves both people's mood unless the scene already set it.
@@ -1587,6 +1655,9 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                     if (who, "sanity") not in changed:
                         self.stat(tick, who, "sanity", mood, f"{self.nm(a)} and {self.nm(b)}: {dl:+d}")
                         changed.add((who, "sanity"))
+        for a, b in sorted(positive_pairs):
+            if (b, a) in positive_pairs:
+                closeness(self.s, a, b, self.commitments.now(tick), "a mutually warm conversation")
         for sp_ in (fx.get("special") or [])[:3]:
             try:
                 kind_, who_ = sp_["kind"], sp_["who"]
@@ -1599,7 +1670,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                     depth = 1
                 for cid in who_[:6]:
                     if cid in w.agents and cid in group:
-                        others = [o for o in who_ if o != cid and o in w.agents]
+                        others = [o for o in who_ if o != cid and o in w.agents and o in group]
                         close = (sum(w.agents[cid]["aff"].get(o, 0) for o in others) / len(others)) if others else 0
                         mult = 1.0 + (0.5 if close >= 5 else 0) + (0.5 if close >= 8 else 0)
                         if kind_ in ("comfort", "confession", "romance", "vigil"):
@@ -1608,6 +1679,9 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
                         if kind_ in ("comfort", "confession", "romance", "gift", "teamwork") and others:
                             why_ = str(sp_.get("why") or kind_)[:50]
                             for o_ in others[:2]:
+                                closeness(self.s, cid, o_, self.commitments.now(tick), kind_)
+                                move_ = {'romance': 'flirt', 'confession': 'confide'}.get(kind_, kind_)
+                                self.emotions.social(tick, cid, o_, move_, 'ok')
                                 self.add_tie(cid, o_, "close", f"{kind_} with {self.nm(o_)} ({why_}) on day {self.day}", 1 if depth >= 2 else 0)
         for rv in (fx.get("reveals") or [])[:2]:
             if isinstance(rv, dict) and isinstance(rv.get("to"), list):
@@ -2128,6 +2202,7 @@ class DayRunner(CaseMixin, TrialMixin, LifeMixin, RoutesMixin, MayhemMixin, Dire
         for cid in ids:
             text = self.reflect_apply(cid, tick, *answers[cid]).strip()
             r_, err_ = answers[cid]
+            self.decisions.reflect(tick, cid, r_ if err_ is None else None)
             self.reflect_choices(cid, tick, r_ if err_ is None else None)       # structured choices (reflection.py)
             mem = w.agents[cid]["memory"]
             mem["diary"].append(f"Day {self.day}: {text}")

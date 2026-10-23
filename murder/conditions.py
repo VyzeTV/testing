@@ -158,7 +158,7 @@ class ConditionMixin:
         return min(0.6, self.cond_mod(cid, "atk"))
 
     def blind(self, cid):
-        return self.has_cond(cid, "blinded")
+        return self.has_trait(cid, "blind") or self.has_cond(cid, "blinded")
 
     def cond_slip(self, cid):
         return min(0.5, self.cond_mod(cid, "slip"))

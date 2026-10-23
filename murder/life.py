@@ -209,6 +209,9 @@ class LifeMixin:
         a = w.agents.get(observer)
         if not a or observer == fact["who"]:
             return
+        if self.blind(observer):
+            w.remember(observer, f"{_hh(max(0, min(23, fact['hour'])))} (heard) Movement nearby, without visual identification.")
+            return
         subj = w.all_agents.get(fact["who"])
         if subj and subj.get("sneaking") and fact["type"] in ("leave", "arrive", "pass"):
             if self.rng.random() >= self.notice_p(observer, fact["who"]):

@@ -138,8 +138,11 @@ class BrainMixin:
         """The memory part of a conversation card: the last few things, and what this person remembers about the people they are talking to."""
         a = self.world.agents[cid]
         others = [o for o in group if o != cid and o in self.world.agents]
-        rec = a["memory"]["recent"][-3:]
-        rel = self.mem_recall(cid, others, [], a["room"], k=k, skip_recent=2)
+        rec = [t for t in a["memory"]["recent"] if '(private)' not in t.lower()][-3:]
+        # Diaries can repeat unspoken motives. They remain owner-only even when
+        # retrieved as relevant memories about somebody in this conversation.
+        rel = [m for m in self.mem_recall(cid, others, [], a["room"], k=k, skip_recent=2)
+               if m['k'] not in ('diary', 'arc', 'private') and '(private)' not in m['t'].lower()]
         parts = []
         if rel:
             parts.append("Remembers about them: " + " | ".join(self.mem_lines(rel, 100)))

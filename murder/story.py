@@ -48,6 +48,7 @@ class StoryMixin:
 
     def bible(self):
         return ((STORY_BIBLE if self.revealed else STORY_BIBLE_INTRO) + scn.bible_extra(self.s.get("scenario"), self.revealed)
+                + self.dialogue_guide()
                 + ("\nEVIDENCE: the house cameras are TereVi's; nobody in the cast can see their footage. Only cite a recording if you really have one "
                    "(a still NeoVi showed you, a tape or a camera of your own) and say where it came from." if self.revealed else "")
                 + (self.tone_guide() if self.revealed else ""))
@@ -165,14 +166,18 @@ class StoryMixin:
             old = plots.get(cid)
             name = self.nm(cid)
             if new is None:
-                if old:
-                    del plots[cid]
+                if old and d.get("plot_reason"):
+                    self.abandon_plot(tick, cid, d["plot_reason"])
                     self.log_event(tick, {"type": "plot", "who": cid, "room": w.agents[cid]["room"], "vis": "viewer",
                                           "text": f"{name} gives up the plan to kill {self.nm(old['target'])}."}, actor=cid)
                 continue
             if new["target"] == cid:
                 continue
             room = w.agents[cid]["room"]
+            if old and old["target"] != new["target"]:
+                if not d.get("plot_reason"):
+                    continue
+                self.abandon_plot(tick, cid, d["plot_reason"])
             if not old or old["target"] != new["target"]:
                 plots[cid] = self.plot_defaults(dict(new, log=[], quiet=0, since=f"Day {self.day} {_hh(hour)}", origin="model"))
                 self.plan_note(plots[cid], f"began to plan {self.nm(new['target'])}'s death")
@@ -183,7 +188,10 @@ class StoryMixin:
                 self.tally(cid, "plots")
             else:
                 changed = new["stage"] != old["stage"] or (new["step"] and new["step"] != old["step"])
-                old.update({k: new[k] for k in ("method", "cover") if new[k]})
+                if new["cover"]:
+                    old["cover"] = new["cover"]
+                if not old.get("scheme") and new["method"]:
+                    old["method"] = new["method"]
                 if STAGE_RANK.get(new["stage"], 0) > STAGE_RANK.get(old["stage"], 0):
                     old["stage"], old["stage_ticks"] = new["stage"], 0
                 if new["step"]:
@@ -210,7 +218,7 @@ class StoryMixin:
             if cid in w.agents and (t_ not in w.agents or w.agents[cid]["aff"].get(t_, 0) >= 5):
                 self.log_event(tick, {"type": "plot", "who": cid, "room": w.agents[cid]["room"], "vis": "viewer",
                                       "text": f"{self.nm(cid)} no longer wants {self.nm(t_)} dead." if t_ in w.agents else f"{self.nm(cid)}'s target is gone, and the plan dies with it."}, actor=cid)
-                del plots[cid]
+                self.abandon_plot(tick, cid, "affection for the target recovered" if t_ in w.agents else "the target is no longer on the island")
         # plots now live on across turns and days (see plotting.py); they end when abandoned, when the target is gone, or in a strike
 
     def plot_lines(self, cid):
@@ -488,9 +496,11 @@ class StoryMixin:
     # ------------------------------------------------------------------ Day 1: introductions and the reveal
     def intro_decision_lines(self, cid, hour):
         w, s = self.world, self.s
-        out = ["IT IS YOUR FIRST DAY. You are on a thriller-themed reality show with seven strangers, a cheerful AI host (TereVi) and a silent housemaid (NeoVi). "
+        out = ["IT IS YOUR FIRST DAY. You are on a thriller-themed reality show with seven other participants, a cheerful AI host (TereVi) and a silent housemaid (NeoVi). "
                "Meet people you have not met yet: introduce yourself one-on-one, size them up, find allies and rivals, explore the house and grounds. "
                "TereVi has announced introductions in the Dining Hall at 10:00 and a special announcement this evening. Nobody has told you of any danger."]
+        if cid in ("akira", "vincent") and {"akira", "vincent"} <= set(w.agents):
+            out.append("Akira and Vincent already know each other as childhood friends. Recognize that history, while learning who the other has become. It does not establish a current romance.")
         oc = s.get("occasion")
         if oc and oc["status"] == "announced" and (cid == oc["host"] or cid in oc["invite_ids"]):
             out.append(f"INVITATION: {self.nm(oc['host'])} is hosting a {oc['kind']} in the {w.room_name(oc['where'])} this turn: {oc['text']}.")

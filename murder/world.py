@@ -5,7 +5,8 @@ import json
 import random
 
 from .data_world import ROOMS, EDGES, ITEMS, ROOM_ITEMS, HIDDEN_ITEMS, POTENTIAL_LINKS, BUILD_RECIPES, ESCAPE_ROUTES, COMMON_ITEMS
-from .data_cast import CHARACTERS, HOSTS, DEFAULT_DRIVES, DEFAULT_ROUTES
+from .data_cast import CHARACTERS, LEGACY_CAST_IDS, HOSTS, DEFAULT_DRIVES, DEFAULT_ROUTES
+from .casting import slot_for, select_cast, FRESH_GOALS, FRESH_SECRETS, FRESH_LINES
 
 MOVE_BUDGET = 40          # minutes of walking available per one-hour tick
 MAX_CARRY = 30            # total item count an agent can carry
@@ -27,7 +28,7 @@ def clamp(v, lo=0, hi=100):
     return max(lo, min(hi, int(round(v))))
 
 
-CAST_FIELDS = ["name", "short", "role", "gender", "pron", "age", "origin", "home", "color", "card", "persona",
+CAST_FIELDS = ["name", "short", "role", "gender", "casting_slot", "pron", "age", "birthday", "height_cm", "weight_kg", "origin", "home", "color", "card", "persona",
                "secret", "likes", "dislikes", "speech", "candor", "goals", "mock_lines", "body", "objection", "traits", "facets", "values"]
 BEDROOMS = ["blue_room", "green_room", "yellow_room", "red_room", "violet_room", "orange_room", "grey_room", "white_room"]      # one each: nobody shares a bedroom
 NEWCOMER_COLORS = ["#d96bff", "#6bd9a0", "#ffd36b", "#6bb8ff", "#ff8f6b", "#b0e05a", "#e05a9a", "#5ad0e0"]
@@ -47,32 +48,53 @@ def new_escape():
             "routes": {rid: {"plan": {k: 0 for k in r["steps"]}, "contributors": [], "attempts": 0} for rid, r in ESCAPE_ROUTES.items()}}
 
 
-def shuffled_homes(rng=None):
-    """Random bedrooms: the 8 starting characters, one to a room, in a random order of rooms."""
+def shuffled_homes(rng=None, cast_ids=None):
+    """Assign unique bedrooms to the selected cast (the historical eight by default)."""
     rng = rng or random.Random()
-    ids = list(CHARACTERS)
+    ids = list(cast_ids if cast_ids is not None else LEGACY_CAST_IDS)
+    if len(ids) > len(BEDROOMS):
+        raise ValueError("There are not enough bedrooms for this cast")
     rng.shuffle(ids)
     rooms = list(BEDROOMS)
     rng.shuffle(rooms)
-    return {cid: rooms[i % len(rooms)] for i, cid in enumerate(ids)}
+    return {cid: rooms[i] for i, cid in enumerate(ids)}
 
 
-def new_state(start_day=3, shuffle_rooms=False):
-    """Seed the world as of the end of Day 2 (or a fresh Day 1 if start_day == 1). With shuffle_rooms the bedroom pairings are random."""
+def new_state(start_day=3, shuffle_rooms=False, *, randomize_cast=False, rng=None):
+    """Build a world. Live seasons randomize casting; historical fixtures keep the original eight.
+
+    Passing a seeded RNG makes casting and bedrooms reproducible without global randomness.
+    A newly cast season has no invented encounters or relationships from the historical save.
+    """
     agents = {}
     cast = {}
-    homes = shuffled_homes() if shuffle_rooms else {}
-    for cid, c in CHARACTERS.items():
+    rng = rng if rng is not None else random.Random()
+    ids = select_cast(rng) if randomize_cast else list(LEGACY_CAST_IDS)
+    homes = shuffled_homes(rng, ids) if shuffle_rooms else {}
+    if randomize_cast and not shuffle_rooms:
+        free_rooms = list(BEDROOMS)
+        for cid in ids:
+            preferred = CHARACTERS[cid]["home"]
+            homes[cid] = preferred if preferred in free_rooms else free_rooms[0]
+            free_rooms.remove(homes[cid])
+    for cid in ids:
+        c = CHARACTERS[cid]
         s = c["start"] if start_day > 1 else {"hp": 100, "sanity": 100}
-        cast[cid] = {k: c[k] for k in CAST_FIELDS if k in c}
+        cast[cid] = {k: copy.deepcopy(c[k]) for k in CAST_FIELDS if k in c}
         if cid in homes:
             cast[cid]["home"] = homes[cid]
+        if randomize_cast:
+            cast[cid]["goals"] = FRESH_GOALS.get(cid, c["goals"])
+            cast[cid]["secret"] = FRESH_SECRETS.get(cid, c["secret"])
+            if cid in FRESH_LINES:
+                cast[cid]["mock_lines"] = list(FRESH_LINES[cid])
         agents[cid] = {
             "status": "alive", "drive": {"id": DEFAULT_DRIVES.get(cid, "survivor"), "target": None, "arc": ""}, "known_secrets": [],
             "room": cast[cid]["home"], "hp": s["hp"], "sanity": s["sanity"],
             "inv": dict(c["inv"]), "known": [], "activity": "Waking up",
-            "aff": dict(c["aff"]) if start_day > 1 else {k: 0 for k in c["aff"]},
-            "memory": {"diary": list(c["diary"]) if start_day > 1 else [], "recent": [], "notes": [], "lost": [], "moments": []},
+            "aff": ({k: v if start_day > 1 else 0 for k, v in c["aff"].items() if k in ids}
+                    if not randomize_cast else {k: 0 for k in ids if k != cid}),
+            "memory": {"diary": list(c["diary"]) if start_day > 1 and not randomize_cast else [], "recent": [], "notes": [], "lost": [], "moments": []},
         }
     hidden = {room: [dict(h, found=False) for h in lst] for room, lst in HIDDEN_ITEMS.items()}
     return {
@@ -115,8 +137,17 @@ def new_state(start_day=3, shuffle_rooms=False):
 
 def upgrade_state(state):
     """Fill in keys added after a state file was first saved."""
+    from .commitments import upgrade
+    upgrade(state)
+    from .relationships import upgrade as upgrade_relationships
+    upgrade_relationships(state)
+    from .emotions import upgrade as upgrade_emotions
+    upgrade_emotions(state)
+    from .decisions import upgrade as upgrade_decisions
+    upgrade_decisions(state)
     if "cast" not in state:
-        state["cast"] = {cid: {k: c[k] for k in CAST_FIELDS if k in c} for cid, c in CHARACTERS.items()}
+        state["cast"] = {cid: {k: copy.deepcopy(CHARACTERS[cid][k]) for k in CAST_FIELDS if k in CHARACTERS[cid]}
+                         for cid in state["agents"] if cid in CHARACTERS}
     for a in state["agents"].values():
         a.setdefault("status", "alive")
     state.setdefault("week_len", 7)
@@ -215,7 +246,7 @@ def upgrade_state(state):
         seed = CHARACTERS.get(cid)
         for k in CAST_FIELDS:
             if k not in c and seed and k in seed:
-                c[k] = seed[k]
+                c[k] = copy.deepcopy(seed[k])
     return state
 
 
@@ -260,6 +291,9 @@ class World:
     def cast(self):
         return self.state["cast"]
 
+    def casting_slot(self, cid):
+        return slot_for(self.cast[cid])
+
     def char(self, cid):
         return self.state["cast"].get(cid) or HOSTS.get(cid)
 
@@ -276,9 +310,11 @@ class World:
         """Mark a participant as dead / executed / escaped and record it."""
         a = self.state["agents"][cid]
         a["status"] = status
-        self.state["plots"].pop(cid, None)
-        for pl in list(self.state["plots"]):
-            if self.state["plots"][pl].get("target") == cid:
+        from .plan_history import record_change
+        for pl, plot in list(self.state["plots"].items()):
+            if pl == cid or plot.get("target") == cid:
+                reason = f"the plotter is {status}" if pl == cid else f"the target is {status}"
+                record_change(self.state, plot, pl, self.state["day"], self.state.get("_hour", 12), "ended", reason)
                 del self.state["plots"][pl]
         self.state["graveyard"].append({"id": cid, "status": status, "day": self.state["day"], "room": a["room"], "how": how or status})
 
@@ -298,7 +334,7 @@ class World:
         color = NEWCOMER_COLORS[len(self.state["cast"]) % len(NEWCOMER_COLORS)]
         self.state["cast"][cid] = {
             "name": name, "short": name.split()[0], "role": spec.get("role") or "Newcomer", "gender": gender,
-            "pron": "she" if gender == "female" else "he", "age": int(spec.get("age") or 25),
+            "casting_slot": slot_for(spec), "pron": spec.get("pron") or ("she" if gender == "female" else "he"), "age": int(spec.get("age") or 25),
             "origin": spec.get("origin") or "Unknown", "home": home, "color": color, "card": "",
             "persona": spec.get("persona") or "A newcomer with a story of their own.",
             "secret": spec.get("secret") or "They have something they would rather keep to themselves.",
@@ -329,7 +365,7 @@ class World:
         self.state["arrivals"].append(cid)
         # fill the matching vacancy
         for i, v in enumerate(self.state["vacancies"]):
-            if v["gender"] == gender:
+            if v["gender"] == slot_for(spec):
                 del self.state["vacancies"][i]
                 break
         return cid
@@ -710,6 +746,9 @@ class World:
 
     def adjust_aff(self, a, b, delta):
         if a in self.agents and b in self.agents[a]["aff"]:
+            if int(delta) < 0:
+                from .relationships import distrust
+                distrust(self.state, a, b, -int(delta))
             aff = self.agents[a]["aff"]
             aff[b] = max(-10, min(10, aff[b] + int(delta)))
 
@@ -739,7 +778,7 @@ class World:
             "factions": [dict(f) for f in s.get("factions", [])],
             "graveyard": [dict(g) for g in s.get("graveyard", [])],
             "rule": ({k: v for k, v in s["rule"].items() if k != "violations_log"} if s.get("rule") else None),
-            "bonds": [dict(b) for b in s["bonds"]], "escape": {"progress": s["escape"]["progress"], "clues": list(s["escape"]["clues"])[-6:],
+            "bonds": [dict(b) for b in s["bonds"]], "bond_changes": copy.deepcopy(s.get("bond_history", [])[-40:]), "escape": {"progress": s["escape"]["progress"], "clues": list(s["escape"]["clues"])[-6:],
                                               "routes": {rid: dict(r["plan"]) for rid, r in s["escape"]["routes"].items()}},
             "island": dict(s["island"]) if s.get("island") else None,
             "threats": [{k: t[k] for k in ("target", "demand", "due_day", "due_hour", "status")} for t in s.get("threats", [])],
@@ -757,7 +796,7 @@ class World:
             "broken_doors": list(s.get("broken", [])),
             "barricades": [{"edge": eid, "inside": b["inside"], "prop": b.get("prop_name") or b["prop"]} for eid, b in s.get("blocks", {}).items()],
             "stash": [{"room": x["room"], "spot": x["spot"], "items": dict(x["items"]), "by": x["by"]} for x in s.get("stash", [])],
-            "agents": {cid: {"status": v.get("status", "alive"), "room": v["room"], "hp": v["hp"], "sanity": v["sanity"], "hiding": bool(v.get("hiding")), "concealed": list(v.get("concealed", {})), "outfit": v.get("outfit"), "conds": v.get("conds_view") or [], "out": v.get("out_view"), "mind": v.get("mind_view"), "brain": v.get("brain_view"), "beliefs": v.get("beliefs_view") or [],
+            "agents": {cid: {"status": v.get("status", "alive"), "room": v["room"], "hp": v["hp"], "sanity": v["sanity"], "hiding": bool(v.get("hiding")), "concealed": list(v.get("concealed", {})), "outfit": v.get("outfit"), "conds": v.get("conds_view") or [], "out": v.get("out_view"), "mind": v.get("mind_view"), "brain": v.get("brain_view"), "beliefs": v.get("beliefs_view") or [], "commitments": v.get("commitments_view") or [], "emotions": v.get("emotions_view") or [], "decisions": v.get("decisions_view") or [],
                              "inv": dict(v["inv"]), "activity": v["activity"], "known": list(v["known"]),
                              "drive": dict(v.get("drive", {})), "secrets": [dict(k) for k in v.get("known_secrets", [])],
                              "lost": [x["name"] for x in v["memory"].get("lost", [])], "moments": list(v["memory"].get("moments", []))[-4:],

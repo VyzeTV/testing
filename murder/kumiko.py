@@ -17,6 +17,7 @@ KumikoMixin is mixed into DayRunner (engine.py).
 """
 from .data_cast import HOSTS
 from .world import BEDROOMS
+from .relationships import bond_allowed, bond_time, record_bond, closeness
 
 KUMIKO_ID = "kumiko"
 KUMIKO = {"name": "Kumiko Akimoto", "short": "Kumiko", "role": "Former Housemaid", "gender": "female", "age": 24, "origin": "Japan",
@@ -60,6 +61,7 @@ class KumikoMixin:
         if o and (o not in self.world.agents or min(nv["aff"].get(o, 0), self.nv_feel(o)) < 3):
             if o not in self.world.agents and self.world.state["agents"].get(o, {}).get("status") == "dead":
                 nv["sanity"] = max(0, nv.get("sanity", 70) - 15)          # she grieves where nobody can see
+            record_bond(self.s, {"a": "neovi", "b": o, "kind": "romance"}, bond_time(self.day, self.s.get("_hour", 12)), "ended", "feelings cooled" if o in self.world.agents else "partner gone")
             nv["lover"] = None
             o = None
         return o
@@ -100,10 +102,13 @@ class KumikoMixin:
                                     f"NeoVi brings {name} a cup of tea nobody asked for and sits on the end of the bed for a while.",
                                     f"{name} catches NeoVi mid-round, and for once she does not hurry away."])
         self.neovi_event(tick, cid, text)
+        if mine >= 2 and theirs >= 2:
+            closeness(self.s, "neovi", cid, bond_time(self.day, tick["hour"]), "a welcomed private visit")
         if mine >= 5 and theirs >= 5:
             out["confided"] = self.neovi_confide(tick, cid)
-        if lover is None and mine >= 7 and theirs >= 7 and self.facet(cid, "romantic") >= 45 and self.rng.random() < 0.35:
+        if lover is None and mine >= 7 and theirs >= 7 and self.facet(cid, "romantic") >= 45 and bond_allowed(self.s, "neovi", cid, "romance", bond_time(self.day, tick["hour"])) and self.rng.random() < 0.35:
             nv["lover"] = cid
+            record_bond(self.s, {"a": "neovi", "b": cid, "kind": "romance"}, bond_time(self.day, tick["hour"]), "formed", "mutual affection")
             nv.setdefault("lovers", []).append(cid)
             self.neovi_event(tick, cid, f"Something changes between {name} and NeoVi tonight. Neither of them says what.")
             self.moment(cid, "fell for NeoVi (Kumiko)")
@@ -282,7 +287,23 @@ class KumikoMixin:
                 w.agents[c]["aff"][KUMIKO_ID] = self.nv_feel(c)
         lover = self.neovi_lover()
         if lover:
-            s.setdefault("bonds", []).append({"a": lover, "b": KUMIKO_ID, "kind": "romance", "since": self.day})
+            formed = next((e["at"] for e in reversed(s.get("bond_history", [])) if e["kind"] == "romance" and e["action"] == "formed" and {e["a"], e["b"]} == {lover, "neovi"}), self.day * 24)
+            s.setdefault("bonds", []).append({"a": lover, "b": KUMIKO_ID, "kind": "romance", "since": int(formed // 24), "formed_at": formed})
+        from .relationships import rename_person
+        rename_person(s, "neovi", KUMIKO_ID)
+        from .decisions import rename_person as rename_decisions
+        rename_decisions(s, 'neovi', KUMIKO_ID)
+        if 'neovi' in s.get('emotions', {}):
+            records = s['emotions'].setdefault(KUMIKO_ID, [])
+            records.extend(s['emotions'].pop('neovi'))
+            for feeling in records:
+                feeling['who'] = KUMIKO_ID
+        for feelings in s.get('emotions', {}).values():
+            for feeling in feelings:
+                if feeling.get('target') == 'neovi':
+                    feeling['target'] = KUMIKO_ID
+                feeling['known_by'] = [KUMIKO_ID if p == 'neovi' else p for p in feeling['known_by']]
+        nv["lover"] = None
         nv["room"] = "none"
         nv["participant"] = True
         self.neovi_arc()["fate"] = "participant"

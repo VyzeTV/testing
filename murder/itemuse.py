@@ -69,11 +69,11 @@ class ItemUseMixin:
     def in_dark(self, cid):
         """Blind in a blackout: the power is out and this person has no light."""
         a = self.world.agents.get(cid)
-        return self.has_cond(cid, "blinded") or (self.blackout_until >= self.idx and not (a or {}).get("lit"))
+        return self.blind(cid) or (self.blackout_until >= self.idx and not (a or {}).get("lit"))
 
     # ------------------------------------------------------------------ optics
     def has_optics(self, cid):
-        return any(self.has(cid, k) for k in OPTICS)
+        return not self.blind(cid) and any(self.has(cid, k) for k in OPTICS)
 
     def far_spy_ok(self, cid, tgt):
         w = self.world
@@ -81,6 +81,8 @@ class ItemUseMixin:
         return self.has_optics(cid) and ROOMS[here][1] in ("grounds", "roof") and ROOMS[tgt][1] in ("grounds", "roof") and here != tgt
 
     def far_look(self, tick, cid, tgt):
+        if self.blind(cid):
+            return
         w = self.world
         seen = [o for o in w.occupants(tgt, include_npcs=False) if o in w.agents and o != cid]
         if not seen:
@@ -92,6 +94,8 @@ class ItemUseMixin:
 
     # ------------------------------------------------------------------ magnifying glass
     def fine_visible(self, cid, clue):
+        if self.blind(cid):
+            return False
         if clue.get("kind") not in FINE_KINDS:
             return True
         return self.has(cid, "magnifying_glass") or self.rng.random() < 0.5 * self.sharpness(cid)

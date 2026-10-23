@@ -149,6 +149,71 @@ class EngineStoryChecks(unittest.TestCase):
                                 rule_mode="none", confessionals=False)
         self.runner.init_item_log()
 
+    def test_actual_voice_prompt_gets_adult_register_before_and_after_reveal(self):
+        from murder.voice import voice_prompt
+        r, w = self.runner, self.world
+        a, b = sorted(w.agents)[:2]
+        for revealed in (False, True):
+            w.state["revealed"] = revealed
+            system, user = voice_prompt(r, {"members": [a, b], "room": "foyer", "hour": 8},
+                                        [{"who": a, "to": b, "move": "joke", "outcome": "ok", "m": 5}])
+            self.assertIn("uncensored", system)
+            self.assertIn("innuendo", system)
+            self.assertIn("fade to black before sexual activity", system)
+            self.assertIn(f"age {w.cast[a]['age']}", user)
+            self.assertIn(w.cast[a]["candor"], user)
+            self.assertIn("never change who wins or loses", user)
+            if not revealed:
+                self.assertNotIn("horror-film explicit", system)
+
+    def test_tone_off_preserves_relationships_without_requesting_spicy_dialogue(self):
+        r = self.runner
+        r.tuning_get = lambda: {"flirt_level": 0, "banter_level": 0}
+        guide = r.bible()
+        self.assertIn("Do not add sexual innuendo", guide)
+        self.assertIn("preserve existing relationship facts", guide)
+        self.assertNotIn("cheekily dirty", guide)
+        self.assertNotIn("Nobody here is interested in romance", guide)
+        self.assertIn("uncensored", guide)
+
+    def test_mock_banter_respects_mutual_comfort_and_tone_setting(self):
+        from unittest.mock import Mock
+        from murder.voice import template_line
+        r, w = self.runner, self.world
+        a, b = sorted(w.agents)[:2]
+        rng = Mock(random=lambda: 1.0, choice=lambda lines: lines[0])
+        beat = {"who": a, "to": b, "move": "joke", "outcome": "ok"}
+        w.agents[a]["aff"][b] = w.agents[b]["aff"][a] = 3
+        self.assertIn("fucking", template_line(r, beat, rng)["text"])
+        r.tuning_get = lambda: {"banter_level": 0}
+        self.assertNotIn("fucking", template_line(r, beat, rng)["text"])
+        r.tuning_get = lambda: {"banter_level": 2}
+        w.agents[b]["aff"][a] = -3
+        self.assertNotIn("fucking", template_line(r, beat, rng)["text"])
+        self.assertNotIn("trades", r.card_tone(a, [a, b]))
+
+    def test_mock_flirting_is_nonphysical_and_needs_adult_mutual_interest(self):
+        from unittest.mock import Mock
+        from murder.voice import template_line
+        r, w = self.runner, self.world
+        a, b = sorted(w.agents)[:2]
+        rng = Mock(random=lambda: 1.0, choice=lambda lines: lines[0])
+        beat = {"who": a, "to": b, "move": "flirt", "outcome": "ok"}
+        w.agents[a]["aff"][b] = w.agents[b]["aff"][a] = 9
+        w.state["bonds"] = [{"a": a, "b": b, "kind": "romance", "since": 3}]
+        line = template_line(r, beat, rng)
+        self.assertEqual(line["kind"], "say")
+        self.assertIn("difficult to behave", line["text"])
+        self.assertEqual(len(w.state["bonds"]), 1)
+        self.assertEqual(w.agents[a]["aff"][b], 9)
+        beat["outcome"] = "fail"
+        self.assertNotIn("difficult to behave", template_line(r, beat, rng)["text"])
+        beat["outcome"] = "ok"
+        w.cast[b]["age"] = 17
+        self.assertEqual(r.flirty_pairs([a, b]), [])
+        self.assertFalse(r.free_tonight(b))
+        self.assertNotIn("difficult to behave", template_line(r, beat, rng)["text"])
+
     def test_madness_threshold_announced_once_per_window(self):
         r, w = self.runner, self.world
         cid = sorted(w.agents)[0]

@@ -24,6 +24,7 @@ class ReflectionMixin:
         return (' Also pick 0 to 3 "choices" that today really changed, from this menu only: {"kind": "trust", "about": id, "dir": "down" or "up"}, '
                 '{"kind": "protect", "about": id}, {"kind": "reread", "about": id} (something they did now reads as a threat), '
                 '{"kind": "resolve", "about": id, "act": "confront" or "apologise" or "ask" or "thank"} (what they will do tomorrow). '
+                'Existing commitments persist. Add a concrete "reason" to replace a protection vow or unfinished intention; omission keeps it. '
                 f"People: {ids}.")
 
     def valid_choices(self, cid, raw):
@@ -38,7 +39,7 @@ class ReflectionMixin:
                 continue
             if any(o["kind"] == c["kind"] and o["about"] == c["about"] for o in out):
                 continue
-            out.append({k: c[k] for k in ("kind", "about", "dir", "act") if k in c})
+            out.append({k: c[k] for k in ("kind", "about", "dir", "act", "reason") if k in c})
         return out[:MAX_CHOICES]
 
     def threshold_choices(self, cid):
@@ -84,11 +85,20 @@ class ReflectionMixin:
                 a.setdefault("distrust", {})[x] = self.day
                 txt = f"{nm(cid)} no longer trusts {nm(x)}."
             elif k == "trust":
+                from .relationships import earn_trust, trust, wary
                 w.adjust_aff(cid, x, 1)
-                again = a.get("distrust", {}).pop(x, None) is not None
-                txt = f"{nm(cid)} decides to trust {nm(x)} again." if again else f"{nm(cid)} trusts {nm(x)} a little more."
+                now = self.commitments.now(tick)
+                earn_trust(s, cid, x, now)
+                if wary(s, cid, x, now) or trust(s, cid, x) < 2:
+                    txt = f"{nm(cid)} trusts {nm(x)} a little more, but remains cautious."
+                else:
+                    again = a.get("distrust", {}).pop(x, None) is not None
+                    txt = f"{nm(cid)} decides to trust {nm(x)} again." if again else f"{nm(cid)} trusts {nm(x)} a little more."
             elif k == "protect":
-                a["commit"] = {"protect": x, "day": self.day, "until": self.day + 3}
+                previous = {o["id"] for o in self.commitments.active(cid)}
+                vow = self.commitments.request(tick, cid, {"kind": "protect", "target": x, "hours": 72, "reason": c.get("reason")})
+                if not vow or vow["id"] in previous:
+                    continue
                 a["want_talk"] = {"who": [x], "day": self.day + 1, "why": f"keep an eye on {nm(x)}"}
                 txt = f"{nm(cid)} resolves to protect {nm(x)}."
             elif k == "reread":
@@ -100,7 +110,12 @@ class ReflectionMixin:
             else:
                 why = {"confront": f"confront {nm(x)}", "apologise": f"apologise to {nm(x)}", "ask": f"ask {nm(x)} what is really going on",
                        "thank": f"thank {nm(x)}"}[c["act"]]
-                a["want_talk"] = {"who": [x], "day": self.day + 1, "why": why}
+                previous = {o["id"] for o in self.commitments.active(cid)}
+                intention = self.commitments.request(tick, cid, {"kind": c["act"], "target": x, "hours": 24, "reason": c.get("reason")})
+                if not intention or intention["id"] in previous:
+                    continue
+                intention.setdefault("not_before", (self.day + 1) * 24 + 8)
+                a["want_talk"] = {"who": [x], "day": self.day + 1, "why": why, "commitment_id": intention["id"]}
                 txt = f"{nm(cid)} plans to {why} tomorrow."
             done.append(txt)
             st = s.setdefault("reflect_stats", {})
@@ -123,5 +138,8 @@ class ReflectionMixin:
         return x in (self.s.get("plots") or {}) or self.s.get("stats", {}).get(x, {}).get("kills", 0) > 0
 
     def committed_to(self, cid, x):
+        for c in self.commitments.active(cid):
+            if c["kind"] in ("protect", "pact") and c.get("target") == x and (c["due"] is None or self.commitments.now() < c["due"]):
+                return True
         c = (self.world.agents.get(cid) or {}).get("commit") or {}
-        return c.get("protect") == x and self.day <= c.get("until", 0)
+        return not c.get("commitment_id") and c.get("protect") == x and self.day <= c.get("until", 0)

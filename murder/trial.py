@@ -111,6 +111,7 @@ class TrialMixin:
         if not case or case.get("culprit_aware", True) or cid != case["killer"] or cid not in w.agents:
             return
         case["culprit_aware"] = True
+        self.emotions.guilt(tick, case)
         name, vname = self.nm(cid), self.nm(case["victim"])
         w.remember(cid, f"{_hh(hour)} (private) It hits you with horror: it was YOU. Your own hands killed {vname}, and you did not know.")
         self.stat(tick, cid, "sanity", -12, "realized they killed")
@@ -186,7 +187,7 @@ class TrialMixin:
             sus = self.nm(self.suspicion[cid]) if self.suspicion.get(cid) else "nobody yet"
             hazy = " Memory hazy and thoughts muddled." if self.slip_chance(cid) > 0.2 else ""
             cards.append(f"- {cid} = {c['name']}, {c['role']}. Voice: {c['speech'][:100]} Sanity {a['sanity']}, health {a['hp']}.{hazy} Suspects: {sus}. "
-                         f"Notebook: {nb or 'little'}.{role}")
+                         f"Notebook: {nb or 'little'}.{role} " + self.decisions.context(cid, list(w.agents)))
         return "\n".join(cards)
 
     def trial_prompt(self, case, kind, **kw):
@@ -400,6 +401,7 @@ class TrialMixin:
             user = (f"CLASS TRIAL VOTE. {self.nm(victim)} is dead and whoever delivered the killing blow (planned or not) is one of the people present. Candidates: {cands}.\n"
                     f"EVIDENCE ON THE TABLE:\n{evidence}\nYour notebook: {nb or 'little'}\nWorking theory: {self.theory or 'none'}\n"
                     f"What you remember: {' | '.join(mem['recent'][-12:]) or 'little'}\nThe arguments just now: {debate}\n"
+                    + self.decisions.context(cid) + "\n" +
                     f"You currently suspect: {self.nm(self.suspicion[cid]) if self.suspicion.get(cid) else 'nobody in particular'}.{killer_note}{hazy}\n"
                     "Remember: if you accuse an innocent, THEY are executed and the real culprit walks free. You must vote for exactly one candidate.\n"
                     'Reply as JSON: {"vote": "<person id>", "reason": "<max 25 words, in your voice>"}')
@@ -492,7 +494,7 @@ class TrialMixin:
         self.day_notable.append(result)
         self.saga(result)
         for k in gone:
-            s["vacancies"].append({"gender": w.cast[k]["gender"], "reason": f"{w.cast[k]['name']} left the show"})
+            s["vacancies"].append({"gender": w.casting_slot(k), "reason": f"{w.cast[k]['name']} left the show"})
         for cid in list(w.agents.keys()):
             w.remember(cid, f"{_hh(hour)} Trial result: {result}")
             w.agents[cid]["sanity"] = clamp(w.agents[cid]["sanity"] - shock)

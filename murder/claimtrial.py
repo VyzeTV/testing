@@ -271,6 +271,9 @@ class ClaimTrialMixin:
         p = 0.45 + 0.3 * (self.facet(holder, "courage") - 50) / 50 + 0.25 * conf
         aff = a["aff"].get(about, 0)
         p += 0.15 if aff < 0 else -0.06 * max(0, aff - 2)
+        case = s.get("case") or {}
+        p += min(.12, self.emotions.level(holder, 'grief', case.get('victim')) * .015)
+        p -= min(.12, self.emotions.level(holder, 'fear', about) * .015)
         if about in self.allies_of(holder):
             p -= 0.25
         if any(x.get("helper") == holder for x in (s.get("accomplices") or {}).get(about, [])):
@@ -325,7 +328,7 @@ class ClaimTrialMixin:
         w = self.world
         if not beats:
             return []
-        cards = "\n".join(f"- {p} = {self.nm(p)}. Looks: {self.looks_line(p, short=True)}. Speech: {w.cast[p]['speech'][:90]}" for p in sorted({b['speaker'] for b in beats if b['speaker'] in w.cast}))
+        cards = "\n".join(f"- {p} = {self.nm(p)}. Looks: {self.looks_line(p, short=True)}. Speech: {w.cast[p]['speech'][:90]} {self.emotions.context(p, list(w.agents))} {self.decisions.context(p, list(w.agents))}" for p in sorted({b['speaker'] for b in beats if b['speaker'] in w.cast}))
         listing = "\n".join(f"{i}. {b['speaker']}: {b['text']}" for i, b in enumerate(beats))
         sysm = f"{self.bible()}\nYou voice lines at a class trial. The engine has decided what is said; you only put it in each speaker's own words. Reply with JSON only."
         user = (f"{TITLES.get(seg['kind'], 'TRIAL')}. Rewrite each numbered line in the speaker's voice: same facts, same accusation or answer, max 25 words, no new facts, "
@@ -860,6 +863,7 @@ class ClaimTrialMixin:
         a = self.world.agents[voter]
         private = self.trial_private_facts(voter, facts)
         return {c: meter[c] + sum(f["w"] for f in private if f["about"] == c) - 0.12 * a["aff"].get(c, 0)
+                + self.emotions.trial_bias(voter, c, bool(meter[c] > 0 or any(f['about'] == c and f['w'] > 0 for f in private)))
                 for c in ids if c != voter}
 
     def update_trial_suspicion(self, ids, meter, facts, killer, case):
@@ -923,6 +927,7 @@ class ClaimTrialMixin:
             private_score = sum(f["w"] for f in self.trial_private_facts(voter, facts) if f["about"] == target)
             reasoning = {"public_score": round(meter[target], 3), "private_score": round(private_score, 3),
                          "relationship_bias": round(-0.12 * w.agents[voter]["aff"].get(target, 0), 3),
+                         "emotion_bias": round(self.emotions.trial_bias(voter, target, bool(meter[target] > 0 or any(f['about'] == target and f['w'] > 0 for f in self.trial_private_facts(voter, facts)))), 3),
                          "trusted_sway": round(sway[target], 3), "trusted": trusted,
                          "framing_bias": 3.0 if voter == killer and case.get("culprit_aware", True) and target == case.get("framed") else 0.0,
                          "final_score": round(final[target], 3), "muddled": muddled,

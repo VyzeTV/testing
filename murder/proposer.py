@@ -7,8 +7,8 @@ when, a cover story, and steps) or a single social move toward one person. Check
 scheme kind exists, the room exists and can be reached, a push needs a real drop, a drowning needs water, an item must exist in their hands
 or in a room, a sleeping target must be in their own bedroom, a plan that waits for the target somewhere (alone, a push, a drowning) needs
 a place the plotter believes the target goes to (as the engine's own planner does), and each step is a known verb on a real object.
-Anything impossible rejects the whole proposal and the engine's own choice stands. Budget: the `proposer_calls` dial caps calls per day (0 = off). The mock backend proposes
-from the same options, sometimes impossibly, so the checks are exercised. ProposerMixin is mixed into DayRunner (engine.py).
+Anything impossible rejects the whole proposal and the engine's own choice stands. Budget: the `proposer_calls` dial caps calls per day (0 = off). The mock backend selects
+from checked offers; forced invalid proposals belong in regression tests. ProposerMixin is mixed into DayRunner (engine.py).
 """
 from .data_world import ROOMS
 from .planner import COMBOS, ROPES
@@ -75,9 +75,19 @@ class ProposerMixin:
                 f"Carrying: {', '.join(offers['carrying']) or 'nothing'}.\n"
                 f"Schemes: {', '.join(SCHEMES)}. Step verbs: {', '.join(STEP_VERBS)}. Room and item ids only.\n"
                 'Reply as JSON: {"scheme": "<scheme>", "room": "<room id>", "item": "<item id or empty>", "when": "day|night|any", "cover": "<their story>", '
-                '"steps": [{"do": "<verb>", "room": "<room id or empty>", "item": "<item id or empty>"}]}')
+                '"steps": [{"do": "<verb>", "room": "<room id or empty>", "item": "<item id or empty>"}], "reason": "<private first-person motive, max 25 words>"}. '
+                + self.commitments.context(cid) + " " + self.emotions.context(cid) + " " + self.decisions.context(cid))
         try:
-            r = self.llm.propose(sysm, user, {"kind": "plan", "cid": cid, "target": t, "offers": offers, "home": w.cast[t]["home"]}) or {}
+            ctx = {"kind": "plan", "cid": cid, "target": t, "offers": offers, "home": w.cast[t]["home"]}
+            if self.llm.mock:
+                from .mock_policy import actor_context
+                ctx["actor"] = actor_context(self, cid)
+                candidates = [{"scheme": "asleep", "room": w.cast[t]["home"], "when": "night", "steps": [{"do": "wait"}]}]
+                for room in offers["seen"]:
+                    for kind in ("alone", "height", "drown"):
+                        candidates.append({"scheme": kind, "room": room, "when": "any", "steps": [{"do": "watch", "room": room}]})
+                ctx["plans"] = [c for c in candidates if self.check_plan(cid, t, c)[0]]
+            r = self.llm.propose(sysm, user, ctx) or {}
         except Exception as e:  # noqa: BLE001
             if getattr(e, "fatal", False):
                 raise
@@ -85,10 +95,16 @@ class ProposerMixin:
         ok, why, sc = self.check_plan(cid, t, r)
         self.proposer_log(tick, cid, "plan", ok, why if not ok else sc["why"])
         if ok:
-            p["scheme"] = sc
+            self.revise_scheme(tick, cid, p, sc, "the previous plan stalled; a checked proposal offers " + sc["why"])
             if r.get("cover"):
                 p["cover"] = str(r["cover"])[:120]
             self.plan_note(p, "changed plans: " + sc["why"])
+        if isinstance(r, dict):
+            request = dict(action='propose_plan', target=t, target_room=r.get('room') or '')
+            rec = self.decisions.record(cid, tick['hour'], r, request)
+            rec.update(kind='proposal', status='proposal accepted' if ok else 'rejected')
+            if not ok:
+                rec['change'] = why
         return ok
 
     def check_plan(self, cid, t, r):
@@ -135,6 +151,7 @@ class ProposerMixin:
               "proposed": True}
         if kind == "poison":
             sc["item"] = item
+            sc["needs"] = [item]
         if kind == "trap":
             rig = self.rig_options(cid)
             if not rig:
@@ -157,9 +174,14 @@ class ProposerMixin:
         feel = ", ".join(f"{o}={self.nm(o)} {a['aff'].get(o, 0):+d}" for o in others)
         sysm = f"{self.bible()}\nYou propose one social move a character makes tomorrow. The engine checks it; reply with JSON only."
         user = (f"{self.nm(cid)} (sanity {a['sanity']}, {a['drive']['id']}). Feelings: {feel}. Moves: {', '.join(SOCIAL)}.\n"
-                'Reply as JSON: {"move": "<move>", "to": "<person id>", "about": "<person id or empty>"}')
+                'Reply as JSON: {"move": "<move>", "to": "<person id>", "about": "<person id or empty>", "reason": "<private first-person motive, max 25 words>"}. '
+                + self.commitments.context(cid) + " " + self.emotions.context(cid) + " " + self.decisions.context(cid))
         try:
-            r = self.llm.propose(sysm, user, {"kind": "move", "cid": cid, "ids": others}) or {}
+            ctx = {"kind": "move", "cid": cid, "ids": others}
+            if self.llm.mock:
+                from .mock_policy import actor_context
+                ctx["actor"] = actor_context(self, cid)
+            r = self.llm.propose(sysm, user, ctx) or {}
         except Exception as e:  # noqa: BLE001
             if getattr(e, "fatal", False):
                 raise
@@ -169,6 +191,10 @@ class ProposerMixin:
             a["proposed_move"] = {"move": r["move"], "to": r["to"], "about": r.get("about") or None, "day": self.day + 1}
             a["want_talk"] = {"who": [r["to"]], "day": self.day + 1, "why": f"{r['move']} {self.nm(r['to'])}"}
         self.proposer_log(tick, cid, "move", ok, f"{r.get('move')} toward {self.nm(r['to'])}" if ok else "not a move the engine knows")
+        if isinstance(r, dict):
+            request = dict(action='propose_' + str(r.get('move') or 'move')[:30], target=str(r.get('to') or '')[:60])
+            rec = self.decisions.record(cid, tick['hour'], r, request)
+            rec.update(kind='proposal', status='proposal accepted' if ok else 'rejected')
         return ok
 
     def proposed_move_for(self, a, t):

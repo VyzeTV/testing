@@ -351,7 +351,10 @@ class MindMixin:
         if ally and a["aff"].get(ally, 0) >= 2 and w.agents[ally]["room"] in reach:
             cands.append(((100 - n["safety"]) / 30, "safe", w.agents[ally]["room"], f"Seeks out {self.nm(ally)} to feel safer"))
         cands.append(((100 - n["purpose"]) / 45, "search", here, "Looks around for anything useful"))
-        scored = [(sc + 0.35 * imp * self.rng.random(), k, r, why) for sc, k, r, why in cands if r in reach or r == here]
+        fear = self.emotions.level(cid, 'fear')
+        if fear >= 6 and here == home and not others and not hungry and a['hp'] >= 50 and n['rest'] > 30 and home not in self.s['locks'] and home not in self.s['broken'] and not self.scene_sealed(home):
+            cands.append((1.2 + fear / 5, 'secure', home, 'Wants a locked door while feeling afraid'))
+        scored = [(sc + self.emotions.score(cid, k, r) + 0.35 * imp * self.rng.random(), k, r, why) for sc, k, r, why in cands if r in reach or r == here]
         sc, kind, room, why = max(scored)
         d = {"activity": why, "thought": "", "action": "stay", "talk_to": [], "target_room": "", "intent": ""}
         if kind == "rest":
@@ -363,6 +366,9 @@ class MindMixin:
             d["talk_to"] = liked_here[:2]
         elif kind == "search":
             d["action"] = "search"
+        elif kind == "secure":
+            d.update(action='lock', door=home)
         d["thought"] = {"rest": "I need to rest.", "eat": "I should eat something.", "visit": "I don't want to be alone.", "talk": "Good to have someone to talk to.",
-                        "alone": "I need a moment to myself.", "safe": "I'd feel better near someone I trust.", "search": "There might be something here.", "idle": "Nothing to do right now."}[kind]
+                        "alone": "I need a moment to myself.", "safe": "I'd feel better near someone I trust.", "search": "There might be something here.", "idle": "Nothing to do right now.",
+                        "secure": "I am still afraid. A locked door would help."}[kind]
         return self.clean_decision(d)

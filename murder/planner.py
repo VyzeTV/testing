@@ -7,7 +7,7 @@ When a plot reaches the preparing stage the plotter settles on a scheme, scored 
   poison   a poison they hold or know where to find
 
 The scheme decides where (and for `asleep`, when) the plotter strikes: they wait for the target in that place rather than striking anywhere, unless
-the deadline is on them or they have waited too long. A push sends the target over the edge (falls.py) and opens a murder case with the pusher as
+they have explicitly recorded a change of plan. A push sends the target over the edge (falls.py) and opens a murder case with the pusher as
 culprit; anyone who saw it is a witness. MurderPlanMixin is mixed into DayRunner (engine.py).
 """
 from .data_world import ROOMS
@@ -101,7 +101,7 @@ class MurderPlanMixin:
                                                                        "why": f"something live dropped into {self.nm(t)}'s bath would look like an accident"}))
         item, where = self.poison_source(cid)
         if item:
-            out.append((1.1 if not where else 0.8, {"kind": "poison", "item": item, "room": where, "when": "any",
+            out.append((1.1 if not where else 0.8, {"kind": "poison", "item": item, "needs": [item], "room": where, "when": "any",
                                                     "why": f"the {w.item_name(item)}" + (f" from the {w.room_name(where)}" if where else " they already have")}))
         return sorted(out, key=lambda x: -x[0])
 
@@ -114,7 +114,7 @@ class MurderPlanMixin:
         if not opts:
             return None
         best = max(opts, key=lambda x: x[0] + 0.3 * self.rng.random())[1]
-        p["scheme"] = best
+        self.revise_scheme(tick, cid, p, best, "settled on a method")
         rn = lambda: self.world.room_name(best["room"]) if best.get("room") else "somewhere quiet"
         self.plan_note(p, {"asleep": lambda: "will come for them in the night", "alone": lambda: f"will catch them alone in the {rn()}",
                            "height": lambda: f"will push them from the {rn()}", "poison": lambda: "will poison them", "drown": lambda: f"will drown them in the {rn()}",
@@ -125,17 +125,70 @@ class MurderPlanMixin:
                               "text": f"{self.nm(cid)} plans the murder of {self.nm(t)}: {best['why']}."}, actor=cid)
         return best
 
-    def scheme_allows(self, cid, p, urgent=False):
-        """May the plotter strike here and now, given the scheme? (Any chance will do once the deadline is on them or they have waited too long.)"""
+    def revise_scheme(self, tick, cid, p, replacement, reason):
+        from .plan_history import record_change
+        if p.get("scheme") == replacement:
+            return
+        previous = (p.get("scheme") or {}).get("kind", "undecided")
+        record_change(self.s, p, cid, self.day, tick["hour"], "changed", reason, replacement)
+        p["scheme"] = replacement
+        p.pop("rigged", None)
+        self.plan_note(p, f"{previous} -> {replacement['kind']}: {reason}")
+        self.log_event(tick, {"type": "plot", "who": cid, "room": self.world.agents[cid]["room"], "vis": "gm",
+                              "text": f"{self.nm(cid)} changes plan from {previous} to {replacement['kind']}: {reason}."}, actor=cid)
+
+    def abandon_plot(self, tick, cid, reason):
+        from .plan_history import record_change
+        p = self.s.get("plots", {}).get(cid)
+        if not p:
+            return
+        record_change(self.s, p, cid, self.day, tick["hour"], "abandoned", reason)
+        self.world.remember(cid, f"(private) You ended the plan against {self.nm(p['target'])}: {reason}.")
+        self.log_event(tick, {"type": "plot", "who": cid, "room": self.world.agents[cid]["room"], "vis": "gm",
+                              "text": f"{self.nm(cid)} abandons the plan against {self.nm(p['target'])}: {reason}."}, actor=cid)
+        self.s["plots"].pop(cid, None)
+
+    def planned_attack(self, tick, cid, p, urgent=False):
+        """Choose an executable method; changing the scheme always leaves a reason."""
         sc = p.get("scheme")
-        if not sc or urgent or p.get("stage_ticks", 0) >= PATIENCE:
+        if not sc:
+            return self.plot_method(p)  # old saves and plots still choosing their method
+        inv = self.world.agents[cid]["inv"]
+        fallback = self.plot_method(p)
+        if fallback != "hands" and inv.get(fallback.removeprefix("poison:"), 0) <= 0:
+            fallback = "hands"
+        if sc["kind"] in ("alone", "asleep", "lure", "opportunity"):
+            method = sc.get("method")
+            if not method or method != "hands" and inv.get(method.removeprefix("poison:"), 0) <= 0:
+                reason = "committing to the available attack method" if not method else "the planned weapon is no longer carried"
+                sc = dict(sc, method=fallback)
+                self.revise_scheme(tick, cid, p, sc, reason)
+        allowed = self.scheme_allows(cid, p)
+        method = sc.get("method") if sc["kind"] in ("alone", "asleep", "lure") else self.scheme_method(cid, p)
+        if allowed and method:
+            return method
+        if urgent or p.get("stage_ticks", 0) >= PATIENCE:
+            reason = "the deadline leaves no time for the planned opportunity" if urgent else f"the planned opportunity has not come after {PATIENCE} turns"
+            method = fallback
+            self.revise_scheme(tick, cid, p, {"kind": "opportunity", "when": "any", "room": None,
+                                             "method": method, "why": reason}, reason)
+            return method
+        return None
+
+    def scheme_allows(self, cid, p, urgent=False):
+        """Whether the original scheme can execute here; urgency never bypasses its requirements."""
+        sc = p.get("scheme")
+        if not sc:
             return True
         a = self.world.agents[cid]
         night = self.s.get("_hour", 12) >= 22
         if sc["kind"] == "asleep":
-            return night and a["room"] == sc["room"]
+            target = self.world.agents.get(p.get("target"), {})
+            return night and bool(target.get("asleep")) and a["room"] == sc["room"]
         if sc["kind"] in ("alone", "height", "drown"):
-            return a["room"] == sc["room"]
+            return a["room"] == sc["room"] and (sc["kind"] != "height" or bool(self.drop_edges(sc["room"])))
+        if sc["kind"] == "poison":
+            return bool(a["inv"].get(sc.get("item"), 0) > 0)
         if sc["kind"] == "lure":
             mt = next((m for m in self.s.get("meets") or [] if m.get("day") == self.day and cid in (m["a"], m["b"]) and m.get("why") == "lure"), None)
             return night and bool(mt) and a["room"] == mt["room"]
@@ -143,11 +196,11 @@ class MurderPlanMixin:
             return False                                            # the trap does the work; they keep their distance
         if sc["kind"] == "shock":
             t = p.get("target")
-            return bool(t in self.world.agents and self.world.agents[t]["room"] == a["room"] and self.bathing(t) and self.electric_item(cid))
+            return bool(t in self.world.agents and self.world.agents[t]["room"] == a["room"] and self.bathing(t) and self.electric_item(cid) and self.power_on())
         if sc["kind"] in COMBOS:
             ta = self.world.agents.get(sc.get("target") or p.get("target")) or {}
             helpless = bool(ta.get("asleep") or ta.get("out") or self.restrained(p.get("target")))
-            return helpless and (sc["kind"] != "bath" or a["room"] == "bathroom") and (sc["kind"] != "hang" or self.has_any(cid, ROPES))
+            return helpless and bool(self.has_any(cid, sc.get("needs") or COMBOS[sc["kind"]][0])) and (sc["kind"] != "bath" or a["room"] == "bathroom") and (sc["kind"] != "hang" or self.has_any(cid, ROPES))
         return True
 
     def scheme_method(self, cid, p):
@@ -167,6 +220,8 @@ class MurderPlanMixin:
             return "hands"
         if sc.get("kind") == "shock" and self.bathing(p.get("target")) and self.electric_item(cid):
             return "shock"
+        if sc.get("kind") == "opportunity":
+            return sc["method"]
         return None
 
     def scheme_staging(self, p):

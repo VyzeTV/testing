@@ -8,6 +8,7 @@ self.stat, self.log_event, self.dread_level, ...).
 from .data_cast import HOSTS, STORY_BIBLE
 from .data_world import ROOMS, CAMERA_BLIND, ISLAND_TRUTHS, COMMON_ITEMS
 from .llm import LLMError
+from .relationships import ROMANCE_AFFECTION, bond_allowed, bond_time, record_bond
 
 OCCASION_SANITY = {"meal": 4, "movie": 4, "party": 5, "game": 3, "concert": 4, "prank": 2, "ritual": 3, "other": 3}
 OCCASION_ROOM = {"meal": "dining_hall", "movie": "lounge", "party": "pool", "game": "games_room", "concert": "music_room",
@@ -150,15 +151,23 @@ class DramaMixin:
             if any({e["a"], e["b"]} == {x, y} and e["kind"] == kind for e in s["bonds"]):
                 continue
             ax, ay = w.agents[x]["aff"].get(y, 0), w.agents[y]["aff"].get(x, 0)
-            if kind == "romance" and not (ax >= 5 and ay >= 5):
+            if kind == "romance" and min(ax, ay) < ROMANCE_AFFECTION:
                 continue
             if kind == "feud" and not (ax <= -4 and ay <= -4):
                 continue
             if kind == "pact" and not (ax >= 3 and ay >= 3):
                 continue
+            now = bond_time(self.day, tick["hour"])
+            if not bond_allowed(s, x, y, kind, now):
+                continue
+            for old in s["bonds"]:
+                if {old["a"], old["b"]} == {x, y} and (kind == "feud" or old["kind"] == "feud"):
+                    record_bond(s, old, now, "ended", "feelings changed")
             # a romance and a pact can be held together; a feud ends both, and either ends a feud
             s["bonds"] = [e for e in s["bonds"] if {e["a"], e["b"]} != {x, y} or (kind != "feud" and e["kind"] != "feud")]
-            s["bonds"].append({"a": x, "b": y, "kind": kind, "since": self.day})
+            bond = {"a": x, "b": y, "kind": kind, "since": self.day, "formed_at": now}
+            s["bonds"].append(bond)
+            record_bond(s, bond, now, "formed", "mutual affection" if kind == "romance" else "shared feelings")
             txt = {"romance": f"{self.nm(x)} and {self.nm(y)} are now in a romance.",
                    "feud": f"{self.nm(x)} and {self.nm(y)} are now bitter enemies.",
                    "pact": f"{self.nm(x)} and {self.nm(y)} have sworn a pact to protect each other."}[kind]
@@ -173,14 +182,17 @@ class DramaMixin:
                 continue
             ax, ay = w.agents[b["a"]]["aff"].get(b["b"], 0), w.agents[b["b"]]["aff"].get(b["a"], 0)
             if b["kind"] == "romance" and min(ax, ay) < 3:
+                record_bond(s, b, bond_time(self.day, tick["hour"]), "ended", "feelings cooled")
                 tick["events"].append({"type": "system_notable", "who": b["a"], "room": "foyer", "vis": "public",
                                        "text": f"The romance between {self.nm(b['a'])} and {self.nm(b['b'])} has cooled."})
                 continue
             if b["kind"] == "pact" and min(ax, ay) < 1:
+                record_bond(s, b, bond_time(self.day, tick["hour"]), "ended", "feelings cooled")
                 tick["events"].append({"type": "system_notable", "who": b["a"], "room": "foyer", "vis": "public",
                                        "text": f"The pact between {self.nm(b['a'])} and {self.nm(b['b'])} has dissolved."})
                 continue
             if b["kind"] == "feud" and max(ax, ay) > -2:
+                record_bond(s, b, bond_time(self.day, tick["hour"]), "ended", "feelings cooled")
                 tick["events"].append({"type": "system_notable", "who": b["a"], "room": "foyer", "vis": "public",
                                        "text": f"The feud between {self.nm(b['a'])} and {self.nm(b['b'])} has burned out."})
                 continue
@@ -246,19 +258,23 @@ class DramaMixin:
         s["occasion"] = None
         host, where = oc["host"], oc["where"]
         if host not in w.agents:
+            self.commitments.hosted(tick, oc, False, "the host left the living cast")
             return
         guests = [c for c, a in w.agents.items() if a["room"] == where and c != host and (c in oc["invite_ids"] or oc["open"])]
-        if w.agents[host]["room"] != where:
+        if w.agents[host]["room"] != where or w.agents[host].get("out") or w.agents[host].get("asleep") or not self.present(host, where):
+            self.commitments.hosted(tick, oc, False, "the host did not reach the venue awake and able to attend")
             self.log_event(tick, {"type": "occasion", "who": host, "room": w.agents[host]["room"], "vis": "public",
                                   "text": f"{self.nm(host)} never made it to their own {oc['kind']}: it falls flat."}, witnesses=list(w.agents), actor=host)
             self.stat(tick, host, "sanity", -2, "ruined plans")
             return
         if not guests:
+            self.commitments.hosted(tick, oc, True, "the host attended, but nobody else came")
             self.log_event(tick, {"type": "occasion", "who": host, "room": where, "vis": "public",
                                   "text": f"Nobody comes to {self.nm(host)}'s {oc['kind']} in the {w.room_name(where)}."}, witnesses=[host], actor=host)
             self.stat(tick, host, "sanity", -3, "nobody came")
             return
         attendees = [host] + guests
+        self.commitments.hosted(tick, oc, True, "the host attended their announced gathering")
         self.occasion_now = dict(oc, attendees=attendees)
         self.log_event(tick, {"type": "occasion", "who": host, "room": where, "vis": "public",
                               "stage": "begin", "attendees": list(attendees),
@@ -309,6 +325,7 @@ class DramaMixin:
                   "secret_from": secret, "status": "announced", "day": self.day, "hour": hour,
                   "invite": "all" if invite == "all" else invite_ids}
             s["occasion"] = oc
+            self.commitments.sync(tick)
             who = [host] + invite_ids
             if secret:
                 self.log_event(tick, {"type": "occasion", "who": host, "room": w.agents[host]["room"], "vis": "gm",

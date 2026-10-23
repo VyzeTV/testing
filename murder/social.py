@@ -10,6 +10,7 @@ Families (after Prom Week's social exchanges): bonding, status, information, con
 """
 from .drama import GIFT_ITEMS
 from .booth import MOVE_URGE
+from .relationships import closeness, trust, wary
 
 # move: (family, loudness, short topic used when somebody only half hears it)
 WARM_MOVES = ("comfort", "confide", "flirt", "gift", "pact", "feign")
@@ -17,6 +18,9 @@ AGAINST_MOVES = ("mock", "putdown", "accuse", "threaten", "confront")
 HOLD_FLOOR = 0.2              # chance the last speaker goes on and opens the next exchange too
 
 MOVES = {
+    "apologise": ("bonding", "quiet", "an apology they resolved to make"),
+    "thank": ("bonding", "normal", "thanks they resolved to give"),
+    "ask": ("information", "normal", "asking what is really going on"),
     "chat":     ("bonding", "normal", "small talk"),
     "joke":     ("bonding", "normal", "a joke"),
     "comfort":  ("bonding", "quiet", "how someone is holding up"),
@@ -64,6 +68,10 @@ class SocialMixin:
         if not ta:
             return 0.0
         r = 0.5 + 0.05 * self._aff(t, a) + 0.1 * (self._fc(t, "trust") - 50) / 50
+        r += .015 * trust(self.s, t, a)
+        r -= min(.2, self.emotions.level(t, 'fear', a) * .025)
+        if wary(self.s, t, a, self.commitments.now()):
+            r -= .15
         if ta["sanity"] < 35:
             r -= 0.12
         if any(x["a"] == t and x["b"] == a and x["kind"] in ("wronged", "betrayed") for x in self.s.get("ties", [])):
@@ -160,7 +168,7 @@ class SocialMixin:
             opts.append((f("humour") / 45, "joke", None))
         if (T["sanity"] < 55 or any(x.get("day") == self.day for x in T["memory"].get("lost", []))) and aff >= 0:
             opts.append((1.2 * f("altruism") / 50 * (1 + max(0, aff) / 5), "comfort", None))
-        if aff >= 4 and back >= 2:
+        if aff >= 4 and back >= 2 and not wary(s, a, t, self.commitments.now()):
             opts.append(((f("trust") / 50) * (1.6 if A["sanity"] < 55 else 1.0), "confide", None))
         if f("romantic") >= 55 and aff >= 4:
             opts.append((f("romantic") / 60 * (1.5 if aff >= 6 else 1.0), "flirt", None))
@@ -220,9 +228,12 @@ class SocialMixin:
             wgt = wgt / (1 + 1.5 * used.get(mv, 0))                     # people do not repeat themselves in one conversation
             if wgt > 0.05:
                 out.append((wgt, mv, about))
-        return out
+        return self.emotions.move_options(a, t, out)
 
     def pick_move(self, conv, a, t):
+        intended = self.commitments.planned_move(a, t, conv)
+        if intended:
+            return intended, None
         pm = self.proposed_move_for(a, t)                         # a move the model proposed and the engine accepted (proposer.py)
         if pm and pm[0] in ("gossip", "warn", "reveal") and pm[1] in (conv.get("members") or []):
             pm = None                                             # not with the person it is about standing there
@@ -245,7 +256,7 @@ class SocialMixin:
         w = self.world
         r = self.receptivity(t, a)
         fam, loud, topic = MOVES[move]
-        base = {"chat": 0.6, "joke": 0.55, "comfort": 0.55, "confide": 0.6, "flirt": 0.4, "gift": 0.85, "boast": 0.35, "mock": 0.45, "putdown": 0.55,
+        base = {"apologise": 0.6, "thank": 0.7, "ask": 0.65, "chat": 0.6, "joke": 0.55, "comfort": 0.55, "confide": 0.6, "flirt": 0.4, "gift": 0.85, "boast": 0.35, "mock": 0.45, "putdown": 0.55,
                 "probe": 0.7, "gossip": 0.6, "warn": 0.55, "reveal": 0.9, "accuse": 0.45, "threaten": 0.5, "confront": 0.45, "pact": 0.5, "recruit": 0.4,
                 "teamwork": 0.6, "incite": 0.5, "feign": 0.6}[move]
         p = _clamp(base * (0.4 + 1.2 * r))
@@ -257,7 +268,11 @@ class SocialMixin:
         special = lambda kind, who, depth=1, why="": fx.setdefault("special", []).append({"kind": kind, "who": who, "depth": depth, "why": why or kind})
         hurt = lambda x, d, why: (fx.setdefault("sanity", {}).__setitem__(x, fx.get("sanity", {}).get(x, 0) - d), fx.setdefault("why", {}).__setitem__(x, why))
         depth = 1 + (1 if min(self._aff(a, t), self._aff(t, a)) >= 6 else 0) + (1 if min(self._aff(a, t), self._aff(t, a)) >= 8 else 0)
-        if move == "chat":
+        if move in ("apologise", "thank", "ask"):
+            reply = ("warm" if move != "ask" else "agree") if outcome == "ok" else "rebuff"
+            if outcome == "ok" and move != "ask":
+                aff(t, a, 1)
+        elif move == "chat":
             if outcome == "ok":
                 aff(t, a, 1)
                 reply = "warm"
@@ -476,6 +491,8 @@ class SocialMixin:
         u = MOVE_URGE.get(move)
         if u and outcome != "fail":
             self.booth_note(t, u[0], u[1], a)                    # something to tell the camera about
+        if outcome == "ok" and move in ("chat", "joke", "comfort", "confide", "flirt", "gift", "teamwork", "thank", "apologise"):
+            closeness(self.s, a, t, self.commitments.now(tick), move)
         self.apply_talk_fx(tick, conv["room"], [m for m in conv["members"] if m in w.agents], fx, conv.get("hour", tick["hour"]))
         heated = loud == "heated" or outcome == "backfire" and fam == "conflict"
         loud_ = "heated" if heated else loud
@@ -486,18 +503,22 @@ class SocialMixin:
             b1["shares"] = shares
         b2 = {"who": t, "to": a, "move": reply, "reply_to": move, "outcome": outcome, "loud": "heated" if reply in ("snap", "stand_up", "counter") else ("quiet" if loud == "whisper" else loud),
               "topic": b1["topic"], **({"claim": claim} if claim else {}), **({"claim_at": claim_at} if claim_at else {})}
+        self.commitments.spoken(tick, a, t, move)
+        self.emotions.social(tick, a, t, move, outcome)
         return [b1, b2]
 
     def grounds_against(self, a, x):
         """A real reason for `a` to speak against `x` whatever they feel: a lie caught, a weapon seen, harm done, a wrong, or a fear they settled on."""
         A = self.world.agents.get(a) or {}
-        return (x in self.caught_liars(a) or any(b["k"] == "has" and b["s"] == x for b in self.beliefs(a))
+        return (wary(self.s, a, x, self.commitments.now()) or x in self.caught_liars(a) or any(b["k"] == "has" and b["s"] == x for b in self.beliefs(a))
                 or any(r[0] == x for r in A.get("harmed_by") or []) or x in (A.get("distrust") or {})
                 or any(t_["a"] == a and t_["b"] == x and t_["kind"] in ("wronged", "betrayed") for t_ in self.s.get("ties", []))
                 or any(b.get("reread") and b["s"] == x for b in self.beliefs(a)))
 
     def close_pair(self, a, t):
         """Partners, or friends who are close both ways."""
+        if any(wary(self.s, x, y, self.commitments.now()) and trust(self.s, x, y) < 2 for x, y in ((a, t), (t, a))):
+            return False
         return any({b["a"], b["b"]} == {a, t} and b["kind"] == "romance" for b in self.s.get("bonds", [])) or min(self._aff(a, t), self._aff(t, a)) >= 7
 
     def confidence_of(self, a, t, depth):
@@ -547,7 +568,8 @@ class SocialMixin:
             a = min((m for m in members if m != last), key=lambda m: (opens.get(m, 0), members.index(m)))
         opens[a] = opens.get(a, 0) + 1
         want = (w.agents[a].get("want_talk") or {})
-        pref = [x for x in want.get("who", []) if x in members and x != a] if want.get("day") == self.day else []
+        owed = [c.get("target") for c in self.commitments.active(a) if c["kind"] in ("resolve", "promise") and c.get("target") in members and c.get("not_before", 0) <= self.commitments.now(tick)]
+        pref = owed + ([x for x in want.get("who", []) if x in members and x != a] if want.get("day") == self.day else [])
         others = [m for m in members if m != a]
         t = pref[0] if pref else max(others, key=lambda o: (abs(self._aff(a, o)), o))
         mv, about = self.pick_move(conv, a, t)

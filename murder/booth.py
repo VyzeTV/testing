@@ -13,6 +13,7 @@ EVENT_URGE = {"punish": ("hurt", 3), "attack": ("fear", 3), "body": ("fear", 3),
 MOVE_URGE = {"mock": ("hurt", 2), "putdown": ("hurt", 2.5), "threaten": ("hurt", 3), "accuse": ("hurt", 2.5), "comfort": ("warm", 1.5), "confide": ("warm", 1.5),
              "flirt": ("warm", 2), "gift": ("warm", 1.5), "reveal": ("suspect", 2), "warn": ("suspect", 1.5), "gossip": ("suspect", 1)}
 TEMPLATES = {
+    "guilt": ["I keep telling myself I had no choice. The guilt is still there.", "I can't stop replaying what I did."],
     "hurt": ["Did you see what {x} just did? Unbelievable.", "{x} thinks that was funny. Watch me.", "Note to self: never turn my back on {x}.", "I smiled. I wanted to scream."],
     "warm": ["Okay. {x} is kind of great. Don't tell them.", "For the record? {x} is the only reason I'm still smiling.", "I think I like {x}. Great timing, me."],
     "suspect": ["Keep your eyes on {x}. Just trust me.", "{x} is hiding something. I can feel it.", "Everyone's looking the wrong way. Look at {x}."],
@@ -60,6 +61,9 @@ class BoothMixin:
             why.append(["grief", 2.0, lost[-1].get("id") if lost[-1].get("id") in w.cast else None])
         if a["sanity"] < 35:
             why.append(["fear", 1.5, None])
+        guilt = self.emotions.level(cid, 'guilt')
+        if guilt >= 2:
+            why.append(['guilt', min(2.5, guilt / 3), None])
         sus = self.suspects(cid)
         if sus:
             why.append(["suspect", 1.0, sus[0]])

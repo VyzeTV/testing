@@ -7,3 +7,6 @@ __pycache__/
 _*.py
 _*.txt
 _*.js
+
+.venv/
+node_modules/

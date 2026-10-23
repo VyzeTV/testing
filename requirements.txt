@@ -1,0 +1,3 @@
+# Runtime dependencies; mock simulation itself uses Python's standard library.
+anthropic==2.1.0
+Pillow==13.0.0

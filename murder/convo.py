@@ -169,7 +169,7 @@ class ConvoMixin:
             near = perc.hears(anchor, here, "normal") or sm.nav.room_at(*here) == sm.nav.room_at(*anchor)
             # from further off: they can see the group (and have a reason), or they have been wanting a word with one of them and are not far
             light = self.light_of(conv["room"]) if conv["room"] in ROOMS else "lit"
-            far_ok = perc.sees(here, anchor, light) or (wants and here[0] == anchor[0] and abs(here[1] - anchor[1]) + abs(here[2] - anchor[2]) <= 40)
+            far_ok = (not self.blind(cid) and perc.sees(here, anchor, light)) or (wants and here[0] == anchor[0] and abs(here[1] - anchor[1]) + abs(here[2] - anchor[2]) <= 40)
             if not (near or far_ok):
                 continue
             if busy is not None and busy.get(cid, 0) > m:
@@ -322,7 +322,7 @@ class ConvoMixin:
                 if not t:
                     continue
                 spying = a.get("spying") == conv["room"] or (a.get("hiding") and a["room"] == conv["room"])
-                seen = perc.sees(src, t, light)
+                seen = not self.blind(cid) and perc.sees(src, t, light)
                 if perc.hears(src, t, loud):
                     heard[cid] = "full"
                 elif perc.hears(src, t, LOUDER[loud]):

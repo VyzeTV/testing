@@ -21,6 +21,9 @@ class StoryLinter:
         self.found = {}
         self.madness = {}
         self.claims = {}
+        self.commitments = {}
+        self.bond_seen = set()
+        self.romances = set()
         if state:
             self.begin_day(state)
 
@@ -28,11 +31,24 @@ class StoryLinter:
         """Register the day's cast, including newcomers, without clearing history."""
         self.names.update({c: s.get("short", s.get("name", c)) for c, s in state.get("cast", {}).items()})
         self.agents = self.statuses(state)
+        self.bond_seen.update(e["seq"] for e in state.get("bond_history", []) if "seq" in e)
+        self.romances = {tuple(sorted((b["a"], b["b"]))) for b in state.get("bonds", []) if b["kind"] == "romance"}
+        lover = state.get("npcs", {}).get("neovi", {}).get("lover")
+        if lover:
+            self.romances.add(tuple(sorted(("neovi", lover))))
+        for c in self.commitment_records(state):
+            self.commitments.setdefault(c["id"], (c["status"], {"day": state.get("day"), "source": "starting state"}))
         case = state.get("case") or {}
         if case.get("announced"):
             self.announced.setdefault(case.get("victim"), {"day": state.get("day"), "source": "starting state"})
         for body in state.get("bodies", []):
             self.announced.setdefault(body["victim"], {"day": body.get("day"), "source": "spree body"})
+
+    @staticmethod
+    def commitment_records(state):
+        records = state.get("commitments") or [c for a in state.get("agents", {}).values()
+                                               for c in a.get("commitments", a.get("commitments_view", []))]
+        return [c for c in records if isinstance(c, dict) and c.get("id") and c.get("status")]
 
     @staticmethod
     def statuses(state):
@@ -79,6 +95,17 @@ class StoryLinter:
         for i, e in enumerate(events):
             source = f"events[{i}]"
             kind = e.get("type")
+            if kind == "commitment" and e.get("commitment") and e.get("status"):
+                key, status = e["commitment"], e["status"]
+                if status != "considered":
+                    self.checks["commitment_transition"] += 1
+                    previous = self.commitments.get(key)
+                    if previous and previous[0] != "active":
+                        self.report("commitment_reopened" if status == "active" else "duplicate_commitment_end", tick, source, e,
+                                    "An ended commitment is reopened or ended again instead of recording a new obligation.", previous[1])
+                    if status != "active" and not str(e.get("reason") or "").strip():
+                        self.report("unexplained_commitment_end", tick, source, e, "A commitment ended without a recorded reason.")
+                    self.commitments[key] = (status, self.location(tick, source, e))
             actor = e.get("actor") or (e.get("who") if kind in ACTIVE_EVENTS else None)
             self.actor(actor, tick, source, e)
             if e.get("actor_status") not in (None, "alive") and not self.inactive(actor):
@@ -144,6 +171,30 @@ class StoryLinter:
                     if previous and room and previous[0] != room and not (lie or previous[1]):
                         self.report("contradictory_alibi", tick, source, line, "Two truthful alibis place one person in different rooms at the same time.", previous[2])
                     self.claims[key] = (room, lie, self.location(tick, source, line))
+
+        for c in self.commitment_records(state):
+            previous = self.commitments.get(c["id"])
+            if previous and previous[0] != "active" and c["status"] == "active":
+                self.report("commitment_reopened", tick, "state.commitments", c, "An ended commitment silently became active again.", previous[1])
+            if c["status"] != "active" and not c.get("reason"):
+                self.report("unexplained_commitment_end", tick, "state.commitments", c, "An ended commitment has no reason.")
+            self.commitments[c["id"]] = (c["status"], self.location(tick, "state.commitments", c))
+
+        for event in state.get("bond_changes", state.get("bond_history", [])):
+            seq = event.get("seq")
+            if seq is None or seq in self.bond_seen:
+                continue
+            self.bond_seen.add(seq)
+            if event["kind"] != "romance":
+                continue
+            self.checks["romance_transition"] += 1
+            pair = tuple(sorted((event["a"], event["b"])))
+            if event["action"] == "formed":
+                if pair in self.romances:
+                    self.report("duplicate_romance", tick, "state.bond_changes", event, "A romance was announced again without ending first.")
+                self.romances.add(pair)
+            elif event["action"] == "ended":
+                self.romances.discard(pair)
 
         # Compare only against the preceding tick; a person can speak and die in one block.
         for cid, move in (tick.get("moves") or {}).items():

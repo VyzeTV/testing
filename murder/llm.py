@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 import threading
+import time
 
 PARTICIPANT_MODEL = "claude-haiku-5-5"
 HOST_MODEL = "claude-sonnet-5-5"
@@ -61,6 +62,7 @@ class LLM:
         self.usage = {"calls": 0, "input": 0, "output": 0, "cost_usd": 0.0}
         self.cap = None            # optional per-day call cap: past it, calls fail softly (non-fatal)
         self._lock = threading.Lock()
+        self._active_calls = {}
         self._rng = random.Random()
         self.seed = None           # set by a seeded DayRunner: mock answers then depend only on the seed and the prompt, never on thread timing
         self._mock_n = {}
@@ -125,7 +127,23 @@ class LLM:
         self._track(resp.usage.input_tokens, resp.usage.output_tokens)
         return "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
 
+    def call_activity(self):
+        with self._lock:
+            active = list(self._active_calls.values())
+        return {"active": len(active), "models": sorted({model for _, model in active}),
+                "oldest_seconds": round(max((time.monotonic() - start for start, _ in active), default=0), 1)}
+
     def _call(self, model, system, user, max_tokens):
+        token = object()
+        with self._lock:
+            self._active_calls[token] = (time.monotonic(), model)
+        try:
+            return self._call_impl(model, system, user, max_tokens)
+        finally:
+            with self._lock:
+                self._active_calls.pop(token, None)
+
+    def _call_impl(self, model, system, user, max_tokens):
         if self.cap and self.usage["calls"] >= self.cap:
             raise LLMError("daily call cap reached")
         last = None
@@ -165,16 +183,12 @@ class LLM:
         if self.mock:
             self._mock_wait()
             return self._mock_decide(ctx, user)
-        return self._json(self.participant_model, system, user, 350)
+        return self._json(self.participant_model, system, user, 450)
 
     def react(self, system, user, ctx):
         if self.mock:
-            r = self._mrng(user)
-            kinds = ["stay", "flee", "comfort", "confront", "alert", "stay"]
-            k = r.choice(kinds)
-            hum = ctx.get("humans", [])
-            return {"reaction": k, "target": r.choice(hum) if hum else "", "to_room": r.choice(ctx["reachable"]) if ctx.get("reachable") else "",
-                    "line": "What was that?", "act": "", "thought": "Stay calm."}
+            from .mock_policy import react
+            return react(ctx, self._mrng(user))
         return self._json(self.participant_model, system, user, 250)
 
     def converse(self, system, user, ctx):
@@ -243,29 +257,25 @@ class LLM:
     def reflect(self, system, user, ctx):
         """Nightly reflection: {"diary", "drive", "target", "arc"}."""
         if self.mock:
-            r = self._mrng(user)
-            out = {"diary": (" ".join(ctx.get("events", [])[-3:]) or "A quiet day.")[:240], "drive": "keep", "target": "", "arc": ""}
-            if r.random() < self.mock_drive_shift_prob:
-                out.update(drive=r.choice(["survivor", "protector", "saboteur", "schemer", "avenger", "thrill", "romantic", "seeker", "nihilist", "martyr"]),
-                           target=r.choice(ctx.get("ids") or [""]), arc="Mock arc: something in them is changing.")
-            return out
+            from .mock_policy import reflect
+            return reflect(ctx, self._mrng(user), self.mock_drive_shift_prob)
         return self._json(self.participant_model, system, user, 450)
 
     def propose(self, system, user, ctx):
-        """A proposed plan or social move (proposer.py). The mock proposes from the same options, sometimes impossibly, so the checks get used."""
+        """A proposed plan or social move; normal mock plans select checked offers."""
         if self.mock:
             r = self._mrng(user)
             if ctx.get("kind") == "move":
-                ids = ctx.get("ids") or [""]
-                return {"move": r.choice(["comfort", "confide", "warn", "confront", "accuse", "gossip", "pact", "flirt", "dance"]), "to": r.choice(ids), "about": ""}
-            o = ctx.get("offers") or {}
-            kind = r.choice(["asleep", "alone", "height", "drown", "poison", "hang", "lure", "fly"])
-            seen = o.get("seen") or []
-            room = {"asleep": ctx.get("home"), "height": r.choice(o.get("drops") or ["nowhere"]), "drown": r.choice(o.get("water") or ["pool"])}.get(
-                kind, r.choice(seen + ["library", "moon_base"]))
-            item = r.choice((o.get("items") or []) + [""])
-            return {"scheme": kind, "room": room, "item": item, "when": r.choice(["day", "night"]), "cover": "Say I was in the library.",
-                    "steps": [{"do": r.choice(["go", "fetch", "wait", "teleport"]), "room": room, "item": item}]}
+                from .mock_policy import social_proposal
+                return social_proposal(ctx, r)
+            if "plans" in ctx:
+                from .mock_policy import pick
+                actor = ctx.get("actor", {})
+                # Patient plotters favour waiting; impulsive ones favour an opening now.
+                patience = actor.get("facets", {}).get("orderliness", 50) / 100
+                proposal = pick(r, [(1 + (patience if p["scheme"] == "asleep" else 1 - patience), p) for p in ctx["plans"]])
+                return dict(proposal, reason="I want an opening that fits what I know of their movements.") if proposal else {}
+            return {}  # Older recordings may not contain checked options.
         return self._json(self.host_model, system, user, 500)
 
     def adjudicate(self, system, user, ctx):
@@ -342,75 +352,25 @@ class LLM:
     mock_incite_prob = float(os.environ.get("MC_MOCK_INCITE", 0.0))        # chance per conversation that someone incites another
 
     def _mock_decide(self, ctx, key=""):
-        r = self._mrng(key)
-        hour = ctx["hour"]
-        reachable = ctx.get("reachable", [])
-        home = ctx["home"]
-        act = {"action": "stay", "activity": "Hanging around", "talk_to": [], "intent": "", "thought": "Let's see how it goes."}
-        if ctx.get("end_ok") and r.random() < self.mock_suicide_prob:
-            act.update(action="end_life", method="the cellar steps", activity="Slipping away", thought="I can't do this any more.")
-            return act
-        if ctx.get("plot_ok") and ctx.get("humans_here") and r.random() < self.mock_plot_prob:
-            act["plot"] = {"target": r.choice(ctx["humans_here"]), "stage": r.choice(["brooding", "preparing", "stalking"]), "method": "something sharp",
-                           "step": "Watching for a moment alone together.", "cover": "Say I was in the library all afternoon."}
-        if ctx.get("murder_ok") and ctx.get("humans_here") and r.random() < self.mock_murder_prob:
-            weapons = ctx.get("weapons") or []
-            act.update(action="attack", target=r.choice(ctx["humans_here"]),
-                       method=r.choice(weapons) if weapons else "hands", activity="Something snaps")
-            return act
-        if ctx.get("violence_ok") and ctx.get("humans_here") and r.random() < self.mock_assault_prob:
-            act.update(action="assault", target=r.choice(ctx["humans_here"]), method="hands", activity="Losing it")
-            return act
-        if ctx.get("violence_ok") and r.random() < self.mock_sabotage_prob:
-            act.update(action="sabotage", method=r.choice(["lights", "occasion"]), activity="Up to something")
-            return act
-        if r.random() < self.mock_experiment_prob:
-            act.update(action="experiment", idea="Test whether the radio in the Study can be reached.", activity="Trying something odd")
-            return act
-        if r.random() < self.mock_host_prob:
-            kind = r.choice(["meal", "movie", "party", "game", "prank"])
-            act["host"] = {"kind": kind, "where": r.choice(ctx.get("reachable") or [ctx["room"]]), "invite": "all",
-                           "text": f"A little {kind} to cheer everyone up.", "secret_from": []}
-        if ctx.get("investigating") and r.random() < 0.5:
-            act.update(action="investigate", activity="Looking for clues")
-            if reachable:
-                act["target_room"] = r.choice(reachable)
-            return act
-        if hour >= 21 and ctx["room"] != home:
-            act.update(action="stay", target_room=home, activity="Heading to bed")
-        else:
-            roll = r.random()
-            if roll < 0.45 and reachable:
-                act.update(target_room=r.choice(reachable), activity="Wandering over")
-            elif roll < 0.55:
-                act.update(action="search", activity="Poking around the room")
-            elif roll < 0.62 and ctx.get("takeable"):
-                act.update(action="take", item=r.choice(ctx["takeable"]), qty=1, activity="Picking something up")
-            elif roll < 0.70 and ctx.get("usable"):
-                act.update(action="use", item=r.choice(ctx["usable"]), qty=1, activity="Using an item")
-            elif roll < 0.78:
-                act.update(action="rest", activity="Resting for a bit")
-            else:
-                act.update(activity="Chatting and killing time")
-        act["intent"] = "Chat about the island."
-        if ctx.get("brain"):
-            plan = []
-            if ctx.get("humans_here") and r.random() < 0.7:
-                plan.append({"do": "talk", "who": r.choice(ctx["humans_here"]), "where": "", "why": "see how they are holding up"})
-            if reachable and r.random() < 0.6:
-                plan.append({"do": r.choice(["go", "search"]), "who": "", "where": r.choice(reachable), "why": "something to look into"})
-            if r.random() < 0.3:
-                plan.append({"do": "work", "who": "", "where": "", "why": "a way out"})
-            act["plan"] = plan
-        return act
+        from .mock_policy import decide, explain
+        return explain(ctx, decide(ctx, self._mrng(key), self))
 
     def _mock_converse(self, ctx, key=""):
         r = self._mrng(key)
         people = ctx["people"]
         lines = []
+        if not people:
+            return {"lines": [], "effects": {}}
         n = r.randint(2, 5)
-        order = people[:]
-        r.shuffle(order)
+        from .mock_policy import facet, pick
+        order = sorted(people, key=lambda p: p["id"])
+        # Sample without replacement: sociable people tend to open, quieter ones answer.
+        ordered = []
+        while order:
+            person = pick(r, [(.3 + facet(p.get("actor", {}), "gregariousness"), p) for p in order])
+            ordered.append(person)
+            order.remove(person)
+        order = ordered
         last = None
         for i in range(n):
             p = order[i % len(order)]
@@ -418,28 +378,14 @@ class LLM:
                 p = order[(i + 1) % len(order)]
             pool = p.get("lines") or ["..."]
             if r.random() < 0.3:
-                lines.append({"speaker": p["id"], "kind": "act", "text": r.choice(["flicks water at the others", "leans back and stretches", "slams a hand on the table",
-                                                                              "turns the music up", "hands out snacks"])})
+                lines.append({"speaker": p["id"], "kind": "act", "text": r.choice(["pauses to collect their thoughts", "leans back and stretches", "takes a steady breath"])})
             else:
                 lines.append({"speaker": p["id"], "kind": "say", "text": r.choice(pool)})
             last = p["id"]
-        affinity = []
+        from .mock_policy import conversation_effects
+        affinity, special, bonds = conversation_effects(people, r)
         humans = [p for p in people if p.get("human", True)]
-        for k in range(1, len(lines)):
-            x, y = lines[k - 1]["speaker"], lines[k]["speaker"]
-            if x != y and r.random() < 0.6 and any(h["id"] == x for h in humans) and any(h["id"] == y for h in humans):
-                affinity.append({"from": y, "to": x, "delta": r.choice([-3, -2, -1, 1, 1, 2, 3])})
-        special = []
-        if len(humans) >= 2 and r.random() < 0.25:
-            special.append({"kind": r.choice(["laughter", "comfort", "teamwork"]), "who": [h["id"] for h in humans][:3], "why": "mock moment"})
-        bonds = []
-        if len(humans) >= 2 and r.random() < 0.1:
-            a, b = r.sample(humans, 2)
-            bonds.append({"a": a["id"], "b": b["id"], "kind": r.choice(["romance", "feud", "pact", "pact"])})
         rumors, incite = [], []
-        if len(humans) >= 3 and r.random() < 0.12:
-            a, b, c = r.sample(humans, 3)
-            rumors.append({"by": a["id"], "about": c["id"], "claim": "I heard they are not who they say they are.", "tone": "bad", "lie": r.random() < 0.5})
         if len(humans) >= 3 and r.random() < self.mock_incite_prob:
             a, b, c = r.sample(humans, 3)
             incite.append({"by": a["id"], "target": b["id"], "victim": c["id"], "how": r.choice(["persuade", "trick", "blackmail"]), "claim": "They are planning to get rid of you."})

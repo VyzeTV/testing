@@ -7,13 +7,13 @@ import zlib
 
 FLIRT = {
     1: "Where two people clearly have chemistry, light flirtation is welcome: lingering looks, a suggestive tease, a charged silence.",
-    2: "Where two people have chemistry, flirtation is frequent and bold: innuendo, obvious sexual tension, touching, kissing; a night together may be shown suggestively and cut away before anything explicit.",
-    3: "Where two people have chemistry, it is openly sensual and heated: sexual banter, kissing, undressing each other, implied sex that fades to black. Never graphic.",
+    2: "Where two adults have chemistry, allow bold innuendo, double meanings, suggestive invitations, teasing about attraction and a welcome kiss. Let a flirt land, get teased back or be declined.",
+    3: "Where two adults have chemistry, the dialogue can be sensual and cheekily dirty: sexual innuendo, provocative teasing, double entendres, daring invitations and a welcome kiss. Build tension through words, pauses and mutual reactions. Implied sex fades to black before sexual activity. Never graphic.",
 }
 BANTER = {
     1: "Friends tease each other lightly.",
-    2: "Friends roast each other, trash-talk affectionately and trade the odd nasty or crude joke (about bodies, habits, love lives, the situation, themselves); people with a sarcastic or edgy streak go further. It is banter between people who are comfortable, not cruelty.",
-    3: "Friends are relentless: constant roasting, crude and dark humour, innuendo flying about. Still affection underneath, never cruelty.",
+    2: "Friends trade affectionate insults, sarcastic comebacks, gallows humour and occasional crude jokes. Let someone answer a roast and get the last word. Swearing can be playful as well as angry. Keep warmth underneath and leave room for sincere conversation.",
+    3: "Friends can be relentless when both enjoy it: sharp comebacks, affectionate trash talk and crude or dark jokes. Vary the rhythm; do not turn every line into a punchline. Stop when someone is hurt or asks them to quit.",
 }
 GORE = {
     0: "Deaths and wounds are never described: cut away before the blow lands and after the body is found.",
@@ -26,18 +26,36 @@ GORE = {
 TONE_GUIDE = ("TONE: mature, darkly funny and brutal at once. TereVi runs it as a game show: punishments are 'segments' with sound cues, fake sponsors "
               "('this execution is brought to you by...'), ratings jokes and a studio audience that is not there. The cast's gallows humour, petty feuds and absurd "
               "mishaps sit right next to the horror, and grief and fear are played straight when they hit. ")
-SEX = ("Sex happens between consenting adults whose feelings got there: desire, flirting, the night together implied and cut away from, the morning after, "
-       "jealousy, affairs and rumours. Never explicit.")
-BANTER_EX = ["'Nice hair. Did you lose a fight with the wardrobe?'", "'You snore like a dying walrus and I say that with love.'", "'Tell me you're not wearing that on purpose. Oh god, you are.'"]
-FLIRT_EX = ["'You're staring.' 'I'm admiring.'", "'If you wanted me out of this shirt you only had to ask.'", "'Don't look at me like that unless you mean it.'"]
+SPEECH = ("DIALOGUE: characters may swear naturally and uncensored, including 'fuck', 'shit' and 'bastard', for surprise, frustration, emphasis or affectionate banter. "
+          "Match each person's vocabulary: some swear freely, some rarely, some get awkward or deadpan. No asterisk censorship, compulsory profanity or identical voices. "
+          "Let jokes get a comeback, a laugh, an eye-roll or an awkward silence; friends can enjoy each other without every exchange becoming an insult. ")
+SEX = ("Sexual themes are only for consenting characters explicitly aged 18 or older. Desire, awkward attraction, sexual humour, jealousy, affairs, "
+       "private invitations and morning-after embarrassment can be mature without erotic detail. Show mutual interest; a refusal or hesitation ends the advance. "
+       "Friendship, flirting and clothing never establish consent or a romance by themselves. Keep childhood memories nonsexual. "
+       "An intimate night may be implied, then fade to black before sexual activity; no sexual anatomy, arousal descriptions or descriptions of sex acts. Never explicit.")
+BANTER_EX = ["'You're a pain in the arse.' 'And yet you saved me a seat.'", "'That was your plan?' 'It sounded less shit in my head.'", "'Keep talking. I nearly mistook you for the sensible one.'"]
+FLIRT_EX = ["'Is that an invitation?' 'Depends. Are you going to make me regret it?'", "'You're trouble.' 'You keep sitting closer.'", "'Behave.' 'Give me a good reason.'"]
+# Mock/fallback lines use the same register without inventing physical intimacy.
+BANTER_LINES = ["Your plan sounds like a fucking terrible idea. Naturally, I'm listening.", "You're a pain in the arse, {t}. Good thing I like you.",
+                "Five-star hospitality. Absolute shit room service.", "That sounded much less stupid before you said it out loud."]
+FLIRT_LINES = ["You're making it very difficult to behave, {t}.", "Careful with that invitation. I might take you seriously.",
+               "Keep teasing me like that and I'll start thinking you mean it."]
 EDGY_WORDS = ("profanity", "sarcas", "contempt", "insult", "cold", "dry", "scorn", "venom")
 
 
 class ToneMixin:
     def tone_guide(self):
-        """One paragraph every voice call reads (through the bible): comedy, the gore dial, and how sex is handled."""
+        """Post-reveal game-show horror, separate from the dialogue register."""
         g = max(0, min(3, int(self.tune("gore"))))
-        return "\n" + TONE_GUIDE + "VIOLENCE: " + GORE[g] + " " + (SEX if int(self.tune("flirt_level")) > 0 else "Nobody here is interested in romance.")
+        return "\n" + TONE_GUIDE + "VIOLENCE: " + GORE[g]
+
+    def dialogue_guide(self):
+        """The same writing register before and after the reveal, using saved dials."""
+        fl, bn = int(self.tune("flirt_level")), int(self.tune("banter_level"))
+        bits = [SPEECH, BANTER[min(3, bn)] if bn > 0 else "Keep the banter civil; no crude jokes."]
+        bits.append(FLIRT[min(3, fl)] + " " + SEX if fl > 0 else "Do not add sexual innuendo, sexual jokes or new romantic advances; preserve existing relationship facts.")
+        bits.append("Ordinary conversation, friendship, grief and investigation still need space. Match the moment; do not force chemistry or turn teasing into a new relationship or event.")
+        return "\n" + " ".join(bits)
 
     def chemistry(self, a, b):
         """A stable 0..1 figure for how well two particular people click, so the same pairs keep finding each other."""
@@ -47,6 +65,8 @@ class ToneMixin:
         """How plausible flirtation is between these two right now (0 = not at all)."""
         w, s = self.world, self.s
         if a not in w.agents or b not in w.agents:
+            return 0.0
+        if any(w.cast[p].get("age", 0) < 18 for p in (a, b)):
             return 0.0
         if any(bd["kind"] == "romance" and {bd["a"], bd["b"]} == {a, b} for bd in s.get("bonds", [])):
             return 1.0
@@ -89,7 +109,8 @@ class ToneMixin:
         if fl >= 2:
             bits.append("Register examples for flirtation (do not copy them): " + " ".join(FLIRT_EX) + ".")
         return ("ADULT TONE (flavour, not a rule): " + " ".join(bits) + " Use it only where it suits those people and the moment (their personalities, how they feel about each other, how tense or safe the scene is); "
-                "do not force it and do not make everyone do it. Everyone is an adult and everything is consensual: a person who is not receptive deflects or laughs it off. Nothing explicit.\n")
+                "do not force it and do not make everyone do it. Sexual themes require consensual interest between characters explicitly aged 18 or older. "
+                "A person who is not receptive can decline plainly; respect that and move on. Keep childhood memories nonsexual. Nothing explicit.\n")
 
     def card_tone(self, pid, group):
         """A short, per-person note for a conversation card: who they might flirt with here, who they trade friendly insults with, and what their clothes make of the moment."""
@@ -105,7 +126,7 @@ class ToneMixin:
             bits.append(("is openly flirtatious and touchy with " if lover and lvl >= 2 else "may flirt with ") + ", ".join(self.nm(o) for o in flirt[:2]) + ("" if lover and lvl >= 2 else " if it feels right"))
         bn = int(self.tune("banter_level"))
         if bn >= 1:
-            friends = [o for o in group if o != pid and o in w.agents and 2 <= a["aff"].get(o, 0) < 9 and o not in flirt]
+            friends = [o for o in group if o != pid and o in w.agents and min(a["aff"].get(o, 0), w.agents[o]["aff"].get(pid, 0)) >= 2 and o not in flirt]
             if friends:
                 edgy = any(k in (w.cast[pid].get("candor", "") + w.cast[pid].get("speech", "")).lower() for k in EDGY_WORDS)
                 bits.append(("trades " + ("rude, affectionate jokes" if edgy or bn >= 3 else "light teasing") + " with " + ", ".join(self.nm(o) for o in friends[:2])))

@@ -297,7 +297,7 @@ class ChaosMixin:
                 self.adjust_any_aff(o, cid, -2)
                 self.stat(tick, o, "sanity", -1, "witnessed violence")
             verb = self.rng.choice(["slams", "beats", "hurls themselves at", "lashes out at"])
-            self.log_event(tick, {"type": "assault", "who": cid, "room": room, "vis": "public",
+            self.log_event(tick, {"type": "assault", "who": cid, "target": t, "room": room, "vis": "public",
                                   "text": f"{name} {verb} {tname}{with_}, leaving them hurt."}, witnesses=here + [t], actor=cid)
             w.remember(t, f"{hhmm_(hour)} (private) {name} attacked you{with_}.")
             self.fx(tick, "shake", room, cid)
@@ -308,7 +308,7 @@ class ChaosMixin:
             self.day_notable.append(f"{name} assaulted {tname}.")
         else:
             self.adjust_any_aff(t, cid, -2)
-            self.log_event(tick, {"type": "assault", "who": cid, "room": room, "vis": "public",
+            self.log_event(tick, {"type": "assault", "who": cid, "target": t, "room": room, "vis": "public",
                                   "text": f"{name} swings at {tname}{with_} and misses."}, witnesses=here + [t], actor=cid)
             self.fx(tick, "shake", room, cid)
 
@@ -362,10 +362,17 @@ class ChaosMixin:
     # ------------------------------------------------------------------ betrayals
     def betrayal(self, tick, actor, victim, what):
         w, s = self.world, self.s
+        self.commitments.harmed(tick, actor, victim)
+        from .relationships import betray
+        betray(s, victim, actor, self.commitments.now(tick), what)
         held = [e for e in s["bonds"] if {e["a"], e["b"]} == {actor, victim} and e["kind"] in ("romance", "pact")]
+        self.emotions.betrayed(tick, actor, victim, what, bool(held))
         if not held:
             return
         b = next((e for e in held if e["kind"] == "romance"), held[0])
+        from .relationships import bond_time, record_bond
+        for ended in held:
+            record_bond(s, ended, bond_time(self.day, tick["hour"]), "ended", "betrayal")
         s["bonds"] = [e for e in s["bonds"] if e not in held]                     # a betrayal ends the romance and the pact alike
         self.adjust_any_aff(victim, actor, -6)
         self.stat(tick, victim, "sanity", -7 if b["kind"] == "romance" else -5, "betrayed")
@@ -554,6 +561,7 @@ class ChaosMixin:
     def reflect_prompt(self, cid):
         """One call per night per character: a diary entry plus a possible change of drive. Returns (system, user, ctx) for the call."""
         w = self.world
+        from .relationships import context as relationship_context
         a, c = w.agents[cid], w.cast[cid]
         d = a["drive"]
         known = {k: v for k, v in a["aff"].items() if k in w.agents}
@@ -569,9 +577,22 @@ class ChaosMixin:
                 + (self.lost_lines(cid) + "\n" if a["memory"].get("lost") else "")
                 + ("Their mind is breaking: a turn toward nihilist or avenger is very plausible. " if lvl >= 3 else "")
                 + f"Write the diary entry (first person, plain, max 60 words), and decide whether today changed what they want. Drive options: {options}."
+                + self.commitments.context(cid) + "\n"
+                + self.emotions.context(cid) + "\n"
+                + self.decisions.context(cid) + "\n"
+                + relationship_context(self.s, cid, self.commitments.now(), self.nm) + "\n"
                 + self.reflect_menu(cid) + " "
-                  'Reply as JSON: {"diary": "...", "drive": "keep or a drive id", "target": "<person id or empty>", "arc": "<one sentence on how they are changing>", "choices": []}')
-        return sysm, user, {"events": mem["recent"], "ids": list(w.agents.keys()), "cid": cid}
+                  'Reply as JSON: {"diary": "...", "drive": "keep or a drive id", "target": "<person id or empty>", "arc": "<one sentence on how they are changing>", "choices": [], "commitment_updates": []}. '
+                  'Optionally use up to three commitment_updates: {"op":"keep","id":"your active id"}, '
+                  '{"op":"drop","id":"your active id","reason":"concrete new information"}, or '
+                  '{"op":"request","request":{"kind":"protect|confront|apologise|ask|thank","target":"living id","hours":24,"reason":"concrete reason if replacing"}}. '
+                  'Omission keeps obligations; keep never extends a deadline. A diary cannot declare follow-through or make a spoken promise. Tomorrow starts at 08:00.')
+        ctx = {"events": mem["recent"], "ids": list(w.agents.keys()), "cid": cid,
+               "stated_motives": self.decisions.view(cid)}
+        if self.llm.mock:
+            from .mock_policy import actor_context
+            ctx["actor"] = actor_context(self, cid)
+        return sysm, user, ctx
 
     def reflect_apply(self, cid, tick, r, err=None):
         """Apply one night's reflection (the model's answer, or None after an error). Returns the diary text."""

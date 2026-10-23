@@ -1325,7 +1325,7 @@ async function playLoop() {
         if (!S.waitSince || S.waitSince.idx !== next) S.waitSince = { idx: next, t: Date.now(), calls };
         const secs = Math.round((Date.now() - S.waitSince.t) / 1000), made = calls - S.waitSince.calls;
         const busy = secs >= 3 ? ` (${secs}s${made > 0 ? `, ${made} model call${made === 1 ? "" : "s"} done` : ""})` : "";
-        w.textContent = (S.ff ? "Fast-forwarding: the island is simulating the rest of the day..." : "The island is thinking about the next hour...") + busy;
+        w.textContent = (S.generation ? generationLabel(S.generation) : S.ff ? "Fast-forwarding: the island is simulating the rest of the day..." : "The island is thinking about the next hour...") + busy;
         w.style.display = S.ticks.length || S.mode === "live" ? "block" : "none";
       }
       continue;
@@ -1415,6 +1415,7 @@ async function poll() {
       }
       if (r.partial) S.partial = r.partial;
       S.done = r.done; S.usage = r.usage || S.usage; S.mode = r.mode || S.mode;
+      showGeneration(r.generation);
       showRoll(r.roll);
       if (r.error && !S.error) { S.error = r.error; showError(r.error); }
       if (r.aborted && !S.error) { S.error = "stopped"; }
@@ -1690,8 +1691,13 @@ function renderCast() {
   }).join("");
   d.innerHTML = `<h3 style="color:${c.color}">${esc(c.name)}</h3>
     <div class="row">${esc(c.role)} · ${esc(c.origin || "")} · age ${c.age || "?"}${alive(a) ? "" : " · <b>" + esc(a.status) + "</b>"}</div>
+    ${c.birthday ? `<div class="row">Birthday: ${esc(c.birthday)} · ${esc(c.height_cm)} cm · ${esc(c.weight_kg)} kg</div>` : ""}
+    ${c.casting_slot && c.casting_slot !== c.gender ? `<div class="row">Casting slot: ${esc(c.casting_slot)} · ${esc(c.pron || "she")}</div>` : ""}
     ${c.looks ? `<div class="row" style="opacity:.85">${esc(c.looks)}</div>` : ""}
     ${alive(a) ? `<div class="row">Now: <b>${esc(a.activity)}</b> in ${esc(S.W.rooms[a.room].name)}</div>` : ""}
+    ${S.gm && (a.commitments || []).length ? `<div class="row"><b>Commitments</b><br>${a.commitments.map((c) => "• " + esc(c.title) + " — " + esc(c.status) + (c.reason ? ": " + esc(c.reason) : "")).join("<br>")}</div>` : ""}
+    ${S.gm && (a.emotions || []).length ? `<div class="row"><b>Lasting emotions</b><br>${a.emotions.map((e) => esc(e.kind) + " " + Number(e.intensity).toFixed(1) + "/10 — " + esc(e.cause)).join("<br>")}</div>` : ""}
+    ${S.gm && (a.decisions || []).length ? `<div class="row"><b>Stated motives</b><br>${a.decisions.map((d) => esc(d.label || d.option || d.selected.action) + " — " + esc(d.reason || "No reason supplied") + " (" + esc(d.status) + ")" + (d.change ? ": " + esc(d.change) : "")).join("<br>")}</div>` : ""}
     ${(a.lost || []).length ? `<div class="row">Carries the loss of: <b>${a.lost.map(esc).join(", ")}</b></div>` : ""}
     ${S.gm && (a.moments || []).length ? `<div class="row"><b>Defining moments</b><br>${a.moments.map((m) => "\u2022 " + esc(m)).join("<br>")}</div>` : ""}
     ${S.gm && a.quirk ? `<div class="row"><b>Lately</b>: <i>${esc(a.quirk)}</i></div>` : ""}
@@ -1850,7 +1856,43 @@ $("#scrub").oninput = (e) => { const i = parseInt(e.target.value, 10); if (i < S
 
 // ---------- start modal ----------
 let modalMode = "live";
-async function refreshStatus() { S.status = await (await fetch("/api/status")).json(); return S.status; }
+const GENERATION_LABELS = { idle: "Generation idle", generating: "Generating the next block", waiting_on_viewer: "Generation waiting on viewer playback", waiting_on_ai: "Generation waiting on an AI call", waiting_on_gm: "Generation waiting on a GM decision", error: "Generation stopped with an error", complete: "Generation complete", stopped: "Generation stopped" };
+function generationLabel(g) { return (GENERATION_LABELS[g.state] || "Generation status unknown") + (g.state === "waiting_on_ai" ? ` (${g.ai.active} active, ${g.ai.oldest_seconds}s)` : ""); }
+function showGeneration(g) { if (!g) return; S.generation = g; $("#generationStatus").textContent = generationLabel(g); }
+async function refreshStatus() {
+  S.status = await (await fetch("/api/status")).json();
+  showGeneration(S.status.generation);
+  const recovered = S.status.recovery && S.status.recovery.recovered;
+  $("#recoveryNotice").hidden = !recovered;
+  $("#recoveryNotice").textContent = recovered ? `Recovered Day ${recovered.day} from backup — see Diagnostics` : "";
+  return S.status;
+}
+$("#btnDiagnostics").onclick = async () => {
+  const dialog = $("#diagnosticsDialog");
+  $("#diagnosticCopyStatus").textContent = "";
+  try {
+    const response = await fetch("/api/diagnostics");
+    if (!response.ok) throw new Error("Could not fetch diagnostic report");
+    const report = await response.json();
+    $("#diagnosticReport").value = JSON.stringify(report, null, 2);
+    const recovered = report.recovery.recovered;
+    $("#recoveryStatus").textContent = recovered ? `Recovered Day ${recovered.day} from backup ${recovered.backup}. The damaged save is kept as current.corrupt.json.` : `${report.recovery.backups.length} previous valid save(s) available.`;
+    showGeneration(report.generation);
+  } catch (e) { $("#diagnosticReport").value = "Server unavailable. Reload after restarting the server."; }
+  dialog.showModal();
+};
+$("#btnCopyDiagnostics").onclick = async () => {
+  const field = $("#diagnosticReport");
+  try {
+    if (!navigator.clipboard) throw new Error("Clipboard unavailable");
+    await navigator.clipboard.writeText(field.value);
+    $("#diagnosticCopyStatus").textContent = "Copied.";
+  } catch (e) {
+    field.focus(); field.select();
+    $("#diagnosticCopyStatus").textContent = document.execCommand("copy") ? "Copied." : "Report selected. Press Ctrl+C or Command+C to copy.";
+  }
+};
+$("#btnCloseDiagnostics").onclick = () => $("#diagnosticsDialog").close();
 async function reloadWorld() {
   S.W = await (await fetch("/api/world")).json();
   for (const id of [...Object.keys(S.W.characters), "neovi", "terevi"]) img(id);
@@ -2014,10 +2056,11 @@ $("#btnRewind").onclick = async () => {
   resetSession(); await reloadWorld(); await openModal();
 };
 $("#btnNewGame").onclick = async () => {
-  const d = prompt("Erase ALL recorded days, deaths and newcomers, and start a new game.\nStart at which day?\n1 = a fresh season: Day 1 is introductions and presentations, and the truth is revealed that evening\n3 = continue the chat story (the cast already knows the truth)", "1");
+  const d = prompt("Erase ALL recorded days, deaths and newcomers, and start a new game. Participants are drawn again for four female and four male casting slots.\nStart at which day?\n1 = a fresh season: Day 1 is introductions and presentations, and the truth is revealed that evening\n3 = begin after the reveal with a freshly selected cast", "1");
   if (!d) return;
   const keep = S.status && S.status.scenario ? confirm(`Keep your scenario "${S.status.scenario}" (premise, twist, house rules, seeded relationships) for the new game?`) : true;
-  await fetch("/api/newgame", { method: "POST", body: JSON.stringify({ start_day: parseInt(d, 10) || 3, keep_scenario: keep }) });
+  const r = await (await fetch("/api/newgame", { method: "POST", body: JSON.stringify({ start_day: parseInt(d, 10) || 3, keep_scenario: keep }) })).json();
+  if (!r.ok) { $("#modalErr").textContent = r.error || "Could not start a new season."; return; }
   resetSession(); await reloadWorld(); await openModal();
 };
 function resetSession() {
@@ -2049,7 +2092,8 @@ $("#btnGo").onclick = async () => {
 function openNewcomer() {
   const st = S.status;
   const genders = [...new Set((st.vacancies || []).map((v) => v.gender))];
-  $("#nGender").innerHTML = genders.map((g) => `<option value="${g}">${g}</option>`).join("");
+  $("#nSlot").innerHTML = genders.map((g) => `<option value="${g}">${g}</option>`).join("");
+  $("#nGender").value = genders[0] || "female";
   $("#nErr").textContent = "";
   const nb = $("#nBackend"); nb.innerHTML = "";
   [["cli", "Claude subscription", st.backends.cli], ["api", "Anthropic API", st.backends.api], ["mock", "Mock AI (test stub)", true]].filter((x) => x[2]).forEach((x) => { const o = document.createElement("option"); o.value = x[0]; o.textContent = x[1]; nb.appendChild(o); });
@@ -2057,7 +2101,7 @@ function openNewcomer() {
 }
 $("#nCancel").onclick = () => ($("#nmodal").style.display = "none");
 $("#nDevelop").onclick = async () => {
-  const body = { name: $("#nName").value, gender: $("#nGender").value, role: $("#nRole").value, age: $("#nAge").value, origin: $("#nOrigin").value,
+  const body = { name: $("#nName").value, gender: $("#nGender").value, casting_slot: $("#nSlot").value, role: $("#nRole").value, age: $("#nAge").value, origin: $("#nOrigin").value,
     persona: $("#nPersona").value, secret: $("#nSecret").value, likes: $("#nLikes").value, dislikes: $("#nDislikes").value,
     speech: $("#nSpeech").value, goals: $("#nGoals").value, items: $("#nItems").value, backend: $("#nBackend").value };
   $("#nErr").textContent = "The AI is writing...";
@@ -2074,7 +2118,7 @@ $("#nDevelop").onclick = async () => {
 };
 $("#nGo").onclick = async () => {
   const body = {
-    name: $("#nName").value, gender: $("#nGender").value, role: $("#nRole").value, age: $("#nAge").value, origin: $("#nOrigin").value,
+    name: $("#nName").value, gender: $("#nGender").value, casting_slot: $("#nSlot").value, role: $("#nRole").value, age: $("#nAge").value, origin: $("#nOrigin").value,
     persona: $("#nPersona").value, secret: $("#nSecret").value, likes: $("#nLikes").value, dislikes: $("#nDislikes").value,
     speech: $("#nSpeech").value, goals: $("#nGoals").value, items: $("#nItems").value,
     ai: $("#nAi").checked, backend: $("#nBackend").value,

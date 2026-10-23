@@ -74,24 +74,35 @@ class ReactMixin:
         humans = [o for o in w.occupants(room) if o in w.agents and o != cid]
         reach = list(w.reachable_rooms(cid, 40 * self.step).keys())
         ctx = {"cid": cid, "room": room, "humans": humans, "reachable": [r for r in reach if r != room], "hour": hour}
+        ctx['reactions'] = ['stay', 'alert'] + (['flee'] if ctx['reachable'] else []) + (['help', 'comfort', 'confront'] if humans else []) + (['hide'] if COVER.get(room) else [])
+        if self.llm.mock:
+            from .mock_policy import actor_context
+            ctx.update(actor=actor_context(self, cid, hour), home=w.cast[cid]["home"])
         user = (f"A MOMENT, not a full turn. Day {self.day}, {_hh(hour)}, {w.room_name(room)}.\n"
                 f"JUST NOW: {' | '.join(t for _, t in evs)}\n"
                 + (f"JUST SAID: {' / '.join(talk)}\n" if talk else "")
                 + f"YOU: health {a['hp']}/100, sanity {a['sanity']}/100 (you feel {self.mood_text(a)}). "
                   f"Others here: {', '.join(f'{o}={self.nm(o)} ({a['aff'].get(o, 0):+d})' for o in humans) or 'nobody'}. "
                   f"Rooms you could run to: {', '.join(f'{r}={w.room_name(r)}' for r in ctx['reachable'][:8]) or 'none'}.\n"
+                + self.commitments.context(cid) + "\n" + self.emotions.context(cid) + "\n" + self.decisions.context(cid) + "\n"
+                + f"CHECKED REACTIONS: {', '.join(ctx['reactions'])}. Give a private reason (max 25 words) matching the chosen reaction. "
                 "React in the next few seconds, in character, as this person would. Options: stay (freeze or watch), flee (to_room), help (target: someone hurt), "
                 "comfort (target), confront (target: say it to their face), hide (if there is cover), alert (shout for the others).\n"
                 'Reply as JSON: {"reaction": "stay|flee|help|comfort|confront|hide|alert", "target": "<person id or empty>", "to_room": "<room id or empty>", '
-                '"line": "<what you say aloud, max 18 words, plain and human, or empty>", "act": "<a short verb phrase for what you physically do, or empty>", "thought": "<private, max 15 words>"}')
+                '"line": "<what you say aloud, max 18 words, plain and human, or empty>", "act": "<a short verb phrase for what you physically do, or empty>", "thought": "<private, max 15 words>", "reason": "<private motive>"}')
         try:
             r = self.llm.react(self.system_prompt(cid), user, ctx)
         except Exception as e:
             if getattr(e, "fatal", False):
                 raise
             return
-        kind = r.get("reaction") if r.get("reaction") in REACTIONS else "stay"
+        kind = r.get("reaction") if r.get("reaction") in ctx['reactions'] else "stay"
         tgt = r.get("target") if r.get("target") in w.agents and r.get("target") != cid else None
+        request = dict(action=kind, target=tgt or '', target_room=r.get('to_room') if kind == 'flee' else '')
+        rec = self.decisions.record(cid, hour, r, request)
+        rec.update(kind='reaction', status='attempted')
+        if r.get('reaction') not in ctx['reactions']:
+            rec.update(status='rejected', change='that reaction is unavailable; stayed instead')
         line = str(r.get("line") or "").strip()[:140]
         act = str(r.get("act") or "").strip()[:80]
         name = self.nm(cid)
@@ -139,6 +150,10 @@ class ReactMixin:
                     if o in w.agents and o != cid and not w.agents[o].get("asleep"):
                         w.remember(o, f"{_hh(hour)} (heard) {name} shouting from the {w.room_name(room)}.")
             parts.append("shouts for help")
+        if kind == 'flee':
+            actual = dict(request, target_room=a['room'])
+            self.decisions.applied(tick, cid, actual, 'attempted',
+                                   'the requested escape destination was not reached' if a['room'] != request['target_room'] else '')
         if act and not parts:
             parts.append(act.rstrip("."))
         text = (f"{name} {', '.join(parts)}" if parts else f"{name} freezes") + (f': "{line}"' if line else ".")

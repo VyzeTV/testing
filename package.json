@@ -1,0 +1,6 @@
+{
+  "name": "murder-channel-checks",
+  "private": true,
+  "scripts": { "test": "python tools/check.py --browser" },
+  "devDependencies": { "playwright": "1.62.1" }
+}

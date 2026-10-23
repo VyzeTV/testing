@@ -219,7 +219,8 @@ class NightMixin:
         """What would make a diary asked for early stale: they were up, something new happened to them, someone died, a case opened."""
         a, s = self.world.agents.get(cid) or {}, self.s
         rec = (a.get("memory") or {}).get("recent") or []
-        return (bool(a.get("asleep")), rec[-1] if rec else None, len(s.get("graveyard") or []), (s.get("case") or {}).get("victim"))
+        return (bool(a.get("asleep")), rec[-1] if rec else None, len(s.get("graveyard") or []), (s.get("case") or {}).get("victim"),
+                self.decisions.signature(cid), self.commitments.signature(cid), self.emotions.signature(cid))
 
     def diary_ahead(self):
         """At the start of the last night block, ask for the diaries of everyone asleep on worker threads, so dawn does not wait for them.

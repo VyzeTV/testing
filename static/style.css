@@ -3,6 +3,9 @@
   --accent: #3ee0d0; --pink: #ff5fa2; --warn: #ffb347; --bad: #ff6b6b; --good: #6be38f;
 }
 * { box-sizing: border-box; }
+#diagnosticsDialog { width: min(680px, 94vw); color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+#diagnosticsDialog::backdrop { background: #0009; }
+#diagnosticReport { color: var(--text); background: var(--bg); border: 1px solid var(--line); margin-bottom: 12px; }
 html, body { height: 100%; margin: 0; }
 body { background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, "Segoe UI", sans-serif; display: flex; flex-direction: column; overflow: hidden; }
 button, select { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }

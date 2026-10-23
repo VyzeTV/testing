@@ -454,6 +454,13 @@ class FreeTimeMixin:
         """Choose and start the next activity for someone who is free. Returns the minute at which they are free again."""
         w, s = self.world, self.s
         a = w.agents[cid]
+        host = next(iter(self.commitments.active(cid, "host")), None)
+        oc = self.s.get("occasion")
+        if host and oc and a["hp"] < 35:
+            self.commitments.finish(tick, host, "cancelled", "an injury interrupted hosting")
+            self.s["occasion"] = None
+        elif host and oc and self.commitments.now(tick) >= oc["day"] * 24 + oc["hour"] + self.step and not self._unsafe(host["room"]):
+            return self._start(tick, cid, "look", host["room"], None, m, why=host["title"])
         b = self.body(cid)
         reach = self._reach(cid)
         here = a["room"]
@@ -499,6 +506,7 @@ class FreeTimeMixin:
                 if av and any(o in av for o in w.occupants(r)):
                     score -= 1.2                                       # they meant to keep away from somebody who is there
             crowd = self._crowd(r, cid)
+            score += self.emotions.score(cid, act, r, partner)
             if crowd >= 3 and gr < 60 and r != here:
                 score -= 0.3 * (crowd - 2)                               # the shy keep out of crowded rooms
             sc.append((score, act, r, at, why, partner))
@@ -534,6 +542,8 @@ class FreeTimeMixin:
         add(max(72 - b["hygiene"], 0) / 50, "wash", why="freshening up")
         add(max(70 - mi["rest"], 0) / 40 + (0.35 if hour >= 20 else 0), "nap", home_only=True, why="tired")
         self.habit_options(tick, cid, hour, m, add, f, b)              # dirt, what comes next, the morning and evening wash, their own habit (habits.py)
+        self.commitments.options(tick, cid, add)
+        self.emotions.options(tick, cid, add)
         self.dare_options(tick, cid, hour, m, add)                     # TereVi's dare (torments.py)
         # what suits them
         fun = (100 - mi["purpose"]) / 70 + (100 - mi["social"]) / 90
@@ -896,6 +906,8 @@ class FreeTimeMixin:
                 a["heading"] = {"act": act, "room": room, "at": list(at) if at else None, "why": why, "partner": partner, "since": m, "tick": f"{tick['day']}:{tick['hour']}"}
             return m + SLICE
         a.pop("heading", None)
+        self.commitments.arrived(tick, cid, a["room"])
+        self.emotions.remind(tick, cid, a["room"])
         if walked:
             m += SLICE // 2 if dur > SLICE else 0
             if self.arrival_reaction(tick, cid, a["room"], act, m):
@@ -1254,7 +1266,8 @@ class FreeTimeMixin:
         if p["stage"] == "stalking":
             p["seen"] = p.get("seen", 0) + 1
             return False
-        if not self.scheme_allows(cid, p, self.days_left() <= 0):
+        method = self.planned_attack(tick, cid, p, self.days_left() <= 0)
+        if not method:
             p["wait"] = p.get("wait", 0) + 0.1                   # not the planned place or time: they wait for it
             return False
         # the longer they have waited, the less patience they have; nerves hold some people back
@@ -1270,7 +1283,7 @@ class FreeTimeMixin:
         self.plan_note(p, f"struck at {self.nm(t)} ({p['window']})")
         self._slice_m = m
         try:
-            self.resolve_attacks(tick, [(cid, {"target": t, "method": self.scheme_method(cid, p) or self.plot_method(p), "frame": None, "staged": self.scheme_staging(p)})], hour)
+            self.resolve_attacks(tick, [(cid, {"target": t, "method": method, "frame": None, "staged": self.scheme_staging(p)})], hour)
         finally:
             self._slice_m = None
         busy[cid] = m + SLICE
